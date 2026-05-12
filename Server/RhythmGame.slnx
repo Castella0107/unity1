@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="RhythmGame.Domain/RhythmGame.Domain.csproj" />
+  <Project Path="RhythmGame.Server.Tests/RhythmGame.Server.Tests.csproj" />
+  <Project Path="RhythmGame.Server/RhythmGame.Server.csproj" />
+</Solution>

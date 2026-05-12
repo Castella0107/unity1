@@ -1,0 +1,30 @@
+using System.Collections.Generic;
+
+// Unity-independent. No UnityEngine references allowed in this assembly.
+// Accumulates input events in chronological order.
+// Consumed by GamePlayController at song-end to build ReplayData.
+public class ReplayInputBuffer
+{
+    readonly List<ReplayInputEvent> _events = new List<ReplayInputEvent>();
+    double _lastTimeMs;
+
+    public IReadOnlyList<ReplayInputEvent> Events => _events;
+
+    public void Add(int laneIdx, bool isDown, double timeMs)
+    {
+        int delta = (int)System.Math.Round(timeMs - _lastTimeMs);
+        _events.Add(new ReplayInputEvent
+        {
+            DeltaMsFromPrev = delta,
+            Lane   = (byte)laneIdx,
+            Action = (byte)(isDown ? 0 : 1),
+        });
+        _lastTimeMs = timeMs;
+    }
+
+    public void Clear()
+    {
+        _events.Clear();
+        _lastTimeMs = 0.0;
+    }
+}

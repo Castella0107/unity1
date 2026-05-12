@@ -1,0 +1,32 @@
+﻿syntax = "proto3";
+
+option csharp_namespace = "RhythmGame.Server";
+
+package rhythmgame;
+
+service ReplayValidation {
+  rpc Validate (ValidateRequest) returns (ValidateResponse);
+}
+
+message ValidateRequest {
+  string chart_hash = 1;
+  bytes replay_data = 2;
+  PlayResultClaim claim = 3;
+}
+
+message ValidateResponse {
+  bool is_valid = 1;
+  PlayResultClaim server_result = 2;
+  string mismatch_reason = 3;
+}
+
+message PlayResultClaim {
+  int64 score = 1;
+  int32 max_combo = 2;
+  int32 perfect_plus = 3;
+  int32 perfect = 4;
+  int32 great = 5;
+  int32 good = 6;
+  int32 miss = 7;
+  string rank = 8;
+}

@@ -1,0 +1,98 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+
+// Unity-independent. No UnityEngine references allowed in this assembly.
+// Used in tests and as a runtime fallback when SQLite is unavailable.
+public class InMemoryPlayRecordRepository : IPlayRecordRepository
+{
+    readonly Dictionary<string, PlayRecord>   _records = new Dictionary<string, PlayRecord>();
+    readonly Dictionary<string, PersonalBest> _bests   = new Dictionary<string, PersonalBest>();
+
+    public Task InitializeAsync(string dbPath) => Task.CompletedTask;
+
+    public Task<bool> SaveAsync(PlayRecord record)
+    {
+        _records[record.PlayId] = record;
+        UpdateBest(record);
+        return Task.FromResult(true);
+    }
+
+    void UpdateBest(PlayRecord record)
+    {
+        string key = record.SongId + ":" + record.Difficulty;
+
+        if (!_bests.TryGetValue(key, out var existing))
+        {
+            _bests[key] = new PersonalBest
+            {
+                SongId             = record.SongId,
+                Difficulty         = record.Difficulty,
+                BestPlayId         = record.PlayId,
+                BestEffectiveScore = record.EffectiveScore,
+                BestRank           = record.Rank,
+                BestMaxCombo       = record.MaxCombo,
+                HasFullCombo       = record.IsFullCombo,
+                HasAllPerfect      = record.IsAllPerfect,
+                HasAllPerfectPlus  = record.IsAllPerfectPlus,
+                TotalPlays         = 1,
+                FirstPlayedAt      = record.PlayedAtUnixMs,
+                LastPlayedAt       = record.PlayedAtUnixMs,
+            };
+            return;
+        }
+
+        bool isBetter = record.EffectiveScore > existing.BestEffectiveScore;
+        _bests[key] = new PersonalBest
+        {
+            SongId             = existing.SongId,
+            Difficulty         = existing.Difficulty,
+            BestPlayId         = isBetter ? record.PlayId         : existing.BestPlayId,
+            BestEffectiveScore = isBetter ? record.EffectiveScore  : existing.BestEffectiveScore,
+            BestRank           = isBetter ? record.Rank            : existing.BestRank,
+            BestMaxCombo       = isBetter ? record.MaxCombo        : existing.BestMaxCombo,
+            // Achievement flags accumulate — once achieved, always shown
+            HasFullCombo       = existing.HasFullCombo      || record.IsFullCombo,
+            HasAllPerfect      = existing.HasAllPerfect     || record.IsAllPerfect,
+            HasAllPerfectPlus  = existing.HasAllPerfectPlus || record.IsAllPerfectPlus,
+            TotalPlays         = existing.TotalPlays + 1,
+            FirstPlayedAt      = existing.FirstPlayedAt,
+            LastPlayedAt       = record.PlayedAtUnixMs,
+        };
+    }
+
+    public Task<PlayRecord> GetByIdAsync(string playId)
+    {
+        _records.TryGetValue(playId, out var r);
+        return Task.FromResult(r);
+    }
+
+    public Task<PersonalBest> GetBestAsync(string songId, string difficulty)
+    {
+        _bests.TryGetValue(songId + ":" + difficulty, out var b);
+        return Task.FromResult(b);
+    }
+
+    public Task<List<PersonalBest>> GetAllBestsAsync() =>
+        Task.FromResult(_bests.Values.ToList());
+
+    public Task<List<PlayRecord>> GetHistoryAsync(string songId, string difficulty, int limit = 50) =>
+        Task.FromResult(_records.Values
+            .Where(r => r.SongId == songId && r.Difficulty == difficulty)
+            .OrderByDescending(r => r.PlayedAtUnixMs)
+            .Take(limit).ToList());
+
+    public Task<List<PlayRecord>> GetAllHistoryAsync(int limit = 50, int offset = 0) =>
+        Task.FromResult(_records.Values
+            .OrderByDescending(r => r.PlayedAtUnixMs)
+            .Skip(offset).Take(limit).ToList());
+
+    public Task<int> GetTotalPlaysAsync() => Task.FromResult(_records.Count);
+
+    public Task<bool> DeleteAllAsync()
+    {
+        _records.Clear();
+        _bests.Clear();
+        return Task.FromResult(true);
+    }
+}

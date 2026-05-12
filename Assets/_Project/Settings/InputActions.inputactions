@@ -1,0 +1,73 @@
+{
+    "name": "InputActions",
+    "maps": [
+        {
+            "name": "Gameplay",
+            "id": "f3d2e1c0-b4a5-4e5f-9687-5a4b3c2d1e0f",
+            "actions": [
+                { "name": "Lane0", "type": "Button", "id": "11111111-0000-0000-0000-000000000001", "expectedControlType": "Button", "processors": "", "interactions": "Press(behavior=2)", "initialStateCheck": false },
+                { "name": "Lane1", "type": "Button", "id": "11111111-0000-0000-0000-000000000002", "expectedControlType": "Button", "processors": "", "interactions": "Press(behavior=2)", "initialStateCheck": false },
+                { "name": "Lane2", "type": "Button", "id": "11111111-0000-0000-0000-000000000003", "expectedControlType": "Button", "processors": "", "interactions": "Press(behavior=2)", "initialStateCheck": false },
+                { "name": "Lane3", "type": "Button", "id": "11111111-0000-0000-0000-000000000004", "expectedControlType": "Button", "processors": "", "interactions": "Press(behavior=2)", "initialStateCheck": false },
+                { "name": "FxL",   "type": "Button", "id": "11111111-0000-0000-0000-000000000005", "expectedControlType": "Button", "processors": "", "interactions": "Press(behavior=2)", "initialStateCheck": false },
+                { "name": "FxR",   "type": "Button", "id": "11111111-0000-0000-0000-000000000006", "expectedControlType": "Button", "processors": "", "interactions": "Press(behavior=2)", "initialStateCheck": false }
+            ],
+            "bindings": [
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000001", "path": "<Keyboard>/d", "interactions": "", "processors": "", "groups": "", "action": "Lane0", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000002", "path": "<Keyboard>/f", "interactions": "", "processors": "", "groups": "", "action": "Lane1", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000003", "path": "<Keyboard>/j", "interactions": "", "processors": "", "groups": "", "action": "Lane2", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000004", "path": "<Keyboard>/k", "interactions": "", "processors": "", "groups": "", "action": "Lane3", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000005", "path": "<Keyboard>/z", "interactions": "", "processors": "", "groups": "", "action": "FxL",   "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000006", "path": "<Keyboard>/m", "interactions": "", "processors": "", "groups": "", "action": "FxR",   "isComposite": false, "isPartOfComposite": false }
+            ]
+        },
+        {
+            "name": "UI",
+            "id": "b3c2a1d0-e4f5-0000-abcd-000000000010",
+            "actions": [
+                {
+                    "name": "Navigate",
+                    "type": "Value",
+                    "id": "b3c2a1d0-e4f5-0000-abcd-000000000011",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Submit",
+                    "type": "Button",
+                    "id": "b3c2a1d0-e4f5-0000-abcd-000000000012",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                },
+                {
+                    "name": "Cancel",
+                    "type": "Button",
+                    "id": "b3c2a1d0-e4f5-0000-abcd-000000000013",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
+                }
+            ],
+            "bindings": [
+                { "name": "WASD+Arrows", "id": "bbbbbbbb-0000-0000-0000-000000000001", "path": "2DVector", "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": true,  "isPartOfComposite": false },
+                { "name": "up",    "id": "bbbbbbbb-0000-0000-0000-000000000002", "path": "<Keyboard>/w",         "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "up",    "id": "bbbbbbbb-0000-0000-0000-000000000003", "path": "<Keyboard>/upArrow",   "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "down",  "id": "bbbbbbbb-0000-0000-0000-000000000004", "path": "<Keyboard>/s",         "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "down",  "id": "bbbbbbbb-0000-0000-0000-000000000005", "path": "<Keyboard>/downArrow", "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "left",  "id": "bbbbbbbb-0000-0000-0000-000000000006", "path": "<Keyboard>/a",         "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "left",  "id": "bbbbbbbb-0000-0000-0000-000000000007", "path": "<Keyboard>/leftArrow", "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "right", "id": "bbbbbbbb-0000-0000-0000-000000000008", "path": "<Keyboard>/d",         "interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "right", "id": "bbbbbbbb-0000-0000-0000-000000000009", "path": "<Keyboard>/rightArrow","interactions": "", "processors": "", "groups": "", "action": "Navigate", "isComposite": false, "isPartOfComposite": true },
+                { "name": "", "id": "bbbbbbbb-0000-0000-0000-000000000010", "path": "<Keyboard>/enter",  "interactions": "", "processors": "", "groups": "", "action": "Submit", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "bbbbbbbb-0000-0000-0000-000000000011", "path": "<Keyboard>/space",  "interactions": "", "processors": "", "groups": "", "action": "Submit", "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "bbbbbbbb-0000-0000-0000-000000000012", "path": "<Keyboard>/escape", "interactions": "", "processors": "", "groups": "", "action": "Cancel", "isComposite": false, "isPartOfComposite": false }
+            ]
+        }
+    ],
+    "controlSchemes": []
+}

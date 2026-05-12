@@ -1,0 +1,1 @@
+{"version":1,"songId":"test_song_3","title":"Test Song 3","artist":"System","bpm":180.0,"durationMs":30000,"audioFile":"audio.ogg","jacketFile":"jacket.png","firstOnsetMs":0,"sectors":[{"id":1,"name":"S1","endMs":6000},{"id":2,"name":"S2","endMs":12000},{"id":3,"name":"S3","endMs":18000},{"id":4,"name":"S4","endMs":24000},{"id":5,"name":"S5","endMs":30000}]}
