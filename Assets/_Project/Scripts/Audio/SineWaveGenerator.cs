@@ -1,6 +1,10 @@
 using UnityEngine;
 
 // Unity-independent logic to generate AudioClips from sine waves with ADSR envelopes.
+/// <summary>
+/// ADSR エンベロープ付きサイン波から AudioClip を生成するユーティリティクラス（Unity 非依存ロジック）。
+/// 単一周波数の Generate と、Miss 音用の不協和音 GenerateDissonant を提供する。
+/// </summary>
 public static class SineWaveGenerator
 {
     const int SAMPLE_RATE = 44100;

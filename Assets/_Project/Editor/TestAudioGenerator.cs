@@ -2,6 +2,9 @@ using System.IO;
 using UnityEditor;
 using UnityEngine;
 
+/// <summary>
+/// テスト用楽曲フォルダーにサイン波ベースの WAV ファイルを生成するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class TestAudioGenerator
 {
     static readonly string[] TestSongIds = { "test_song", "test_song_1", "test_song_2", "test_song_3" };

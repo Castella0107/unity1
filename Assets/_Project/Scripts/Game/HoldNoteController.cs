@@ -1,5 +1,10 @@
 using UnityEngine;
 
+/// <summary>
+/// ホールドノートの描画を担う NoteController サブクラス。
+/// ヘッド・ボディ・テール の 3 つの Transform を使い、現在のビジュアル時刻とスクロール速度から
+/// ノートの開始 Z・終了 Z・幅を計算して各 Transform のローカル座標とスケールを更新する。
+/// </summary>
 public class HoldNoteController : NoteController
 {
     [SerializeField] Transform _headTransform;

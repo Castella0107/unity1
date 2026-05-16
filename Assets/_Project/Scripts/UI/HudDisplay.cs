@@ -1,6 +1,10 @@
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// スコア・コンボ・判定カウント・ランクをトップHUDに表示するコンポーネント。
+/// JudgmentSystem を毎フレーム参照するポーリング方式で動作する。
+/// </summary>
 // Displays score, combo, judgment counts and rank in a top HUD.
 // Reads JudgmentSystem every frame — no event subscription needed.
 

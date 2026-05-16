@@ -3,6 +3,10 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// _Persistent.unity の GameObject にアタッチする MonoBehaviour。
+/// すべてのストレージリポジトリを初期化し、シングルトンとして公開する。
+/// </summary>
 // Attach to a GameObject in _Persistent.unity.
 // Initializes all storage repositories and exposes them as singletons.
 public class RepositoryService : MonoBehaviour

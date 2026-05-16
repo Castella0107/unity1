@@ -1,4 +1,8 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// ある時点のプレイ進行状態（スコア・コンボ・判定内訳・セクタースコアなど）を
+/// 不変のスナップショットとして保持するクラス。
+/// </summary>
 public sealed class PlayProgressSnapshot
 {
     public int   CurrentScore    { get; }

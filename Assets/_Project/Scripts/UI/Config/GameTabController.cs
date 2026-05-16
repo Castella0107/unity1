@@ -3,6 +3,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面のゲームタブを管理するコントローラー。
+/// ハイスピード・コンボボーダー・FAST/LATE 表示・ノートスキン・背景エフェクト強度・判定エフェクトスタイルの設定を担当する。
+/// </summary>
 public class GameTabController : MonoBehaviour
 {
     [Header("Hi-Speed")]

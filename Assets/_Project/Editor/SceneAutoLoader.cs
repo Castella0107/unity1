@@ -3,6 +3,10 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
+/// <summary>
+/// エディターの Play モード開始時に常に Bootstrap.unity から起動し、停止後に直前のシーンへ自動復帰させるエディター拡張クラス。
+/// Tools メニューから有効/無効の切り替えが可能。
+/// </summary>
 // Ensures Play mode always starts from Bootstrap.unity, regardless of which scene
 // is currently open in the editor. After stopping, restores the previously open scene.
 [InitializeOnLoad]

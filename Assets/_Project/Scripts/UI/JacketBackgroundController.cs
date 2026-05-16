@@ -2,6 +2,10 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// フルスクリーンのブラー加工されたジャケット背景を管理する永続シングルトン。
+/// _Persistent.unity 内の GameObject にアタッチし、Canvas Sort Order -1000 で他の UI の背面に配置する。
+/// </summary>
 // Persistent singleton that manages the full-screen blurred jacket background.
 // Attach to a GameObject in _Persistent.unity.
 // Canvas Sort Order -1000 keeps it behind all other UI.

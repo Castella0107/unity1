@@ -3,6 +3,10 @@ using UnityEngine;
 
 // Attach to a Canvas in _Persistent scene (top-right overlay, default inactive).
 // DisplayTabController.ApplyShowFps() activates/deactivates this GameObject.
+/// <summary>
+/// 0.5 秒ごとにフレームレートを計算し TextMeshProUGUI へ表示する FPS カウンター。
+/// _Persistent シーンの Canvas にアタッチし、DisplayTabController から表示/非表示を切り替えて使用する。
+/// </summary>
 public class FpsCounter : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI _text;

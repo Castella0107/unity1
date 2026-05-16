@@ -1,6 +1,9 @@
 #if SQLITE_NET_PCL
 using SQLite;
 
+/// <summary>
+/// SQLite の device_profiles テーブルに対応する行クラス。デバイスプロファイルとオフセット設定を保持する。
+/// </summary>
 [Table("device_profiles")]
 public class DeviceProfileRow
 {

@@ -7,6 +7,11 @@ using UnityEngine.UI;
 // Press [Spawn Tap], [Spawn Hold] to spawn one note on a random lane each press.
 // Notes scroll from Z~20 to Z=-2 at scrollSpeed units/sec, then auto-release.
 
+/// <summary>
+/// NotePool の動作確認用テスト UI ドライバー。
+/// ボタン操作でランダムレーンにタップ／ホールドノートをスポーンし、スクロールさせて自動返却する。
+/// デスポーン Z を超えたノートは自動的にプールへ返却される。
+/// </summary>
 public class NotePoolTestUI : MonoBehaviour
 {
     [SerializeField] NotePool            _pool;

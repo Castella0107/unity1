@@ -2,6 +2,10 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// 判定種別に応じたテキストをポップアップ表示する UI コンポーネント。
+/// 表示時にスケールフェードアニメーションを再生し、アニメーション終了後に自動的に非表示にする。
+/// </summary>
 public class JudgmentTextPopup : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI _text;

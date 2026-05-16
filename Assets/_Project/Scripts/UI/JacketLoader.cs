@@ -4,6 +4,10 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// StreamingAssets/Songs/{songId}/ からジャケット画像を非同期でロードし、LRUキャッシュで管理するクラス。
+/// Windows Standalone 向けに直接ファイル I/O を使用する（UnityWebRequest 非使用）。
+/// </summary>
 // Loads jacket images from StreamingAssets/Songs/{songId}/ with an LRU cache.
 // Intended for Windows Standalone; uses direct File I/O (not UnityWebRequest).
 public class JacketLoader

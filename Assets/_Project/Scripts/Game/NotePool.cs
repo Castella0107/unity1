@@ -1,6 +1,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// Tap / Hold / FxTap / FxHold の 4 種類のノートプレハブを管理するオブジェクトプール。
+/// 起動時に各種 100 個を事前生成し、Acquire() / Release() でノートコントローラーの貸し出し・返却を行う。
+/// プール枯渇時は警告を出しながら動的に拡張する。
+/// </summary>
 public class NotePool : MonoBehaviour
 {
     [SerializeField] GameObject _tapPrefab;
@@ -11,9 +16,18 @@ public class NotePool : MonoBehaviour
     private const int PRE_WARM = 100;
 
     private Dictionary<NoteType, Queue<NoteController>> _pools;
+    private Dictionary<NoteType, GameObject>            _prefabs;
 
     private void Awake()
     {
+        _prefabs = new Dictionary<NoteType, GameObject>
+        {
+            { NoteType.Tap,    _tapPrefab    },
+            { NoteType.Hold,   _holdPrefab   },
+            { NoteType.FxTap,  _fxTapPrefab  },
+            { NoteType.FxHold, _fxHoldPrefab },
+        };
+
         _pools = new Dictionary<NoteType, Queue<NoteController>>();
         PreWarm(NoteType.Tap,    _tapPrefab);
         PreWarm(NoteType.Hold,   _holdPrefab);
@@ -57,13 +71,6 @@ public class NotePool : MonoBehaviour
 
     private GameObject GetPrefab(NoteType type)
     {
-        switch (type)
-        {
-            case NoteType.Tap:    return _tapPrefab;
-            case NoteType.Hold:   return _holdPrefab;
-            case NoteType.FxTap:  return _fxTapPrefab;
-            case NoteType.FxHold: return _fxHoldPrefab;
-            default:              return _tapPrefab;
-        }
+        return _prefabs.TryGetValue(type, out var prefab) ? prefab : _tapPrefab;
     }
 }

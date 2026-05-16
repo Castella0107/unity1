@@ -9,6 +9,11 @@ using UnityEngine;
 //
 // All timing is based on AudioConductor.VisualTimeMs — no Time.deltaTime accumulation.
 
+/// <summary>
+/// ソート済み NoteData リストを元にノートのライフサイクルを管理するスクローラー。
+/// ルックアヘッドウィンドウに入ったノートをプールからスポーンし、フレームごとに
+/// AudioConductor.VisualTimeMs を基準にスクロール位置を更新、デスポーン閾値を超えたノートをプールへ返却する。
+/// </summary>
 public class NoteScroller : MonoBehaviour
 {
     [SerializeField] AudioConductor _conductor;

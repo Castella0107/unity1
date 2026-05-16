@@ -1,7 +1,13 @@
 using UnityEngine;
 
+/// <summary>
+/// 判定エフェクトの強度を表す列挙型。Subtle（控えめ）・Normal（標準）・Bold（強調）の 3 段階。
+/// </summary>
 public enum JudgmentEffectStyle { Subtle = 0, Normal = 1, Bold = 2 }
 
+/// <summary>
+/// JudgmentEffectStyle の保存・取得と、スタイルに応じたパーティクル量倍率・テキストスケール倍率を提供する静的ヘルパークラス。
+/// </summary>
 public static class JudgmentEffectStyleHelper
 {
     public static JudgmentEffectStyle GetSaved()

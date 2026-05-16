@@ -6,6 +6,9 @@ using UnityEngine.InputSystem;
 
 // F3 toggles the debug overlay.  Off by default.
 // Shows SongTime, JudgmentTime, recent hits, FPS.
+/// <summary>
+/// F3 キーで表示/非表示を切り替えるデバッグオーバーレイ。SongTime・JudgmentTime・コンボ・スコア・直近のヒットログ・FPS を表示する。
+/// </summary>
 public class DebugOverlay : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI _text;

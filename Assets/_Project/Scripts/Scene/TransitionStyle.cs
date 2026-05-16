@@ -1,3 +1,6 @@
+/// <summary>
+/// シーン遷移時のエフェクト種別を定義する列挙型。SceneRouter および TransitionFx で使用される。
+/// </summary>
 public enum TransitionStyle
 {
     None,        // Instant cut — Phase 1 only implemented style

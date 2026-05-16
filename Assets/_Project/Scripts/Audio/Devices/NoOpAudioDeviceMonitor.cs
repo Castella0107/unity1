@@ -1,6 +1,10 @@
 using System;
 
 // Stub used on non-Windows platforms or when NAudio is not installed.
+/// <summary>
+/// 非 Windows プラットフォームまたは NAudio 未インストール時に使用される IAudioDeviceMonitor のスタブ実装。
+/// デバイス監視機能を持たず、IsAvailable は常に false を返す。
+/// </summary>
 public class NoOpAudioDeviceMonitor : IAudioDeviceMonitor
 {
     public string CurrentDeviceName => null;

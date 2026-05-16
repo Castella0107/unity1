@@ -2,6 +2,10 @@ using UnityEditor;
 using UnityEngine;
 using System.IO;
 
+/// <summary>
+/// 判定エフェクト用のパーティクルプレハブ（JudgmentParticle.prefab）を
+/// Assets/_Project/Prefabs/Effects/ に生成するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class CreateJudgmentParticlePrefab
 {
     [MenuItem("Tools/Create JudgmentParticle Prefab")]

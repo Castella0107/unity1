@@ -4,6 +4,10 @@ using System.Linq;
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Thin wrapper: delegates all judgment logic to JudgmentEngine.
 // Kept as an instance class so existing tests (new JudgmentRunner().Run(...)) compile unchanged.
+/// <summary>
+/// <see cref="JudgmentEngine"/> への薄いラッパー。リプレイイベントをチャートに対して再生し、
+/// <see cref="PlayProgressSnapshot"/> を返す。既存テストとの互換性のためインスタンスクラスとして維持される。
+/// </summary>
 public class JudgmentRunner
 {
     // Primary API — used by the 18 existing EditMode tests.

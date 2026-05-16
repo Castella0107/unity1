@@ -2,6 +2,10 @@ using System;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Persistent play record — used for score DB, leaderboards, replay storage.
+/// <summary>
+/// スコアDB・リーダーボード・リプレイ保存に使用する永続化プレイ記録クラス。
+/// 識別子・スコア・判定内訳・達成フラグ・メタ情報を格納する。
+/// </summary>
 public sealed class PlayRecord
 {
     // Identifier

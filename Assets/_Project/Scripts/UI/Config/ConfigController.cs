@@ -4,6 +4,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面全体を管理するコントローラー。
+/// タブバーの構築・タブ切り替え（Audio / Devices / Display / Input / Game / Account / Data）、およびキーボード入力によるナビゲーションを担当する。
+/// </summary>
 public class ConfigController : MonoBehaviour
 {
     [Header("Tab Bar")]
@@ -27,6 +31,7 @@ public class ConfigController : MonoBehaviour
 
     // ── Tab definitions ───────────────────────────────────────────────────────
 
+    /// <summary>コンフィグ画面のタブ種別を表す列挙型。</summary>
     public enum ConfigTab { Audio = 0, Devices = 1, Display = 2, Input = 3, Game = 4, Account = 5, Data = 6 }
 
     static readonly (ConfigTab tab, string label)[] Tabs =
@@ -40,8 +45,9 @@ public class ConfigController : MonoBehaviour
         (ConfigTab.Data,    "Data"),
     };
 
-    readonly List<TabButtonView> _tabButtons = new List<TabButtonView>();
-    ConfigTab _currentTab = ConfigTab.Audio;
+    readonly List<TabButtonView>           _tabButtons = new List<TabButtonView>();
+    Dictionary<ConfigTab, GameObject>      _panelMap;
+    ConfigTab                              _currentTab = ConfigTab.Audio;
 
     InputAction _navigateAction;
     InputAction _cancelAction;
@@ -67,12 +73,21 @@ public class ConfigController : MonoBehaviour
     {
         _navigateAction.performed -= OnNavigate;
         _cancelAction.performed   -= OnCancel;
-        _navigateAction.Disable();
-        _cancelAction.Disable();
     }
 
     void Start()
     {
+        _panelMap = new Dictionary<ConfigTab, GameObject>
+        {
+            { ConfigTab.Audio,   _audioPanel   },
+            { ConfigTab.Devices, _devicesPanel },
+            { ConfigTab.Display, _displayPanel },
+            { ConfigTab.Input,   _inputPanel   },
+            { ConfigTab.Game,    _gamePanel    },
+            { ConfigTab.Account, _accountPanel },
+            { ConfigTab.Data,    _dataPanel    },
+        };
+
         JacketBackgroundController.Instance?.SetFallback();
         _backButton.onClick.AddListener(OnBack);
         BuildTabBar();
@@ -103,28 +118,15 @@ public class ConfigController : MonoBehaviour
         for (int i = 0; i < _tabButtons.Count; i++)
             _tabButtons[i].SetSelected(i == (int)tab);
 
-        if (_audioPanel   != null) _audioPanel.SetActive(tab   == ConfigTab.Audio);
-        if (_devicesPanel != null) _devicesPanel.SetActive(tab == ConfigTab.Devices);
-        if (_displayPanel != null) _displayPanel.SetActive(tab == ConfigTab.Display);
-        if (_inputPanel   != null) _inputPanel.SetActive(tab   == ConfigTab.Input);
-        if (_gamePanel    != null) _gamePanel.SetActive(tab    == ConfigTab.Game);
-        if (_accountPanel != null) _accountPanel.SetActive(tab == ConfigTab.Account);
-        if (_dataPanel    != null) _dataPanel.SetActive(tab    == ConfigTab.Data);
+        foreach (var kvp in _panelMap)
+            if (kvp.Value != null) kvp.Value.SetActive(kvp.Key == tab);
     }
 
     /// Switch to a tab by name (used by child controllers to navigate between tabs).
     public void SwitchToTab(string tabName)
     {
-        switch (tabName.ToLower())
-        {
-            case "audio":   SwitchTab(ConfigTab.Audio);   break;
-            case "devices": SwitchTab(ConfigTab.Devices); break;
-            case "display": SwitchTab(ConfigTab.Display); break;
-            case "input":   SwitchTab(ConfigTab.Input);   break;
-            case "game":    SwitchTab(ConfigTab.Game);    break;
-            case "account": SwitchTab(ConfigTab.Account); break;
-            case "data":    SwitchTab(ConfigTab.Data);    break;
-        }
+        if (System.Enum.TryParse<ConfigTab>(tabName, ignoreCase: true, out var tab))
+            SwitchTab(tab);
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────
@@ -149,6 +151,9 @@ public class ConfigController : MonoBehaviour
 
 // ── Tab button view helper ────────────────────────────────────────────────────
 
+/// <summary>
+/// タブボタン1つの表示状態（選択中 / 非選択）を管理するビューヘルパークラス。
+/// </summary>
 public class TabButtonView
 {
     public GameObject Root   { get; }

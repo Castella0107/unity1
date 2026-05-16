@@ -20,6 +20,10 @@ using UnityEngine.UI;
 //   SongTimeMs should advance at the same wall-clock rate in both cases —
 //   proving the dspTime-based formula has no frame-rate-dependent drift.
 
+/// <summary>
+/// AudioConductor のテストハーネス UI。SongTimeMs / JudgmentTimeMs / VisualTimeMs をリアルタイム表示し、
+/// Start / Pause / Resume / Stop ボタンで再生制御を行う。AudioTest.unity シーンで使用する。
+/// </summary>
 public sealed class AudioTestUI : MonoBehaviour
 {
     [Header("Time Display")]

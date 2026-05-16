@@ -5,6 +5,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面のデバイスタブを管理するコントローラー。
+/// デバイスプロファイルの一覧表示・選択・追加・削除・保存、および OS デバイス名のアタッチ／クリアを担当する。
+/// </summary>
 public class DevicesTabController : MonoBehaviour
 {
     [Header("Current OS Device")]
@@ -224,6 +228,9 @@ public class DevicesTabController : MonoBehaviour
 
 // ── Profile list item view ────────────────────────────────────────────────────
 
+/// <summary>
+/// デバイスプロファイルリストの1アイテムの表示状態（選択中 / 非選択、アクティブ表示）を管理するビューヘルパークラス。
+/// </summary>
 public class ProfileListItemView
 {
     public GameObject Root      { get; }

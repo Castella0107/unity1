@@ -4,6 +4,10 @@ using System.IO;
 // ZigZag + VLQ variable-length integer encoding.
 // Positive values: small numbers fit in 1 byte; large in up to 5 bytes.
 // Negative values: ZigZag maps them to small positive numbers when magnitude is small.
+/// <summary>
+/// ZigZag エンコードと可変長整数（VLQ）を組み合わせた符号付き整数の読み書きユーティリティクラス。
+/// 小さな絶対値の数値を少ないバイト数で表現し、リプレイ入力イベントの差分時刻圧縮に使用する。
+/// </summary>
 public static class VarInt
 {
     static uint ZigZagEncode(int value) => (uint)((value << 1) ^ (value >> 31));

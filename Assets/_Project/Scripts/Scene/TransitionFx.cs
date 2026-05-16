@@ -2,6 +2,11 @@ using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// コルーチンベースのスクリーン遷移エフェクトを提供する MonoBehaviour。
+/// FadeOut でオーバーレイが画面を覆い、FadeIn で画面が再び見える状態に戻る。
+/// Time.unscaledDeltaTime を使用するため Time.timeScale が 0 でも動作する。
+/// </summary>
 // Coroutine-based screen transition effect.
 // FadeOut → screen goes black (overlay alpha 0→1).
 // FadeIn  → screen becomes visible (overlay alpha 1→0).

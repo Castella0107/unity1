@@ -5,6 +5,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面のデータタブを管理するコントローラー。
+/// ストレージ使用量の表示、プレイ履歴の全削除・全データ消去（Danger Zone）、同期モード設定を担当する。
+/// </summary>
 public class DataTabController : MonoBehaviour
 {
     [Header("Storage")]

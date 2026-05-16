@@ -5,6 +5,10 @@ using System.Collections.Generic;
 // Sector score uses the "score delta" method:
 //   sectorScores[i] = score_at_end_of_sector_i - score_at_end_of_sector_i-1
 // This guarantees sum(sectorScores) == CurrentScore regardless of int rounding.
+/// <summary>
+/// プレイ中のスコア・コンボ・セクタースコア・Fast/Late カウントをリアルタイムで集計するクラス。
+/// スコアデルタ方式により、セクタースコアの総和が常に CurrentScore と一致することを保証する。
+/// </summary>
 public class PlayProgressAggregator
 {
     readonly ScoreCalculator _score;

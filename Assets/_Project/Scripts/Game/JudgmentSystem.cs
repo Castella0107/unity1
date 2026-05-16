@@ -6,6 +6,13 @@ using UnityEngine;
 // Thin Unity host for JudgmentEngine.
 // Bridges IInputSource events → JudgmentEngine, and JudgmentEngine.OnJudgment → visual/audio effects.
 // All judgment logic lives in JudgmentEngine (Domain layer).
+
+/// <summary>
+/// JudgmentEngine の Unity ホストクラス。
+/// IInputSource（レーン Down / Up）のイベントを JudgmentEngine に転送し、
+/// 判定結果を JudgmentEffectsController や NoteScroller へ通知する薄いブリッジ層。
+/// 判定ロジックの実体はドメイン層の JudgmentEngine に集約されている。
+/// </summary>
 public class JudgmentSystem : MonoBehaviour
 {
     [SerializeField] AudioConductor            _conductor;

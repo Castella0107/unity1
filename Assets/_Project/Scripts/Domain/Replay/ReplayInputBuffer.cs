@@ -3,6 +3,10 @@ using System.Collections.Generic;
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Accumulates input events in chronological order.
 // Consumed by GamePlayController at song-end to build ReplayData.
+/// <summary>
+/// プレイ中のレーン入力イベントを時系列順に蓄積するバッファクラス。
+/// 曲終了時に GamePlayController が <see cref="ReplayData"/> を構築するために使用する。
+/// </summary>
 public class ReplayInputBuffer
 {
     readonly List<ReplayInputEvent> _events = new List<ReplayInputEvent>();

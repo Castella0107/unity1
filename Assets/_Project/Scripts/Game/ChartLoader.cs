@@ -7,6 +7,10 @@ using UnityEngine.Networking;
 // Unity-layer loader. Lives in Game/ (not Domain/) because it depends on UnityEngine.
 // Uses UnityWebRequest for Android JAR-path compatibility.
 
+/// <summary>
+/// StreamingAssets からチャートデータ・メタデータ・オーディオクリップを非同期で読み込む Unity 層のローダー。
+/// Android の JAR パス互換のため UnityWebRequest を使用する。
+/// </summary>
 public static class ChartLoader
 {
     public static async Task<SongMetadata> LoadMetaAsync(string songId)

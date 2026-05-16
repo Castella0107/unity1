@@ -2,6 +2,9 @@
 #if SQLITE_NET_PCL
 using SQLite;
 
+/// <summary>
+/// SQLite の plays テーブルに対応する行クラス。1プレイ分のスコア・判定カウント・セクタースコアなどの全情報を保持する。
+/// </summary>
 [Table("plays")]
 public class PlayRow
 {

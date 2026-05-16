@@ -2,6 +2,10 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// コンボ数を UI テキストで表示し、コンボ更新時にスケールアニメーション（バンプ）を再生する。
+/// マイルストーン（50, 100, 250, 500, 1000）達成時は通常より大きく強調表示される。
+/// </summary>
 public class ComboDisplay : MonoBehaviour
 {
     [SerializeField] TextMeshProUGUI _comboText;

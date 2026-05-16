@@ -4,6 +4,10 @@
 #if UNITY_STANDALONE_WIN && NAUDIO
 using NAudio.CoreAudioApi;
 
+/// <summary>
+/// NAudio がインストール済みでアクセス可能であることをコンパイル時に検証するユーティリティクラス。
+/// ランタイムでは呼び出されず、NAUDIO シンボル定義時のビルド確認専用。
+/// </summary>
 public static class NAudioCheck
 {
     public static string GetCurrentDeviceInfo()

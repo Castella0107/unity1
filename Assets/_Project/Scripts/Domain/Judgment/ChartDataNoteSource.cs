@@ -4,6 +4,10 @@ using System.Collections.Generic;
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // INoteSource backed by ChartData. Lane-bucketed dictionaries give O(n/6) average
 // lookup instead of a full O(n) scan; safe for charts up to ~100k notes.
+/// <summary>
+/// <see cref="ChartData"/> をバックエンドとする <see cref="INoteSource"/> の実装。
+/// レーン別辞書によりタップ・ホールドの検索を O(n/6) 平均で行い、ヒット済みノーツを管理する。
+/// </summary>
 public sealed class ChartDataNoteSource : INoteSource
 {
     readonly IReadOnlyList<NoteData>              _allNotes;

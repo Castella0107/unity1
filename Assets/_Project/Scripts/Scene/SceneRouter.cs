@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// シーン遷移を一元管理するシングルトン MonoBehaviour。
+/// フェードや LoadingOverlay と連携しながらアディティブロード／アンロードを順番に実行し、_Persistent シーンを維持しつつ各シーンを切り替える。
+/// </summary>
 public class SceneRouter : MonoBehaviour
 {
     public static SceneRouter Instance { get; private set; }

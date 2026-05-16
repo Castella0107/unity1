@@ -9,6 +9,11 @@ using UnityEngine.Networking;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// 楽曲選択画面を管理するコントローラー。
+/// 楽曲リストの読み込み・選択、難易度切り替え、ハイスピード・曲別オフセット設定、
+/// パーソナルベスト表示、およびゲームプレイへのシーン遷移を担当する。
+/// </summary>
 public class SongSelectController : MonoBehaviour
 {
     [Header("Song List")]
@@ -53,6 +58,7 @@ public class SongSelectController : MonoBehaviour
 
     // ── Internal state ──────────────────────────────────────────────────────
 
+    /// <summary>楽曲選択画面で使用する難易度種別を表す列挙型。</summary>
     enum Difficulty { Easy = 0, Normal = 1, Hard = 2, Extra = 3 }
     static readonly string[] DiffNames = { "easy", "normal", "hard", "extra" };
 
@@ -94,9 +100,6 @@ public class SongSelectController : MonoBehaviour
         _navigateAction.performed -= OnNavigate;
         _submitAction.performed   -= OnSubmit;
         _cancelAction.performed   -= OnCancel;
-        _navigateAction.Disable();
-        _submitAction.Disable();
-        _cancelAction.Disable();
     }
 
     async void Start()

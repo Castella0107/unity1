@@ -6,6 +6,10 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// カルーセル形式のタイトルメニューを管理するコントローラー。
+/// ← / →（A/D / 矢印キー）で Y 軸カードフリップアニメーション付きのメニュー切り替え、Enter / Space で決定、Esc でキャンセル / 終了を行う。
+/// </summary>
 // Carousel-style Title menu.
 // ← / → (A/D / Arrow keys) flips between menu items with a Y-axis card-flip animation.
 // Enter / Space: decide.  Esc: cancel / exit.
@@ -25,6 +29,7 @@ public class TitleController : MonoBehaviour
     [SerializeField] InputActionAsset _inputAsset;
 
     // ── Menu items ─────────────────────────────────────────────────────────
+    /// <summary>タイトルメニューの項目種別を表す列挙型。</summary>
     private enum MenuId { FreePlay, Online, Config, History, Exit }
 
     private static readonly (MenuId id, string label)[] _menus =
@@ -72,9 +77,6 @@ public class TitleController : MonoBehaviour
         _navigateAction.performed -= OnNavigate;
         _submitAction  .performed -= OnSubmit;
         _cancelAction  .performed -= OnCancel;
-        _navigateAction.Disable();
-        _submitAction  .Disable();
-        _cancelAction  .Disable();
     }
 
     private void Start()

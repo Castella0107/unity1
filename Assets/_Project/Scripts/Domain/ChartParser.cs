@@ -6,12 +6,19 @@ using Newtonsoft.Json;
 
 // Unity-independent. Part of Domain assembly.
 
+/// <summary>
+/// 譜面またはメタデータのJSONパース中に発生した例外を表す。
+/// </summary>
 public class ChartParseException : Exception
 {
     public ChartParseException(string message) : base(message) { }
     public ChartParseException(string message, Exception inner) : base(message, inner) { }
 }
 
+/// <summary>
+/// JSONテキストから <see cref="SongMetadata"/> および <see cref="ChartData"/> をパースする静的クラス。
+/// UTF-8 BOMの除去、ChartHashの検証・フォールバック生成も行う。
+/// </summary>
 public static class ChartParser
 {
     // Newtonsoft default: case-insensitive matching, ignores missing members.

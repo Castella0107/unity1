@@ -4,6 +4,12 @@ using UnityEngine.UI;
 
 // Judgment/visual offset calibration panel shown from the Title screen.
 // Offsets are stored in PlayerPrefs and applied in GamePlayController.
+
+/// <summary>
+/// タイトル画面から呼び出せる判定オフセット・ビジュアルオフセットのキャリブレーションパネル。
+/// スライダーで -100 〜 +100 ms の範囲で調整でき、値は PlayerPrefs に保存される。
+/// 静的メソッド GetJudgmentOffset() / GetVisualOffset() で GamePlayController からも参照される。
+/// </summary>
 public class SimpleCalibration : MonoBehaviour
 {
     [SerializeField] GameObject      _panel;

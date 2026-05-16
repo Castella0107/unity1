@@ -4,6 +4,9 @@ using System.IO.Compression;
 using System.Text;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// <see cref="ReplayData"/> をバイナリ形式にシリアライズし、CRC32を付加したうえで gzip 圧縮する静的クラス。
+/// </summary>
 public static class ReplayEncoder
 {
     /// Serialize ReplayData to a gzip-compressed binary blob.

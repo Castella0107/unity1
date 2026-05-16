@@ -7,6 +7,9 @@ using UnityEngine.UI;
 using TMPro;
 using System.IO;
 
+/// <summary>
+/// History シーンおよび HistoryItem プレハブをスクラッチから構築し、HistoryController のフィールドを配線するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class BuildHistoryScene
 {
     [MenuItem("Tools/Build History Scene + Prefab")]

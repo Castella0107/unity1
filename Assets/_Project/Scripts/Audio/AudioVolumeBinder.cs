@@ -4,6 +4,10 @@ using UnityEngine.Audio;
 // DontDestroyOnLoad singleton that maps PlayerPrefs volume sliders
 // (0–100 %) → AudioMixer dB params + direct AudioSource fallback.
 // Works with or without a mixer assigned in the Inspector.
+/// <summary>
+/// PlayerPrefs のボリューム値（0〜100 %）を AudioMixer の dB パラメータへマッピングする DontDestroyOnLoad シングルトン。
+/// AudioMixer が未割り当ての場合は AudioSource に直接フォールバックする。
+/// </summary>
 public class AudioVolumeBinder : MonoBehaviour
 {
     public static AudioVolumeBinder Instance { get; private set; }

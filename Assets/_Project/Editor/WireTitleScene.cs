@@ -3,6 +3,9 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// 現在開いているシーンの TitleController に InputActionAsset と UI 参照を自動配線するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class WireTitleScene
 {
     [MenuItem("Tools/Wire Title Scene References")]

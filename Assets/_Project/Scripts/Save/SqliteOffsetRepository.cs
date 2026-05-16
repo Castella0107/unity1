@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 using SQLite;
 using UnityEngine;
 
+/// <summary>
+/// SQLite を永続化バックエンドとして使用する IOffsetRepository の実装。
+/// デバイスプロファイル、楽曲ごとのオフセット、アクティブプロファイル ID を管理する。
+/// </summary>
 public class SqliteOffsetRepository : IOffsetRepository
 {
     SQLiteAsyncConnection _db;

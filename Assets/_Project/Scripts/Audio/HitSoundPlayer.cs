@@ -4,6 +4,11 @@ using UnityEngine.Audio;
 // DontDestroyOnLoad singleton for tap-click and judgment sounds.
 // Assign _sfxGroup in the Inspector after creating MainAudioMixer.
 // Null-safe: works without a mixer (volume defaults to AudioSource.volume).
+/// <summary>
+/// タップクリック音と判定効果音を再生する DontDestroyOnLoad シングルトン。
+/// HitSoundLibrary で生成したクリップを AudioSource.PlayOneShot で再生し、
+/// AudioMixer 未割り当て時は AudioSource のボリュームで直接制御する。
+/// </summary>
 public class HitSoundPlayer : MonoBehaviour
 {
     public static HitSoundPlayer Instance { get; private set; }

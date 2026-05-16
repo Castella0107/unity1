@@ -3,6 +3,12 @@ using UnityEngine;
 // Bridges JudgmentSystem.OnJudged → particle / text / combo effects.
 // JudgmentSystem calls NotifyLane() just before each OnJudged so particles
 // know which lane to spawn at.
+
+/// <summary>
+/// JudgmentSystem.OnJudged イベントを受けて、パーティクル・コンボ表示・ヒットサウンドの各エフェクトを制御するブリッジクラス。
+/// レーン情報は NotifyLane() で事前に受け取り、パーティクルのスポーン位置に使用する。
+/// ホールドティックによる連続サウンドスパムを防ぐため、サウンド再生には最小間隔スロットルを設けている。
+/// </summary>
 public class JudgmentEffectsController : MonoBehaviour
 {
     [SerializeField] JudgmentSystem      _judgmentSystem;

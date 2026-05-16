@@ -2,6 +2,9 @@ using System;
 using System.Linq;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// リプレイデータとチャートデータのハッシュ照合など、リプレイの整合性を検証する静的クラス。
+/// </summary>
 public static class ReplayValidator
 {
     // ReplayData.Metadata.ChartHash is byte[], ChartData.ChartHash is a hex string.

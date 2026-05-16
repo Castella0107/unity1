@@ -2,6 +2,9 @@
 #if SQLITE_NET_PCL
 using SQLite;
 
+/// <summary>
+/// SQLite の personal_bests テーブルに対応する行クラス。楽曲・難易度ごとの自己ベスト情報と達成フラグを保持する。
+/// </summary>
 [Table("personal_bests")]
 public class PersonalBestRow
 {

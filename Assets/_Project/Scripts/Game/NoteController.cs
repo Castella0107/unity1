@@ -1,6 +1,11 @@
 using UnityEngine;
 
 [DisallowMultipleComponent]
+/// <summary>
+/// タップノートの基底コントローラー。NoteData を保持し、スクロール位置の更新・ヒット／ミス時の非表示処理を担う。
+/// HoldNoteController がこのクラスを継承して長押しノートの挙動を拡張する。
+/// レーンごとの色は LaneColors テーブルで定義し、MaterialPropertyBlock 経由でレンダラーに適用する。
+/// </summary>
 public class NoteController : MonoBehaviour
 {
     // ── State ──────────────────────────────────────────────────────────────

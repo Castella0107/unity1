@@ -2,6 +2,11 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+/// <summary>
+/// 判定時に再生するパーティクルシステムのオブジェクトプール。
+/// Awake 時に _preWarm 個のインスタンスを事前生成し、Spawn() / ReleaseAll() で貸し出し・返却を管理する。
+/// プール枯渇時は警告ログを出しながら自動拡張する。
+/// </summary>
 public class JudgmentParticlePool : MonoBehaviour
 {
     [SerializeField] GameObject _particlePrefab;

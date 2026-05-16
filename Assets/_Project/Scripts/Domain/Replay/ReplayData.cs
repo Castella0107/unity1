@@ -2,6 +2,9 @@ using System.Collections.Generic;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 
+/// <summary>
+/// リプレイファイルの先頭に記録されるヘッダー情報。マジックナンバー・バージョン・フラグ・プレイヤーUUIDを保持する。
+/// </summary>
 public sealed class ReplayHeader
 {
     public const uint   Magic          = 0x52504C31;  // "RPL1"
@@ -12,6 +15,9 @@ public sealed class ReplayHeader
     public byte[] PlayerUuid { get; set; } = new byte[16];  // zero-padded until Phase 4
 }
 
+/// <summary>
+/// リプレイに紐づく楽曲・難易度・オフセット設定・モディファイアなどのメタデータ。
+/// </summary>
 public sealed class ReplayMetadata
 {
     public string   SongId                { get; set; }
@@ -27,6 +33,9 @@ public sealed class ReplayMetadata
     public string   JudgmentEngineVersion { get; set; }
 }
 
+/// <summary>
+/// リプレイに記録されたプレイ結果（スコア・ランク・判定内訳・コンボ数など）を保持するクラス。
+/// </summary>
 public sealed class ReplayResult
 {
     public int    RawScore         { get; set; }
@@ -43,6 +52,9 @@ public sealed class ReplayResult
     public int    TotalNotes       { get; set; }
 }
 
+/// <summary>
+/// 1つのレーン入力イベント（押下または離し）を表すクラス。直前イベントからの経過時間・レーン番号・アクションを保持する。
+/// </summary>
 public sealed class ReplayInputEvent
 {
     public int  DeltaMsFromPrev { get; set; }  // ms from previous event (ZigZag VLQ)
@@ -50,6 +62,9 @@ public sealed class ReplayInputEvent
     public byte Action          { get; set; }  // 0=Down, 1=Up
 }
 
+/// <summary>
+/// リプレイファイル全体を表すルートクラス。ヘッダー・メタデータ・結果・入力イベント列を統合して保持する。
+/// </summary>
 public sealed class ReplayData
 {
     public ReplayHeader             Header      { get; set; } = new ReplayHeader();

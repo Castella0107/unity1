@@ -16,6 +16,10 @@ using UnityEngine.InputSystem;
 //   Subscribe to OnLaneDown / OnLaneUp before this component is enabled.
 //   Unsubscribe when done (standard C# event hygiene).
 
+/// <summary>
+/// Unity Input System のコールバックを受け取り、レーン押下・離上イベントを正確なタイミングで
+/// <see cref="OnLaneDown"/> / <see cref="OnLaneUp"/> として発行する MonoBehaviour。
+/// </summary>
 [RequireComponent(typeof(AudioSource))]
 public sealed class GameInputController : MonoBehaviour, IInputSource
 {

@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using System.Linq;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// BPMの時系列変化を管理し、任意の時刻におけるBPMおよび1/16拍の間隔（ミリ秒）を返すクラス。
+/// </summary>
 public class BpmTimeline
 {
     readonly List<(double timeMs, double bpm)> _changes;

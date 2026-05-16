@@ -5,6 +5,10 @@ using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// リザルト画面を管理するコントローラー。
+/// スコアカウントアップアニメーション・ランク表示・判定内訳・セクタースコア・バッジ表示、および再挑戦/曲選択/タイトルへのナビゲーションを担当する。
+/// </summary>
 public class ResultController : MonoBehaviour
 {
     [Header("Header")]
@@ -66,13 +70,22 @@ public class ResultController : MonoBehaviour
         _cancelAction = map.FindAction("Cancel", throwIfNotFound: true);
     }
 
-    void Start()
+    void OnEnable()
     {
         _submitAction.Enable();
         _cancelAction.Enable();
-        _submitAction.performed += _ => OnRetry();
-        _cancelAction.performed += _ => OnToTitle();
+        _submitAction.performed += OnSubmitKey;
+        _cancelAction.performed += OnCancelKey;
+    }
 
+    void OnDisable()
+    {
+        _submitAction.performed -= OnSubmitKey;
+        _cancelAction.performed -= OnCancelKey;
+    }
+
+    void Start()
+    {
         _retryButton.onClick.AddListener(OnRetry);
         _toSelectButton.onClick.AddListener(OnToSelect);
         _toTitleButton.onClick.AddListener(OnToTitle);
@@ -87,11 +100,8 @@ public class ResultController : MonoBehaviour
         ApplyView(view);
     }
 
-    void OnDisable()
-    {
-        _submitAction?.Disable();
-        _cancelAction?.Disable();
-    }
+    void OnSubmitKey(InputAction.CallbackContext _) => OnRetry();
+    void OnCancelKey(InputAction.CallbackContext _) => OnToTitle();
 
     void Update()
     {
@@ -109,11 +119,11 @@ public class ResultController : MonoBehaviour
 
         _modeText.text        = r.IsPvP ? "PVP" : "Single";
         _difficultyText.text  = $"{r.Difficulty.ToUpper()}  Lv.{v.Level}";
-        _difficultyText.color = GetDifficultyColor(r.Difficulty);
+        _difficultyText.color = RankColors.GetDifficultyColor(r.Difficulty);
         _songInfoText.text    = $"{v.SongTitle}  -  {v.SongArtist}";
 
         _rankText.text  = r.Rank;
-        _rankText.color = GetRankColor(r.Rank);
+        _rankText.color = RankColors.GetRankColor(r.Rank);
 
         StartCoroutine(CountUp(_currentScoreText, 0, r.EffectiveScore, _countupDuration));
         int displayBest = Mathf.Max(v.BestEffectiveScoreBefore, r.EffectiveScore);
@@ -213,34 +223,6 @@ public class ResultController : MonoBehaviour
                 tmp.color = c;
             }
             yield return null;
-        }
-    }
-
-    // ── Color helpers ─────────────────────────────────────────────────────────
-
-    static Color GetRankColor(string rank)
-    {
-        switch (rank)
-        {
-            case "S+": return new Color(1.00f, 0.84f, 0.00f);
-            case "S":  return new Color(1.00f, 0.95f, 0.40f);
-            case "A+": return new Color(0.40f, 1.00f, 0.40f);
-            case "A":  return new Color(0.40f, 0.85f, 1.00f);
-            case "B":  return new Color(0.85f, 0.85f, 0.85f);
-            case "C":  return new Color(0.95f, 0.60f, 0.30f);
-            default:   return new Color(1.00f, 0.40f, 0.40f);
-        }
-    }
-
-    static Color GetDifficultyColor(string diff)
-    {
-        switch (diff?.ToLower())
-        {
-            case "easy":   return new Color(0.40f, 1.00f, 0.40f);
-            case "normal": return new Color(0.40f, 0.85f, 1.00f);
-            case "hard":   return new Color(1.00f, 0.60f, 0.20f);
-            case "extra":  return new Color(1.00f, 0.35f, 0.35f);
-            default:       return Color.white;
         }
     }
 

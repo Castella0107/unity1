@@ -2,6 +2,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
+/// <summary>
+/// リプレイ再生中に再生速度とステータスを表示する最小構成の HUD オーバーレイ。
+/// GamePlay シーンの Canvas（Sort Order > GameHud）にアタッチし、リプレイモード以外では自動的に非表示になる。
+/// </summary>
 // Minimal HUD overlay for replay playback.
 // Attach to a Canvas (Sort Order > GameHud) in the GamePlay scene.
 // Auto-hides when not in replay mode.

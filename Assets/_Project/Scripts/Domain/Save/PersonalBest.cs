@@ -1,4 +1,8 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// 楽曲・難易度ごとのパーソナルベスト記録。最高スコア・最大コンボ・
+/// フルコンボ／オールパーフェクト達成フラグ・総プレイ回数などを保持する。
+/// </summary>
 public sealed class PersonalBest
 {
     public string SongId               { get; set; }

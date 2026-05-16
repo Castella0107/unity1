@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// デバイスプロファイルおよび楽曲ごとのオフセット設定を永続化するリポジトリの抽象インターフェース。
+/// </summary>
 public interface IOffsetRepository
 {
     Task InitializeAsync(string dbPath);

@@ -1,5 +1,9 @@
 using UnityEngine;
 
+/// <summary>
+/// 判定種別（PerfectPlus / Perfect / Great / Good / Miss）に対応する Color 定数と
+/// 表示テキスト文字列を提供する静的ユーティリティクラス。
+/// </summary>
 public static class JudgmentColors
 {
     public static readonly Color PerfectPlus = new Color(1.0f, 0.85f, 0.2f);

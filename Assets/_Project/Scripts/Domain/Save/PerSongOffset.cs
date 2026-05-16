@@ -1,4 +1,8 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// 楽曲ごとの判定オフセット設定（±50 ms の範囲）。
+/// アプリ全体オフセットとは独立した楽曲単位の微調整用データ。
+/// </summary>
 public sealed class PerSongOffset
 {
     public string SongId           { get; set; }

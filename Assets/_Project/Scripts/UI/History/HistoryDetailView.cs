@@ -5,6 +5,9 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// 選択された1件の PlayRecord の詳細情報（スコア・判定内訳・セクタースコア・リプレイ情報など）を右パネルに表示するビュー。
+/// </summary>
 // Displays full details of a single PlayRecord in the right panel.
 public class HistoryDetailView : MonoBehaviour
 {

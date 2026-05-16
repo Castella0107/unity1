@@ -3,6 +3,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
 
+/// <summary>
+/// Bootstrap.unity（Build Settings の先頭シーン）の GameObject にアタッチする MonoBehaviour。
+/// _Persistent シーンをアディティブロードし、SceneRouter 経由で Title シーンへ遷移する起動シーケンスを制御する。
+/// </summary>
 // Attach to a GameObject in Bootstrap.unity (the first scene in Build Settings, index 0).
 // Loads _Persistent additively (contains SceneRouter + LoadingOverlay), then navigates to Title.
 public class BootstrapController : MonoBehaviour

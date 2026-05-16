@@ -4,6 +4,10 @@ using System.Collections.Generic;
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Single source of truth for all judgment logic.
 // JudgmentSystem (MonoBehaviour) and JudgmentRunner (headless) both delegate here.
+/// <summary>
+/// 全判定ロジックの単一責務クラス。タップ・ホールドのヒット処理、自動ミス判定、ホールドティック処理を行い、
+/// JudgmentEvent をイベントとして通知する。MonoBehaviour 版とヘッドレス版の両方から利用される。
+/// </summary>
 public sealed class JudgmentEngine
 {
     readonly INoteSource                               _notes;

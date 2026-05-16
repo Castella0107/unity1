@@ -2,6 +2,10 @@ using System.Collections;
 using TMPro;
 using UnityEngine;
 
+/// <summary>
+/// 判定テキスト（PERFECT+、GREAT など）を画面中央に短いフェードアウト付きで表示するコンポーネント。
+/// JudgmentSystem.OnJudged イベントを購読し、オーディオクロックとの同期のため WaitForSeconds を使わずフレームステップで動作する。
+/// </summary>
 // Shows judgment text (PERFECT+, GREAT, etc.) at screen centre with a brief fade-out.
 // Subscribes to JudgmentSystem.OnJudged.
 // Uses yield return null (frame-step) instead of WaitForSeconds to stay audio-clock-safe.

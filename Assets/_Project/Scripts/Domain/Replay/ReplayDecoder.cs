@@ -5,6 +5,9 @@ using System.IO.Compression;
 using System.Text;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// gzip圧縮されたリプレイバイナリを解凍・CRC32検証し、<see cref="ReplayData"/> へデコードする静的クラス。
+/// </summary>
 public static class ReplayDecoder
 {
     /// Read and validate the header without fully decompressing/parsing.

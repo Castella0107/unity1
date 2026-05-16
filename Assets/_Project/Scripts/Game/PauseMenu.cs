@@ -6,6 +6,12 @@ using UnityEngine.UI;
 
 // ESC toggles pause. ↑↓ navigate buttons, Enter confirms.
 // Resume plays a 3-second countdown before AudioConductor.Resume().
+
+/// <summary>
+/// ゲームプレイ中のポーズメニューを制御するクラス。
+/// ESC キーでポーズ／再開を切り替え、↑↓（W/S）キーでボタン選択、Enter で確定する。
+/// 再開時は設定秒数のカウントダウンを表示した後に AudioConductor.Resume() を呼び出す。
+/// </summary>
 public class PauseMenu : MonoBehaviour
 {
     [SerializeField] GameObject     _panel;

@@ -2,6 +2,9 @@ using System.Collections.Generic;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 
+/// <summary>
+/// ホールドノートの各ティック判定結果を保持する読み取り専用構造体。
+/// </summary>
 public readonly struct TickResult
 {
     public readonly int      TickIdx;
@@ -16,6 +19,10 @@ public readonly struct TickResult
     }
 }
 
+/// <summary>
+/// ホールドノート1本分のヘッド・ティック・テール判定状態を追跡し、
+/// 押下継続・ガード期間・ミス放棄を管理するクラス。
+/// </summary>
 public class HoldJudgmentTracker
 {
     public int                  NoteId    { get; }

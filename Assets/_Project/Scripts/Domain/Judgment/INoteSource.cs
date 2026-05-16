@@ -4,6 +4,10 @@ using System.Collections.Generic;
 // Abstracts note lookup so JudgmentEngine works against both ChartData (headless)
 // and the live visual pool (gameplay). Currently only ChartDataNoteSource exists;
 // a PoolNoteSource could be added if the visual pool needs to drive lookup.
+/// <summary>
+/// ノーツの検索・状態管理を抽象化するインターフェース。
+/// JudgmentEngine がヘッドレス実行とゲームプレイの双方で同一ロジックを使用できるようにする。
+/// </summary>
 public interface INoteSource
 {
     IReadOnlyList<NoteData> AllNotes { get; }

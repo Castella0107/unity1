@@ -5,6 +5,9 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// リザルトシーンの UI レイアウト・プレハブ・ResultController フィールド配線をスクラッチから構築するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class ResultSceneBuilder
 {
     const string ScenePath   = "Assets/_Project/Scenes/Result.unity";

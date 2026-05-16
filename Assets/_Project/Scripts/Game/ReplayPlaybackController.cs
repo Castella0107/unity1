@@ -5,6 +5,13 @@ using UnityEngine;
 // Drives replay playback in the GamePlay scene.
 // Active only when GamePlayParameters.IsReplay == true.
 // GamePlayController deactivates itself in that case.
+
+/// <summary>
+/// GamePlay シーンでリプレイ再生を制御するクラス。
+/// GamePlayParameters.IsReplay が true のときのみ有効化され、
+/// 保存済みリプレイファイルを読み込んで ReplayInputSource 経由で JudgmentSystem に入力を供給する。
+/// 再生完了後は履歴画面へ遷移する。
+/// </summary>
 public class ReplayPlaybackController : MonoBehaviour
 {
     [SerializeField] AudioConductor      _conductor;
@@ -73,24 +80,7 @@ public class ReplayPlaybackController : MonoBehaviour
             }
 
             // ── Apply saved offsets (same as live mode) ──────────────────────
-            if (_conductor != null)
-            {
-                var repo = RepositoryService.Instance;
-                if (repo != null && repo.IsReady)
-                {
-                    _conductor.ApplyAppOffsets(repo.ActiveProfile.Offsets);
-                    var perSong = await repo.Offsets.GetPerSongOffsetAsync(prm.SongId);
-                    _conductor.ApplyPerSongOffset(perSong);
-                }
-                else
-                {
-                    _conductor.ApplyAppOffsets(new AppOffsetSettings
-                    {
-                        JudgmentOffsetMs = SimpleCalibration.GetJudgmentOffset(),
-                        VisualOffsetMs   = SimpleCalibration.GetVisualOffset(),
-                    });
-                }
-            }
+            await StageInitializer.ApplyAudioOffsetsAsync(_conductor, prm.SongId);
 
             // ── ChartHash verification ───────────────────────────────────────
             if (!ReplayValidator.MatchesChart(_replay, _chart))

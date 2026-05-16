@@ -3,13 +3,23 @@ using System.Collections.Generic;
 
 // Unity-independent. Part of Domain assembly.
 
+/// <summary>
+/// 譜面バリデーションで検出された問題を表すクラス。重大度（Critical/Warning/Info）とメッセージを持つ。
+/// </summary>
 public class ValidationIssue
 {
+    /// <summary>
+    /// バリデーション問題の重大度レベル。
+    /// </summary>
     public enum SeverityLevel { Critical, Warning, Info }
     public SeverityLevel Severity;
     public string        Message;
 }
 
+/// <summary>
+/// 譜面データの整合性を検証する静的クラス。重複ノーツ・ホールド長・ノーツ時刻・セクター分布などをチェックし、
+/// 問題のリストを返す。
+/// </summary>
 public static class ChartValidator
 {
     public static List<ValidationIssue> Validate(ChartData chart, SongMetadata song)

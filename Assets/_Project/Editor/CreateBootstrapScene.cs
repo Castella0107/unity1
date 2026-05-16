@@ -2,6 +2,9 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
+/// <summary>
+/// Bootstrap.unity シーンを生成し、Build Settings の先頭に追加するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class CreateBootstrapScene
 {
     [MenuItem("Tools/Create Bootstrap Scene")]

@@ -1,4 +1,7 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// CRC32チェックサムの計算ユーティリティクラス。リプレイデータの整合性検証に使用する。
+/// </summary>
 public static class Crc32
 {
     static readonly uint[] Table = MakeTable();

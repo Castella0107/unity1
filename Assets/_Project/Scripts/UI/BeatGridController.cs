@@ -1,6 +1,10 @@
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// BPMに同期したグリッドオーバーレイをゲームプレイ中に制御する永続シングルトン。
+/// _Persistent.unity の BeatGridCanvas にアタッチし、GamePlayController から BindGamePlay / Unbind を呼び出す。
+/// </summary>
 // Persistent singleton that drives the BPM-synced grid overlay during GamePlay.
 // Attach to BeatGridCanvas in _Persistent.unity.
 // Canvas is disabled outside GamePlay; GamePlayController calls BindGamePlay / Unbind.

@@ -12,6 +12,10 @@ using UnityEngine;
 //      VisualTimeMs for note scroll position.
 //   4. Tune offsets via ApplyAppOffsets() and ApplyPerSongOffset().
 
+/// <summary>
+/// リズムゲームのオーディオタイミングコア。AudioSettings.dspTime を基準に SongTimeMs / JudgmentTimeMs / VisualTimeMs を提供するシングルトン。
+/// フレームレートに依存しない精度を持ち、オフセット適用・再生速度変更・ポーズ/リジューム機能を備える。
+/// </summary>
 [RequireComponent(typeof(AudioSource))]
 public sealed class AudioConductor : MonoBehaviour
 {

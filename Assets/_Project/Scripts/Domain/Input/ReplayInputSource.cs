@@ -5,6 +5,10 @@ using System.Collections.Generic;
 // IInputSource backed by a ReplayData.InputEvents list.
 // Delta-encoded events are decoded to absolute timestamps in the constructor.
 // Call Advance(songTimeMs) every frame from ReplayPlaybackController.Update.
+/// <summary>
+/// <see cref="ReplayData"/> のデルタエンコードされた入力イベントリストをもとに <see cref="IInputSource"/> を実装するクラス。
+/// コンストラクタで絶対タイムスタンプへ変換し、Advance(timeMs) を呼ぶことで該当時刻までのイベントを発火する。
+/// </summary>
 public sealed class ReplayInputSource : IInputSource
 {
     public event Action<LaneRef, double> OnLaneDown;

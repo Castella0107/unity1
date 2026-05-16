@@ -2,6 +2,12 @@ using System.Collections.Generic;
 
 // Static layout constants shared by NoteController, HoldNoteController, and LaneVisuals.
 // Layout is CHUNITHM-style: 4 main lanes spanning world X -2.0 to +2.0 (1 unit per lane).
+
+/// <summary>
+/// NoteController・HoldNoteController・LaneVisuals が共有するレイアウト定数を提供する静的クラス。
+/// CHUNITHM スタイルで 4 つのメインレーンが World X = -2.0 〜 +2.0 に配置され、
+/// 各レーンの X 座標・ノート幅・判定ライン Z・スポーン/デスポーン Z を定義する。
+/// </summary>
 public static class LaneLayout
 {
     private static readonly Dictionary<LaneRef, float> _x = new Dictionary<LaneRef, float>

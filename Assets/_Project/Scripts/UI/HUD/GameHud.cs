@@ -3,6 +3,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// ゲームプレイ中の HUD を管理するコンポーネント。
+/// 判定カウント・コンボ・スコア・楽曲情報の表示、セクタープログレスパネルの更新、および PVP 用次曲インジケーターを担当する。
+/// </summary>
 public class GameHud : MonoBehaviour
 {
     [Header("Top Bar — Judgment Counts")]
@@ -137,6 +141,9 @@ public class GameHud : MonoBehaviour
 // ── SectorItemView ────────────────────────────────────────────────────────────
 // Controls one entry in the sector panel. Kept in same file to avoid extra prefab script.
 
+/// <summary>
+/// セクターパネルの1エントリーの表示状態（待機中・進行中・完了・進捗バー）を制御するビューヘルパークラス。
+/// </summary>
 public class SectorItemView
 {
     Image            _bg;
@@ -177,22 +184,8 @@ public class SectorItemView
     public void SetCompleted(string rank)
     {
         if (_bg   != null) _bg.color = ColDone;
-        if (_rank != null) { _rank.text = rank; _rank.color = RankColor(rank); }
+        if (_rank != null) { _rank.text = rank; _rank.color = RankColors.GetRankColor(rank); }
         if (_progressBar != null) _progressBar.fillAmount = 1f;
     }
 
-    static Color RankColor(string rank)
-    {
-        switch (rank)
-        {
-            case "S+": return new Color(1.00f, 0.84f, 0.00f);
-            case "S":  return new Color(1.00f, 0.95f, 0.40f);
-            case "A+": return new Color(0.40f, 1.00f, 0.40f);
-            case "A":  return new Color(0.40f, 0.85f, 1.00f);
-            case "B":  return new Color(0.85f, 0.85f, 0.85f);
-            case "C":  return new Color(0.95f, 0.60f, 0.30f);
-            case "D":  return new Color(1.00f, 0.40f, 0.40f);
-            default:   return Color.white;
-        }
-    }
 }

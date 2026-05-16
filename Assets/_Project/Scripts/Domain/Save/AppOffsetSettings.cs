@@ -1,4 +1,8 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// 判定オフセット・映像オフセットをミリ秒単位で保持するアプリ全体のオフセット設定。
+/// デバイスプロファイルに紐付いて管理され、±200 ms の範囲にクランプできる。
+/// </summary>
 public sealed class AppOffsetSettings
 {
     public int JudgmentOffsetMs { get; set; }

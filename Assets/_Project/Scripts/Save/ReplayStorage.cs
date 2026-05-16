@@ -3,6 +3,9 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// リプレイファイルを Application.persistentDataPath/replays/YYYY/MM/{playId}.replay の形式で管理するクラス。
+/// </summary>
 // Manages replay files under Application.persistentDataPath/replays/YYYY/MM/{playId}.replay
 public class ReplayStorage
 {

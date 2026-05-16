@@ -4,6 +4,11 @@ using System.Threading.Tasks;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Used in tests and as a runtime fallback when SQLite is unavailable.
+/// <summary>
+/// <see cref="IPlayRecordRepository"/> のインメモリ実装。
+/// プレイ記録とパーソナルベストをメモリ上で管理し、テストや SQLite 非利用時の
+/// ランタイムフォールバックとして使用する。
+/// </summary>
 public class InMemoryPlayRecordRepository : IPlayRecordRepository
 {
     readonly Dictionary<string, PlayRecord>   _records = new Dictionary<string, PlayRecord>();

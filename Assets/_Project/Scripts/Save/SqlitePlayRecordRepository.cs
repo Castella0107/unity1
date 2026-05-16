@@ -7,6 +7,10 @@ using System.Threading.Tasks;
 using SQLite;
 using UnityEngine;
 
+/// <summary>
+/// SQLite を永続化バックエンドとして使用する IPlayRecordRepository の実装。
+/// プレイ記録の保存・取得と自己ベストの自動更新を担当する。
+/// </summary>
 public class SqlitePlayRecordRepository : IPlayRecordRepository
 {
     SQLiteAsyncConnection _db;

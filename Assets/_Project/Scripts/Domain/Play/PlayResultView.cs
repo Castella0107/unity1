@@ -1,5 +1,9 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Display-only view: wraps PlayRecord and adds song-master / best-score context.
+/// <summary>
+/// リザルト画面表示用のビューモデル。<see cref="PlayRecord"/> をラップし、
+/// 楽曲メタデータとベストスコア比較情報を付加する。
+/// </summary>
 public sealed class PlayResultView
 {
     public PlayRecord Record                  { get; set; }

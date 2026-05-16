@@ -17,6 +17,10 @@ using UnityEngine.UI;
 //   Run at 60 fps and at 240 fps. The ms values between successive presses should
 //   reflect actual elapsed time, not frame-snapped values.
 
+/// <summary>
+/// <see cref="GameInputController"/> の動作をビジュアルで確認するテスト用 UI。
+/// レーンの押下・離上に応じてパネルの色を切り替え、タイミングログを表示する。
+/// </summary>
 public sealed class InputTestUI : MonoBehaviour
 {
     [SerializeField] private GameInputController _controller;

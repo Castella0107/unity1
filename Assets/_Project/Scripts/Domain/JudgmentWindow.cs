@@ -2,6 +2,10 @@ using System;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Shared verbatim with the server-side (ASP.NET Core) judgment pipeline.
+/// <summary>
+/// 判定ウィンドウの定数（ミリ秒）と、タイミング差分から判定を算出するメソッドを提供する静的クラス。
+/// サーバーサイドの判定パイプラインと共有される。
+/// </summary>
 public static class JudgmentWindow
 {
     public const int PerfectPlusMs = 16;

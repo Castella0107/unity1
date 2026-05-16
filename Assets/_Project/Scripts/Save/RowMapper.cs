@@ -1,5 +1,9 @@
 using System;
 
+/// <summary>
+/// SQLite 行オブジェクトとドメインモデルを相互変換する静的クラス。
+/// SQLite 行に関するメソッドは #if SQLITE_NET_PCL でガードされている。
+/// </summary>
 // Row ↔ Domain conversion. SQLite-row methods are guarded by #if SQLITE_NET_PCL.
 public static class RowMapper
 {

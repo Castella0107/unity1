@@ -6,6 +6,10 @@ using System.Threading;
 using NAudio.CoreAudioApi;
 using UnityEngine;
 
+/// <summary>
+/// NAudio の MMDeviceEnumerator を使用してデフォルトオーディオ出力デバイスをポーリング監視する Windows 専用実装。
+/// デバイス変更を検出すると MainThreadDispatcher 経由で OnDeviceChanged イベントをメインスレッドに通知する。
+/// </summary>
 public class WindowsAudioDeviceMonitor : IAudioDeviceMonitor
 {
     public string CurrentDeviceName { get; private set; }

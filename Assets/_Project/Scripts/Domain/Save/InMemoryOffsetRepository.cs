@@ -4,6 +4,10 @@ using System.Threading.Tasks;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Used in tests and as a fallback when SQLite is unavailable.
+/// <summary>
+/// <see cref="IOffsetRepository"/> のインメモリ実装。
+/// テスト用途や SQLite が利用できない環境でのフォールバックとして使用する。
+/// </summary>
 public class InMemoryOffsetRepository : IOffsetRepository
 {
     readonly Dictionary<string, DeviceProfile> _profiles = new Dictionary<string, DeviceProfile>();

@@ -6,6 +6,10 @@ using UnityEngine;
 // Manages the link between OS audio devices and DeviceProfiles.
 // Starts polling after RepositoryService is ready.
 // Place in _Persistent.unity alongside RepositoryService and MainThreadDispatcher.
+/// <summary>
+/// OS のオーディオデバイスと DeviceProfile の紐付けを管理する DontDestroyOnLoad シングルトン。
+/// RepositoryService の準備完了後にデバイス監視を開始し、デバイス変更時に自動プロファイル切り替えを行う。
+/// </summary>
 public class DeviceProfileService : MonoBehaviour
 {
     public static DeviceProfileService Instance { get; private set; }

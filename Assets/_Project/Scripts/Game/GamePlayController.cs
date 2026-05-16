@@ -7,6 +7,12 @@ using UnityEngine.SceneManagement;
 // Orchestrates a single gameplay session.
 // Reads GamePlayParameters from ParameterStore (set by SongSelectController).
 // On completion: saves ReplayData to file, saves PlayRecord to SQLite, navigates to Result.
+
+/// <summary>
+/// 1 回のゲームプレイセッションを統括するコントローラー。
+/// ParameterStore から GamePlayParameters を取得してチャート・オーディオを非同期ロードし、
+/// セッション終了後にリプレイデータの保存・プレイ記録の SQLite 保存・リザルト画面への遷移を行う。
+/// </summary>
 public class GamePlayController : MonoBehaviour
 {
     [SerializeField] AudioConductor       _conductor;
@@ -77,24 +83,10 @@ public class GamePlayController : MonoBehaviour
             _durationMs = _meta.DurationMs;
             _totalNotes = _chart.TotalNotes;
 
-            if (_conductor != null)
-            {
-                var repo = RepositoryService.Instance;
-                if (repo != null && repo.IsReady)
-                {
-                    _conductor.ApplyAppOffsets(repo.ActiveProfile.Offsets);
-                    var perSong = await repo.Offsets.GetPerSongOffsetAsync(SongId);
-                    _conductor.ApplyPerSongOffset(perSong);
-                }
-                else
-                {
-                    _conductor.ApplyAppOffsets(new AppOffsetSettings
-                    {
-                        JudgmentOffsetMs = _params?.JudgeOffset  ?? SimpleCalibration.GetJudgmentOffset(),
-                        VisualOffsetMs   = _params?.VisualOffset ?? SimpleCalibration.GetVisualOffset(),
-                    });
-                }
-            }
+            await StageInitializer.ApplyAudioOffsetsAsync(
+                _conductor, SongId,
+                fallbackJudgeMs:  _params?.JudgeOffset  ?? 0,
+                fallbackVisualMs: _params?.VisualOffset ?? 0);
 
             AudioClip clip = null;
             try { clip = await ChartLoader.LoadAudioAsync(SongId); }

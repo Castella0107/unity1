@@ -3,6 +3,10 @@ using UnityEngine;
 // Debug overlay for real-device testing of the audio device monitor.
 // Attach to any GameObject in a scene (e.g. Title.unity).
 // REMOVE before shipping.
+/// <summary>
+/// オーディオデバイスモニターの実機テスト用デバッグオーバーレイ。
+/// RepositoryService のプロファイル変更イベントを購読してログを表示する。出荷前に削除すること。
+/// </summary>
 public class DeviceMonitorTester : MonoBehaviour
 {
     string  _log = "";

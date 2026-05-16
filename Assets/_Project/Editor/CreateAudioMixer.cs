@@ -2,6 +2,9 @@ using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
+/// <summary>
+/// Assets/_Project/Audio/MainAudioMixer.mixer を生成し、Master / Music / SFX グループを追加するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class CreateAudioMixer
 {
     [MenuItem("Tools/Create MainAudioMixer")]

@@ -5,6 +5,9 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// GamePlay シーンに BPM-HUD（判定カウント・コンボ・スコア・セクターパネル）を構築するエディターオンリーのヘルパークラス。
+/// </summary>
 public static class HudSceneBuilder
 {
     const string PrefabDir  = "Assets/_Project/Prefabs/UI/HUD";

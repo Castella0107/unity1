@@ -10,6 +10,10 @@ using System.Collections.Generic;
 //   Hold / FxHold : 1 (head) + N (ticks) + 1 (tail)
 //
 // Tick count uses the same BpmTimeline.GetTickIntervalMs loop as HoldJudgmentTracker.
+/// <summary>
+/// チャート内のスコアリングイベント総数を算出する静的クラス。
+/// Tap/FxTap は1イベント、Hold/FxHold はヘッド＋ティック数＋テールの合計としてカウントする。
+/// </summary>
 public static class ScoringEventCounter
 {
     public static int Count(IEnumerable<NoteData> notes, BpmTimeline bpm)

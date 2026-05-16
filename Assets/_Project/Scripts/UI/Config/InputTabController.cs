@@ -3,6 +3,10 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面の入力タブを管理するコントローラー。
+/// レーン・FX キーのリバインド操作、キー表示の更新、コントローラー有効/無効切り替え、およびテストエリアのハイライト表示を担当する。
+/// </summary>
 public class InputTabController : MonoBehaviour
 {
     [Header("Key Bindings")]

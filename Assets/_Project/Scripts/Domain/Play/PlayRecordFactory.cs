@@ -2,6 +2,10 @@ using System;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Pure factory — converts PlayProgressSnapshot into a PlayRecord.
+/// <summary>
+/// <see cref="PlayProgressSnapshot"/> から <see cref="PlayRecord"/> を生成する純粋ファクトリクラス。
+/// 難易度倍率の適用・ランク計算・達成フラグの判定を行う。
+/// </summary>
 public static class PlayRecordFactory
 {
     public const string EngineVersion = "1.0.0";

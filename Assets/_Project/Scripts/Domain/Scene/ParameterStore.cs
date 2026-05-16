@@ -1,5 +1,9 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
 // Thread-unsafe singleton store — for main-thread use only.
+/// <summary>
+/// シーン遷移パラメータをメインスレッド上で受け渡すスタティックストア。
+/// ペンディング（次シーン用）と現在（ロード済み）の 2 つのスロットを持つ。
+/// </summary>
 public static class ParameterStore
 {
     static ISceneParameters _pending;

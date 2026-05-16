@@ -4,6 +4,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面のオーディオタブを管理するコントローラー。
+/// 判定オフセット・映像オフセットのスライダー操作と DeviceProfile への保存、マスター/音楽/SE の音量設定を担当する。
+/// </summary>
 public class AudioTabController : MonoBehaviour
 {
     [Header("Active Profile")]

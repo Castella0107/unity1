@@ -3,6 +3,10 @@ using System.IO;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// PlayerPrefs に保存されていた旧形式のベストスコアデータを SQLite リポジトリへ移行する静的クラス。
+/// DB 初期化後の初回起動時に一度だけ実行される。
+/// </summary>
 // Migrates legacy PlayerPrefs best-score data to the SQLite repository.
 // Runs once on first launch after DB initialization.
 public static class PlayerPrefsMigrator

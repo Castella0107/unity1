@@ -3,6 +3,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面のアカウントタブを管理するコントローラー。
+/// 表示名・ステータスメッセージの編集保存、通知設定、および将来実装予定の連携アカウント管理 UI を担当する。
+/// </summary>
 public class AccountTabController : MonoBehaviour
 {
     [Header("Profile")]

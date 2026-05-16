@@ -2,6 +2,10 @@ using System;
 using System.Threading.Tasks;
 using UnityEngine;
 
+/// <summary>
+/// PlayerPrefs に保存されていた旧形式のオフセット設定を SQLite オフセットリポジトリへ移行する静的クラス。
+/// マイグレーションフラグにより初回起動時に一度だけ実行される。
+/// </summary>
 // Migrates legacy PlayerPrefs offset settings to the SQLite offset repository.
 // Runs once on first launch (guarded by a migration flag).
 public static class PlayerPrefsOffsetMigrator

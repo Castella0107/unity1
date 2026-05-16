@@ -1,8 +1,15 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
+/// <summary>
+/// コンフィグ画面の表示タブを管理するコントローラー。
+/// 解像度・スクリーンモード・FPS上限・VSync・ブルームレベル・モーションエフェクト・FPS表示の設定と適用を担当する。
+/// </summary>
 public class DisplayTabController : MonoBehaviour
 {
     [Header("Resolution")]
@@ -22,6 +29,9 @@ public class DisplayTabController : MonoBehaviour
         (1920, 1080), (2560, 1440), (3840, 2160), (1280, 720)
     };
     static readonly int[] FpsValues = { 60, 120, 144, 240, -1 };   // -1 = Unlimited
+
+    // Off / Low / Medium (= 設計書 0.6) / High
+    static readonly float[] BloomIntensities = { 0f, 0.2f, 0.6f, 1.0f };
 
     void Start()
     {
@@ -146,8 +156,27 @@ public class DisplayTabController : MonoBehaviour
     {
         PlayerPrefs.SetInt("BloomLevelIdx", idx);
         PlayerPrefs.Save();
-        // TODO Phase 2: Volume Profile から Bloom.intensity を設定
-        Debug.Log("[Display] Bloom level → " + idx + " (実適用は Phase 2)");
+        ApplyBloom(idx);
+    }
+
+    static void ApplyBloom(int idx)
+    {
+        if (idx < 0 || idx >= BloomIntensities.Length) return;
+        float intensity = BloomIntensities[idx];
+        bool active = intensity > 0f;
+
+        var volumes = FindObjectsByType<Volume>(FindObjectsSortMode.None);
+        foreach (var v in volumes)
+        {
+            if (v == null || v.sharedProfile == null) continue;
+            // v.profile はランタイムコピーを返すためアセット(sharedProfile)を汚さない
+            if (v.profile.TryGet<Bloom>(out var bloom))
+            {
+                bloom.active = active;
+                bloom.intensity.overrideState = true;
+                bloom.intensity.value = intensity;
+            }
+        }
     }
 
     static void ApplyShowFps(bool enabled)
@@ -165,5 +194,17 @@ public class DisplayTabController : MonoBehaviour
         bool vsync  = PlayerPrefs.GetInt("VSync",          0) == 1;
         ApplyResolution(resIdx, modeIdx);
         ApplyFpsAndVSync(fpsIdx, vsync);
+        ApplyBloom(PlayerPrefs.GetInt("BloomLevelIdx", 2));
+    }
+
+    // 各シーンの Volume はシーン毎に異なるため、ロード完了時に再適用する。
+    // RuntimeInitializeOnLoadMethod でアプリ起動時に一度だけハンドラを登録。
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void RegisterSceneLoadHook()
+    {
+        SceneManager.sceneLoaded += (scene, mode) =>
+        {
+            ApplyBloom(PlayerPrefs.GetInt("BloomLevelIdx", 2));
+        };
     }
 }

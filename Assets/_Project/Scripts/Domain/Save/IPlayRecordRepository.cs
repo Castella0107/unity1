@@ -2,6 +2,9 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 
 // Unity-independent. No UnityEngine references allowed in this assembly.
+/// <summary>
+/// プレイ記録の保存・取得およびパーソナルベストの管理を行うリポジトリの抽象インターフェース。
+/// </summary>
 public interface IPlayRecordRepository
 {
     Task InitializeAsync(string dbPath);

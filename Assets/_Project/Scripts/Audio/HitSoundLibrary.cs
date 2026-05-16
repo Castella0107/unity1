@@ -1,6 +1,10 @@
 using UnityEngine;
 
 // Generates and caches all hit-sound AudioClips on demand.
+/// <summary>
+/// ヒット効果音の AudioClip をオンデマンドで生成・キャッシュするライブラリ。
+/// TapClick および各判定（PerfectPlus / Perfect / Great / Good / Miss）に対応するクリップを提供する。
+/// </summary>
 public class HitSoundLibrary
 {
     public AudioClip TapClick   { get; private set; }

@@ -7,6 +7,11 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
+/// <summary>
+/// プレイ履歴画面を管理するコントローラー。
+/// 全プレイ記録またはパーソナルベストのリスト表示、難易度・ランク・ソート順によるフィルタリング、
+/// キーボードナビゲーション、および選択レコードの詳細表示を担当する。
+/// </summary>
 public class HistoryController : MonoBehaviour
 {
     [Header("Header")]
@@ -75,9 +80,6 @@ public class HistoryController : MonoBehaviour
     {
         _navigateAction.performed -= OnNavigate;
         _cancelAction.performed   -= OnCancel;
-        _navigateAction.Disable();
-        _submitAction.Disable();
-        _cancelAction.Disable();
     }
 
     async void Start()
@@ -295,6 +297,9 @@ public class HistoryController : MonoBehaviour
 
 // ── HistoryItemView (non-MonoBehaviour view helper) ───────────────────────────
 
+/// <summary>
+/// 履歴リストの1アイテム（日付・楽曲名・難易度・スコア・ランク・バッジ）の表示と選択状態を管理するビューヘルパークラス。
+/// </summary>
 public class HistoryItemView
 {
     public GameObject  Root   { get; }

@@ -1,9 +1,17 @@
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using UnityEngine;
 
 // Shared visual-stage setup used by both GamePlayController (live) and
 // ReplayPlaybackController (replay). Call BindStageVisuals after chart/meta
 // are loaded, and UnbindStageVisuals when the session ends.
+
+/// <summary>
+/// GamePlayController（ライブプレイ）と ReplayPlaybackController（リプレイ）の両方で共有される
+/// ステージビジュアルのセットアップ処理を提供する静的クラス。
+/// BindStageVisuals() でビートグリッド・ノートスクローラー・HUD を初期化し、
+/// UnbindStageVisuals() でセッション終了時にビートグリッドのバインドを解除する。
+/// </summary>
 public static class StageInitializer
 {
     public static void BindStageVisuals(
@@ -28,5 +36,30 @@ public static class StageInitializer
     {
         BeatGridController.Instance?.Unbind();
         JacketBackgroundController.Instance?.SetCanvasEnabled(true);
+    }
+
+    public static async Task ApplyAudioOffsetsAsync(
+        AudioConductor conductor,
+        string         songId,
+        int            fallbackJudgeMs  = 0,
+        int            fallbackVisualMs = 0)
+    {
+        if (conductor == null) return;
+
+        var repo = RepositoryService.Instance;
+        if (repo != null && repo.IsReady)
+        {
+            conductor.ApplyAppOffsets(repo.ActiveProfile.Offsets);
+            var perSong = await repo.Offsets.GetPerSongOffsetAsync(songId);
+            conductor.ApplyPerSongOffset(perSong);
+        }
+        else
+        {
+            conductor.ApplyAppOffsets(new AppOffsetSettings
+            {
+                JudgmentOffsetMs = fallbackJudgeMs  != 0 ? fallbackJudgeMs  : SimpleCalibration.GetJudgmentOffset(),
+                VisualOffsetMs   = fallbackVisualMs != 0 ? fallbackVisualMs : SimpleCalibration.GetVisualOffset(),
+            });
+        }
     }
 }

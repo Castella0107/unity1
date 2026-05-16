@@ -1,7 +1,14 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
 
+/// <summary>
+/// ノーツのイベント種別を表す列挙型。タップ・ホールド頭・ホールドティック・ホールド尾の4種類。
+/// </summary>
 public enum NoteKind { Tap, HoldHead, HoldTick, HoldTail }
 
+/// <summary>
+/// 判定エンジンが発行する判定イベントを表す読み取り専用構造体。
+/// ノーツID・種別・レーン・判定結果・タイミング差分・発生時刻・コンボ数・自動ミスフラグを含む。
+/// </summary>
 public readonly struct JudgmentEvent
 {
     public readonly int      NoteId;

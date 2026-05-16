@@ -8,6 +8,10 @@
 //   for any N (even if N doesn't divide 10^12 evenly).
 //   Partial-score judgments (Great = 199/200, Good = 3/4) are applied to X_micro.
 
+/// <summary>
+/// マイクロポイント方式でスコアを累積し、0〜1,000,000の表示スコアおよびランクを算出するクラス。
+/// サーバーサイドのスコア検証パイプラインと共有される。
+/// </summary>
 public class ScoreCalculator
 {
     private readonly long _xMicro;   // micro-points per perfect note

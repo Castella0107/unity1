@@ -3,6 +3,10 @@ using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
+/// <summary>
+/// 設定可能な遅延後にロード進捗インジケーターを表示するシングルトン MonoBehaviour。
+/// ロードが _showThresholdSec より長くかかった場合にのみオーバーレイを表示する。
+/// </summary>
 // Shows a loading progress indicator after a configurable delay.
 // Only appears when a load takes longer than _showThresholdSec.
 public class LoadingOverlay : MonoBehaviour
