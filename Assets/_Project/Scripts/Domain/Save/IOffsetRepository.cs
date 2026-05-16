@@ -21,6 +21,8 @@ public interface IOffsetRepository
     Task<bool>   SetActiveProfileIdAsync(string profileId);
 
     // Per-song offsets
-    Task<PerSongOffset> GetPerSongOffsetAsync(string songId);
-    Task<bool>          SavePerSongOffsetAsync(PerSongOffset offset);
+    Task<PerSongOffset>       GetPerSongOffsetAsync(string songId);
+    Task<List<PerSongOffset>> GetAllPerSongOffsetsAsync();
+    Task<bool>                SavePerSongOffsetAsync(PerSongOffset offset);
+    Task<bool>                DeleteAllPerSongOffsetsAsync();
 }

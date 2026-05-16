@@ -19,8 +19,9 @@ public class DataTabController : MonoBehaviour
     [SerializeField] Button          _refreshButton;
 
     [Header("Songs Library (Phase 2)")]
-    [SerializeField] Button _manageSongsButton;
-    [SerializeField] Button _reDownloadButton;
+    [SerializeField] Button             _manageSongsButton;
+    [SerializeField] Button             _reDownloadButton;
+    [SerializeField] ManageSongsPanel   _manageSongsPanel;
 
     [Header("Backup (Phase 2)")]
     [SerializeField] Button _exportButton;
@@ -52,14 +53,15 @@ public class DataTabController : MonoBehaviour
     void SetupButtons()
     {
         if (_refreshButton      != null) _refreshButton.onClick.AddListener(() => _ = RefreshStats());
-        if (_manageSongsButton  != null) _manageSongsButton.onClick.AddListener(
-            () => Debug.Log("[Data] Manage Songs: Phase 2"));
+        if (_manageSongsButton  != null) _manageSongsButton.onClick.AddListener(() =>
+        {
+            if (_manageSongsPanel != null) _manageSongsPanel.Open();
+            else Debug.LogWarning("[Data] ManageSongsPanel が未割り当て");
+        });
         if (_reDownloadButton   != null) _reDownloadButton.onClick.AddListener(
             () => Debug.Log("[Data] Re-download: Phase 4"));
-        if (_exportButton       != null) _exportButton.onClick.AddListener(
-            () => Debug.Log("[Data] Export: Phase 2"));
-        if (_importButton       != null) _importButton.onClick.AddListener(
-            () => Debug.Log("[Data] Import: Phase 2"));
+        if (_exportButton       != null) _exportButton.onClick.AddListener(() => _ = ExportAsync());
+        if (_importButton       != null) _importButton.onClick.AddListener(() => _ = ImportAsync());
 
         SetupDangerButton(_clearHistoryButton, _clearHistoryConfirmInput, _clearHistoryConfirmButton,
             "DELETE", ClearHistory);
@@ -145,6 +147,92 @@ public class DataTabController : MonoBehaviour
                                     " / " + replaysCount + " files";
 
         await Task.CompletedTask;
+    }
+
+    // ── Import ────────────────────────────────────────────────────────────────
+
+    // 2 段階確認: 1回目で検証/プレビュー、5秒以内の 2 回目で実行
+    const float ImportConfirmWindowSec = 5f;
+    ExportSchema _pendingImportSchema;
+    float        _pendingImportDeadline;
+
+    async Task ImportAsync()
+    {
+        // 確認待ち中なら実行に進む
+        if (_pendingImportSchema != null && Time.unscaledTime <= _pendingImportDeadline)
+        {
+            var schema = _pendingImportSchema;
+            _pendingImportSchema = null;
+            if (_importButton != null) _importButton.interactable = false;
+            try
+            {
+                var r = await ImportService.RunAsync(schema);
+                if (r.Success)
+                    Debug.Log("[Data] Import OK plays=" + r.ImportedPlayRecords +
+                              " profiles=" + r.ImportedProfiles +
+                              " perSong=" + r.ImportedPerSongOffsets +
+                              " prefs=" + r.ImportedPlayerPrefs);
+                else
+                    Debug.LogWarning("[Data] Import FAILED: " + r.FailureReason);
+                await RefreshStats();
+            }
+            finally
+            {
+                if (_importButton != null) _importButton.interactable = true;
+            }
+            return;
+        }
+
+        // 1 回目: ファイル検出 + バリデーション
+        string filePath = ImportService.FindLatestExportFile();
+        if (filePath == null)
+        {
+            Debug.LogWarning("[Data] No export JSON found in " +
+                System.IO.Path.Combine(Application.persistentDataPath, "exports"));
+            return;
+        }
+
+        var preview = ImportService.LoadAndValidate(filePath);
+        if (!preview.Success)
+        {
+            Debug.LogWarning("[Data] Import preview failed: " + preview.FailureReason);
+            return;
+        }
+
+        _pendingImportSchema   = preview.Schema;
+        _pendingImportDeadline = Time.unscaledTime + ImportConfirmWindowSec;
+        Debug.LogWarning("[Data] Import preview — file: " + System.IO.Path.GetFileName(filePath) +
+                         "  plays=" + (preview.Schema.PlayRecords?.Count ?? 0) +
+                         "  profiles=" + (preview.Schema.DeviceProfiles?.Count ?? 0) +
+                         "  perSong=" + (preview.Schema.PerSongOffsets?.Count ?? 0) +
+                         "  bests=" + (preview.Schema.PersonalBests?.Count ?? 0) +
+                         "  prefs=" + (preview.Schema.PlayerPrefs?.Count ?? 0) +
+                         "  — click Import again within " + ImportConfirmWindowSec + "s to apply (REPLACES existing data)");
+        await Task.CompletedTask;
+    }
+
+    // ── Export ────────────────────────────────────────────────────────────────
+
+    async Task ExportAsync()
+    {
+        if (_exportButton != null) _exportButton.interactable = false;
+        try
+        {
+            var result = await ExportService.RunAsync();
+            if (result.Success)
+            {
+                Debug.Log("[Data] Export OK: " + result.FilePath);
+                ExportService.RevealInFileExplorer(result.FilePath);
+            }
+            else
+            {
+                Debug.LogWarning("[Data] Export FAILED: " + result.FailureReason);
+            }
+        }
+        finally
+        {
+            if (_exportButton != null) _exportButton.interactable = true;
+        }
     }
 
     // ── Danger zone actions ───────────────────────────────────────────────────

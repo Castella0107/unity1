@@ -111,6 +111,31 @@ public class SqliteOffsetRepository : IOffsetRepository
         };
     }
 
+    public async Task<List<PerSongOffset>> GetAllPerSongOffsetsAsync()
+    {
+        var rows = await _db.Table<PerSongOffsetRow>().ToListAsync();
+        return rows.Select(r => new PerSongOffset
+        {
+            SongId           = r.SongId,
+            JudgmentOffsetMs = r.JudgmentOffsetMs,
+            UpdatedAtUnixMs  = r.UpdatedAtUnixMs,
+        }).ToList();
+    }
+
+    public async Task<bool> DeleteAllPerSongOffsetsAsync()
+    {
+        try
+        {
+            await _db.DeleteAllAsync<PerSongOffsetRow>();
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("[OffsetRepo] DeleteAllPerSongOffsets failed: " + e.Message);
+            return false;
+        }
+    }
+
     public async Task<bool> SavePerSongOffsetAsync(PerSongOffset offset)
     {
         try

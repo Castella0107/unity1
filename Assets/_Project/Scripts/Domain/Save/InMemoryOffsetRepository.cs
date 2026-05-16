@@ -64,9 +64,18 @@ public class InMemoryOffsetRepository : IOffsetRepository
         return Task.FromResult(o ?? PerSongOffset.DefaultFor(songId));
     }
 
+    public Task<List<PerSongOffset>> GetAllPerSongOffsetsAsync() =>
+        Task.FromResult(_perSong.Values.ToList());
+
     public Task<bool> SavePerSongOffsetAsync(PerSongOffset offset)
     {
         _perSong[offset.SongId] = offset.Clamped();
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> DeleteAllPerSongOffsetsAsync()
+    {
+        _perSong.Clear();
         return Task.FromResult(true);
     }
 }

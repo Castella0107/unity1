@@ -29,7 +29,8 @@ public class AudioTabController : MonoBehaviour
     [SerializeField] Button          _visualResetButton;
 
     [Header("Calibration")]
-    [SerializeField] Button _calibrateButton;
+    [SerializeField] Button            _calibrateButton;
+    [SerializeField] CalibrationPanel  _calibrationPanel;
 
     [Header("Volume")]
     [SerializeField] Slider          _masterVolumeSlider;
@@ -150,8 +151,11 @@ public class AudioTabController : MonoBehaviour
         _changeProfileButton.onClick.AddListener(
             () => _configController?.SwitchToTab("Devices"));
 
-        _calibrateButton.onClick.AddListener(
-            () => Debug.Log("[AudioTab] Calibration: Phase 2 で実装予定"));
+        _calibrateButton.onClick.AddListener(() =>
+        {
+            if (_calibrationPanel != null) _calibrationPanel.Open();
+            else Debug.LogWarning("[AudioTab] CalibrationPanel が未割り当て");
+        });
     }
 
     // ── Data ─────────────────────────────────────────────────────────────────
