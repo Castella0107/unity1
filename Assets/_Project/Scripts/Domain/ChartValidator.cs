@@ -54,6 +54,14 @@ public static class ChartValidator
             if ((note.Type == NoteType.Hold || note.Type == NoteType.FxHold)
                 && note.DurationMs > 0 && note.DurationMs < 50)
                 issues.Add(Warn($"Note {note.Id}: hold DurationMs < 50ms ({note.DurationMs})"));
+
+            // CRITICAL: FX type on non-FX lane (Lane0-3) or non-FX type on FX lane (FxL/FxR)
+            bool isFxType = note.Type == NoteType.FxTap || note.Type == NoteType.FxHold;
+            bool isFxLane = note.Lane == LaneRef.FxL || note.Lane == LaneRef.FxR;
+            if (isFxType && !isFxLane)
+                issues.Add(Crit($"Note {note.Id}: FX type {note.Type} placed on non-FX lane {note.Lane}"));
+            if (!isFxType && isFxLane)
+                issues.Add(Crit($"Note {note.Id}: non-FX type {note.Type} placed on FX lane {note.Lane}"));
         }
 
         // ── Sector checks ──────────────────────────────────────────────────

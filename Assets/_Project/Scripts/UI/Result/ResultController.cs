@@ -170,10 +170,16 @@ public class ResultController : MonoBehaviour
 
     // ── Navigation ────────────────────────────────────────────────────────────
 
+    // TestPlay (--chart 起動) では SongSelect/Title への戻りはアプリ終了に置き換える。
+    // ChartEditor 側へリザルトを見せたあと、本体exeを閉じてエディタに戻す想定。
+    static bool IsTestPlayMode => !string.IsNullOrEmpty(ChartLoader.OverrideBasePath);
+
     void OnRetry()
     {
         if (_params?.SourceGamePlayParameters != null && SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.GamePlay, _params.SourceGamePlayParameters);
+        else if (IsTestPlayMode)
+            Application.Quit();
         else if (SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.SongSelect);
         else
@@ -182,6 +188,7 @@ public class ResultController : MonoBehaviour
 
     void OnToSelect()
     {
+        if (IsTestPlayMode) { Application.Quit(); return; }
         if (SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.SongSelect);
         else
@@ -190,6 +197,7 @@ public class ResultController : MonoBehaviour
 
     void OnToTitle()
     {
+        if (IsTestPlayMode) { Application.Quit(); return; }
         if (SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.Title);
         else

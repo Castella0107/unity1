@@ -15,6 +15,12 @@ public class SongMetadata
     public string       AudioFile;
     public string       JacketFile;
     public int          FirstOnsetMs;
+    /// <summary>
+    /// 音源再生の開始遅延 (ms)。chart 時刻 t に対し、audio サンプル時刻は (t - AudioOffsetMs)。
+    /// 正の値 = 音源が遅れて始まる(チャート開始から AudioOffsetMs 間は無音)
+    /// 負の値 = 音源を先送りで再生開始(イントロをスキップ)
+    /// </summary>
+    public int          AudioOffsetMs;
     public List<SectorDef> Sectors;
 }
 

@@ -13,32 +13,61 @@ using UnityEngine.Networking;
 /// </summary>
 public static class ChartLoader
 {
+    /// <summary>
+    /// テストプレイ用に StreamingAssets/Songs/{songId} ではなく外部ディレクトリを参照させる上書きパス。
+    /// 起動引数 --chart で指定されたディレクトリが入る。null/empty なら通常 (StreamingAssets) 解決。
+    /// </summary>
+    public static string OverrideBasePath { get; set; }
+
+    static string ResolveBaseDir(string songId)
+    {
+        return !string.IsNullOrEmpty(OverrideBasePath)
+            ? OverrideBasePath
+            : Path.Combine(Application.streamingAssetsPath, "Songs", songId);
+    }
+
     public static async Task<SongMetadata> LoadMetaAsync(string songId)
     {
-        string path = Path.Combine(Application.streamingAssetsPath, "Songs", songId, "meta.json");
+        string path = Path.Combine(ResolveBaseDir(songId), "meta.json");
         string json = await ReadTextAsync(path);
         return ChartParser.ParseMeta(json);
     }
 
     public static async Task<ChartData> LoadChartAsync(string songId, string difficulty)
     {
-        string path = Path.Combine(Application.streamingAssetsPath,
-                                   "Songs", songId, "charts", difficulty + ".json");
+        // 本体配置: <base>/charts/<diff>.json。ChartEditor 配置: <base>/<diff>.json も許容。
+        string baseDir   = ResolveBaseDir(songId);
+        string nested    = Path.Combine(baseDir, "charts", difficulty + ".json");
+        string flat      = Path.Combine(baseDir, difficulty + ".json");
+        string path      = File.Exists(nested) ? nested : (File.Exists(flat) ? flat : nested);
         string json = await ReadTextAsync(path);
         return ChartParser.ParseChart(json);
     }
 
     public static async Task<AudioClip> LoadAudioAsync(string songId)
     {
-        // Try common audio extensions in priority order
-        string[] candidates = { "audio.ogg", "audio.mp3", "audio.wav" };
+        // 1) audio.{ogg,mp3,wav} を優先 (PVP 本体の StreamingAssets 配置)
+        // 2) baseDir 内の任意 .ogg/.mp3/.wav (ChartEditor の <曲名>.wav 等の命名互換)
+        string baseDir   = ResolveBaseDir(songId);
+        string[] fixedNames = { "audio.ogg", "audio.mp3", "audio.wav" };
+        var attempts = new System.Collections.Generic.List<string>();
 
-        foreach (var fileName in candidates)
+        foreach (var n in fixedNames)
+            attempts.Add(Path.Combine(baseDir, n));
+
+        // Directory.GetFiles は jar: パスでは使えないため StreamingAssets-on-Android では skip
+        if (!baseDir.StartsWith("jar:") && Directory.Exists(baseDir))
         {
-            string raw = Path.Combine(Application.streamingAssetsPath, "Songs", songId, fileName)
-                             .Replace("\\", "/");
+            foreach (var ext in new[] { "*.ogg", "*.mp3", "*.wav" })
+            {
+                foreach (var p in Directory.GetFiles(baseDir, ext))
+                    if (!attempts.Contains(p)) attempts.Add(p);
+            }
+        }
 
-            // File-existence check (StreamingAssets on Android is inside a JAR, so skip there)
+        foreach (var raw0 in attempts)
+        {
+            string raw = raw0.Replace("\\", "/");
             bool canCheckFile = !raw.StartsWith("jar:");
             if (canCheckFile && !File.Exists(raw))
                 continue;
@@ -47,12 +76,11 @@ public static class ChartLoader
                 ? raw
                 : "file:///" + raw.TrimStart('/');
 
-            // 1st attempt: explicit format
+            string fileName = Path.GetFileName(raw);
             AudioType audioType = GetAudioType(fileName);
             var clip = await TryLoadClip(url, audioType, songId, fileName);
             if (clip != null) return clip;
 
-            // 2nd attempt: UNKNOWN (let Unity auto-detect), skips if same as explicit
             if (audioType != AudioType.UNKNOWN)
             {
                 clip = await TryLoadClip(url, AudioType.UNKNOWN, songId, fileName + "(UNKNOWN)");
@@ -61,8 +89,7 @@ public static class ChartLoader
         }
 
         throw new FileNotFoundException(
-            string.Format("[ChartLoader] No loadable audio found for songId='{0}'. " +
-                          "Tried {1} in Songs/{0}/", songId, string.Join(", ", candidates)));
+            string.Format("[ChartLoader] No loadable audio in '{0}' (tried audio.* + folder scan)", baseDir));
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

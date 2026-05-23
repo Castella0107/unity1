@@ -39,6 +39,7 @@ public static class ChartParser
         public string AudioFile    { get; set; }
         public string JacketFile   { get; set; }
         public int    FirstOnsetMs { get; set; }
+        public int    AudioOffsetMs { get; set; }
         public List<SectorDefDto> Sectors { get; set; }
     }
 
@@ -106,6 +107,7 @@ public static class ChartParser
                 AudioFile    = dto.AudioFile,
                 JacketFile   = dto.JacketFile,
                 FirstOnsetMs = dto.FirstOnsetMs,
+                AudioOffsetMs = dto.AudioOffsetMs,
                 Sectors      = sectors
             };
         }
