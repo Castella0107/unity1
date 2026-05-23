@@ -1,0 +1,260 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using UnityEngine;
+
+namespace RhythmGame.Network
+{
+    /// <summary>
+    /// PVP マッチの 3 曲連戦を統括する常駐コーディネータ。
+    /// シーンを跨いで状態を保持し、各曲完走時に蓄積、3 曲終わったら一括サーバー送信 → PvpMatchEnd へ。
+    ///
+    /// 設計:
+    ///   - NetworkClient と同じく `[RuntimeInitializeOnLoadMethod]` で自動 spawn
+    ///   - 試合中は IsActive=true、曲完了通知は GamePlayController から OnSongCompleted で受ける
+    ///   - 全曲完了 → SubmitMatchAsync → PvpMatchEndParameters で SceneRouter.GoTo(PvpMatchEnd)
+    /// </summary>
+    public class PvpFlowController : MonoBehaviour
+    {
+        public static PvpFlowController Instance { get; private set; }
+
+        public bool   IsActive       { get; private set; }
+        public string MatchId        { get; private set; }
+        public string OpponentId     { get; private set; }
+        public string SelfUserId     { get; private set; }
+        public int    CurrentSongIndex { get; private set; }
+        public IReadOnlyList<SongPickDto> Songs => _songs;
+
+        List<SongPickDto> _songs = new();
+        List<string>      _replayPaths = new();
+        bool              _submitting;
+
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+        static void Bootstrap()
+        {
+            if (Instance != null) return;
+            var go = new GameObject("PvpFlowController (auto)");
+            go.AddComponent<PvpFlowController>();
+        }
+
+        void Awake()
+        {
+            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+        }
+
+        // ── Public API ──────────────────────────────────────────────────────────
+
+        /// <summary>マッチング後、Matchmaking シーンから呼ばれる。1 曲目の GamePlay を起動する。</summary>
+        public void StartMatch(string matchId, string opponentId, List<SongPickDto> songs)
+        {
+            if (IsActive)
+            {
+                Debug.LogWarning("[PvpFlow] StartMatch called while already active — overwriting state");
+            }
+            MatchId    = matchId;
+            OpponentId = opponentId;
+            SelfUserId = LocalIdentity.UserId;
+            _songs     = songs ?? new List<SongPickDto>();
+            _replayPaths.Clear();
+            CurrentSongIndex = 0;
+            IsActive    = true;
+            _submitting = false;
+
+            Debug.Log($"[PvpFlow] StartMatch {matchId.Substring(0, 8)} vs {opponentId}, songs={_songs.Count}");
+            LaunchCurrentSong();
+        }
+
+        /// <summary>GamePlayController から完走時に呼ばれる (PVP モード時のみ)。</summary>
+        public void OnSongCompleted(string songId, string replayPath)
+        {
+            if (!IsActive) return;
+            if (string.IsNullOrEmpty(replayPath))
+            {
+                Debug.LogWarning("[PvpFlow] OnSongCompleted with empty replayPath — aborting match");
+                AbortMatch("Replay missing for song " + (CurrentSongIndex + 1));
+                return;
+            }
+            _replayPaths.Add(replayPath);
+            Debug.Log($"[PvpFlow] Song {CurrentSongIndex + 1}/{_songs.Count} completed: {songId} → {Path.GetFileName(replayPath)}");
+
+            CurrentSongIndex++;
+            if (CurrentSongIndex < _songs.Count)
+            {
+                LaunchCurrentSong();
+            }
+            else
+            {
+                _ = SubmitAndFinish();
+            }
+        }
+
+        /// <summary>明示キャンセル (Pause メニュー等から)。途中棄権扱い。</summary>
+        public void AbortMatch(string reason)
+        {
+            Debug.LogWarning("[PvpFlow] AbortMatch: " + reason);
+            var p = new PvpMatchEndParameters
+            {
+                MatchId      = MatchId,
+                SelfUserId   = SelfUserId,
+                ErrorMessage = reason,
+            };
+            ResetState();
+            if (SceneRouter.Instance != null)
+                SceneRouter.Instance.GoTo(SceneId.PVPMatchEnd, p, TransitionStyle.FadeBlack);
+        }
+
+        // ── Internal ────────────────────────────────────────────────────────────
+
+        void LaunchCurrentSong()
+        {
+            if (CurrentSongIndex < 0 || CurrentSongIndex >= _songs.Count) return;
+            var s = _songs[CurrentSongIndex];
+
+            var gp = new GamePlayParameters
+            {
+                SongId        = s.songId,
+                Difficulty    = string.IsNullOrEmpty(s.difficulty) ? "extra" : s.difficulty,
+                HiSpeed       = 1.0f,
+                JudgeOffset   = 0,
+                VisualOffset  = 0,
+                Modifier      = "None",
+                IsReplay      = false,
+                IsPvp         = true,
+                PvpMatchId    = MatchId,
+                PvpSongIndex  = CurrentSongIndex,
+                PvpOpponentId = OpponentId,
+            };
+
+            if (SceneRouter.Instance != null)
+            {
+                SceneRouter.Instance.GoTo(SceneId.GamePlay, gp, TransitionStyle.GameStart);
+            }
+            else
+            {
+                Debug.LogError("[PvpFlow] SceneRouter.Instance null — cannot launch PVP song");
+            }
+        }
+
+        async Task SubmitAndFinish()
+        {
+            if (_submitting) return;
+            _submitting = true;
+
+            Debug.Log($"[PvpFlow] All {_songs.Count} songs played, submitting to server");
+
+            try
+            {
+                var net = NetworkClient.Instance;
+                if (net == null)
+                {
+                    AbortMatch("NetworkClient not available — cannot submit match");
+                    return;
+                }
+
+                var songs = new List<SubmitMatchSongDto>(_songs.Count);
+                for (int i = 0; i < _songs.Count && i < _replayPaths.Count; i++)
+                {
+                    if (!File.Exists(_replayPaths[i]))
+                    {
+                        AbortMatch("Replay file missing: " + _replayPaths[i]);
+                        return;
+                    }
+                    byte[] bytes = File.ReadAllBytes(_replayPaths[i]);
+                    songs.Add(new SubmitMatchSongDto
+                    {
+                        songId           = _songs[i].songId,
+                        replayDataBase64 = Convert.ToBase64String(bytes),
+                    });
+                }
+
+                var r = await net.SubmitMatchAsync(MatchId, SelfUserId, songs);
+                if (!r.Ok)
+                {
+                    AbortMatch("Submit transport failed: " + r.Error);
+                    return;
+                }
+                if (!r.Body.accepted)
+                {
+                    AbortMatch("Submit rejected: " + r.Body.error);
+                    return;
+                }
+
+                // 自分の submit が通った。相手が submit 済みなら matchFinalized=true で結果が即返る。
+                // そうでなければ相手待ち → 短時間 poll する。
+                MatchResultDto finalResult = r.Body.result;
+                if (!r.Body.matchFinalized)
+                {
+                    finalResult = await PollUntilFinalizedAsync();
+                }
+
+                if (finalResult == null)
+                {
+                    AbortMatch("Opponent submit timeout");
+                    return;
+                }
+
+                FinishToMatchEndScene(finalResult);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[PvpFlow] SubmitAndFinish exception: " + e);
+                AbortMatch("Submit exception: " + e.Message);
+            }
+            finally
+            {
+                _submitting = false;
+            }
+        }
+
+        async Task<MatchResultDto> PollUntilFinalizedAsync()
+        {
+            // 最大 60 秒、2 秒間隔で poll
+            const int maxAttempts = 30;
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                await Task.Delay(2000);
+                var f = await NetworkClient.Instance.FetchMatchAsync(MatchId);
+                if (!f.Ok) continue;
+                if (f.Body != null && f.Body.outcomeKind >= 0)
+                {
+                    Debug.Log($"[PvpFlow] Match finalized after {i + 1} polls");
+                    return f.Body;
+                }
+            }
+            return null;
+        }
+
+        void FinishToMatchEndScene(MatchResultDto r)
+        {
+            var p = new PvpMatchEndParameters
+            {
+                MatchId       = r.matchId,
+                UserIdA       = r.userIdA,
+                UserIdB       = r.userIdB,
+                SelfUserId    = SelfUserId,
+                TotalPointsA  = r.totalPointsA,
+                TotalPointsB  = r.totalPointsB,
+                OutcomeKind   = r.outcomeKind,
+                RatingABefore = r.ratingABefore,
+                RatingAAfter  = r.ratingAAfter,
+                RatingBBefore = r.ratingBBefore,
+                RatingBAfter  = r.ratingBAfter,
+            };
+            ResetState();
+            if (SceneRouter.Instance != null)
+                SceneRouter.Instance.GoTo(SceneId.PVPMatchEnd, p, TransitionStyle.FadeWhite);
+        }
+
+        void ResetState()
+        {
+            IsActive = false;
+            MatchId = OpponentId = SelfUserId = null;
+            _songs.Clear();
+            _replayPaths.Clear();
+            CurrentSongIndex = 0;
+        }
+    }
+}

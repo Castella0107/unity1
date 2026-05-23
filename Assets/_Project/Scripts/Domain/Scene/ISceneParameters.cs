@@ -29,6 +29,29 @@ public sealed class GamePlayParameters : ISceneParameters
     public bool   IsReplay            { get; set; }
     public string ReplayPath          { get; set; }
     public double InitialPlaybackSpeed { get; set; } = 1.0;
+
+    // PVP mode (Phase 5-γ)
+    public bool   IsPvp           { get; set; }
+    public string PvpMatchId      { get; set; }
+    public int    PvpSongIndex    { get; set; }    // 0..2 (1試合 3曲)
+    public string PvpOpponentId   { get; set; }
+}
+
+/// <summary>PVP マッチ確定後の最終結果シーンへ渡すパラメータ。</summary>
+public sealed class PvpMatchEndParameters : ISceneParameters
+{
+    public string MatchId        { get; set; }
+    public string UserIdA        { get; set; }
+    public string UserIdB        { get; set; }
+    public string SelfUserId     { get; set; }    // 自分が A か B かの区別
+    public double TotalPointsA   { get; set; }
+    public double TotalPointsB   { get; set; }
+    public int    OutcomeKind    { get; set; }    // 0=Draw, 1=AWins, 2=BWins
+    public double RatingABefore  { get; set; }
+    public double RatingAAfter   { get; set; }
+    public double RatingBBefore  { get; set; }
+    public double RatingBAfter   { get; set; }
+    public string ErrorMessage   { get; set; }    // エラー時のフォールバック (試合 abandoned 等)
 }
 
 /// <summary>

@@ -69,16 +69,21 @@ public class JudgmentSystem : MonoBehaviour
 
     // ── Input bridge ───────────────────────────────────────────────────────────
 
+    // ReplayInputBuffer は DeltaMsFromPrev を int 丸めで永続化する。
+    // JudgmentRunner (サーバー側) は累積した int から ProcessLaneDown/Up を呼ぶため、
+    // クライアント側もここで int 丸めしてから engine に渡さないと bit-perfect 同一動作にならない。
     void HandleLaneDown(LaneRef lane, double timeMs)
     {
-        ReplayBuffer?.Add((int)lane, true, timeMs);
-        _engine?.ProcessLaneDown(lane, timeMs);
+        double t = System.Math.Round(timeMs);
+        ReplayBuffer?.Add((int)lane, true, t);
+        _engine?.ProcessLaneDown(lane, t);
     }
 
     void HandleLaneUp(LaneRef lane, double timeMs)
     {
-        ReplayBuffer?.Add((int)lane, false, timeMs);
-        _engine?.ProcessLaneUp(lane, timeMs);
+        double t = System.Math.Round(timeMs);
+        ReplayBuffer?.Add((int)lane, false, t);
+        _engine?.ProcessLaneUp(lane, t);
     }
 
     // ── Frame update ───────────────────────────────────────────────────────────

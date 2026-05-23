@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -121,6 +122,19 @@ public class GamePlayController : MonoBehaviour
             _resultTriggered = true;
             TriggerResultAsync();
         }
+
+        // PVP モード: 進捗 % + 現在スコアをオーバーレイに渡す (実 POST は overlay 側で 0.5秒間隔)
+        if (_params != null && _params.IsPvp && _conductor != null && _durationMs > 0
+            && _judgment != null && _judgment.Aggregator != null)
+        {
+            var overlay = RhythmGame.Network.PvpProgressOverlay.Instance;
+            if (overlay != null)
+            {
+                float percent = (float)Math.Max(0, Math.Min(1.0, _conductor.SongTimeMs / _durationMs));
+                int   score   = _judgment.Aggregator.CurrentScore;
+                overlay.UpdateLocalProgress(_params.PvpSongIndex, percent, score);
+            }
+        }
     }
 
     void OnDestroy()
@@ -228,6 +242,13 @@ public class GamePlayController : MonoBehaviour
             if (isNewBest) { PlayerPrefs.SetInt(bestKey, record.EffectiveScore); PlayerPrefs.Save(); }
         }
 
+        // ── サーバー自動送信 (fire-and-forget) ───────────────────────────────
+        // ローカル保存とリザルト遷移を絶対にブロックしない設計。
+        // 失敗・タイムアウト・サーバー停止すべて Debug.LogWarning に落として続行。
+        // PVP モードでは matchId バンドルで submit するので個別送信はスキップ。
+        if (_params == null || !_params.IsPvp)
+            SubmitToServerFireAndForget(record);
+
         var view = new PlayResultView
         {
             Record                   = record,
@@ -247,6 +268,19 @@ public class GamePlayController : MonoBehaviour
         JacketBackgroundController.Instance?.SetCanvasEnabled(true);
         JacketBackgroundController.Instance?.SetJacket(SongId);
 
+        // PVP モード: Result シーンへ寄らず PvpFlowController に通知し、次曲または送信フェーズへ
+        if (_params != null && _params.IsPvp)
+        {
+            var pvp = RhythmGame.Network.PvpFlowController.Instance;
+            if (pvp != null && pvp.IsActive)
+            {
+                Debug.Log($"[GamePlay] PVP song completed, notifying PvpFlowController (idx={_params.PvpSongIndex})");
+                pvp.OnSongCompleted(record.SongId, record.ReplayPath);
+                return;   // SceneRouter は PvpFlowController が次曲または PvpMatchEnd へ
+            }
+            Debug.LogWarning("[GamePlay] IsPvp=true but PvpFlowController is not active — falling back to Result");
+        }
+
         if (SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.Result, resultParams);
         else
@@ -257,6 +291,78 @@ public class GamePlayController : MonoBehaviour
 
         Debug.Log("[GamePlay] TriggerResultAsync completed — score=" + record.EffectiveScore
                   + "  replayPath=" + (record.ReplayPath ?? "not saved"));
+    }
+
+    // ── サーバー自動送信 ──────────────────────────────────────────────────
+    // ローカル DB に保存済みの PlayRecord をサーバーで検証 + leaderboard 登録する。
+    // Result 遷移を絶対にブロックしないため async void で発射する。
+    static async void SubmitToServerFireAndForget(PlayRecord record)
+    {
+        try
+        {
+            if (record == null || string.IsNullOrEmpty(record.ReplayPath) || !File.Exists(record.ReplayPath))
+            {
+                Debug.Log("[GamePlay] Server submit skipped — no replay path");
+                return;
+            }
+            var net = RhythmGame.Network.NetworkClient.Instance;
+            if (net == null)
+            {
+                Debug.Log("[GamePlay] Server submit skipped — NetworkClient not bootstrapped");
+                return;
+            }
+
+            byte[] replayBytes = File.ReadAllBytes(record.ReplayPath);
+            var claim = new RhythmGame.Network.ResultClaimDto
+            {
+                score       = record.RawScore,
+                maxCombo    = record.MaxCombo,
+                perfectPlus = record.PerfectPlusCount,
+                perfect     = record.PerfectCount,
+                great       = record.GreatCount,
+                good        = record.GoodCount,
+                miss        = record.MissCount,
+                rank        = record.Rank ?? "",
+            };
+            var meta = new RhythmGame.Network.ValidateRequestDto
+            {
+                playId           = record.PlayId,
+                songId           = record.SongId,
+                difficulty       = record.Difficulty,
+                userId           = RhythmGame.Network.LocalIdentity.UserId,
+                playedAtUnixMs   = record.PlayedAtUnixMs,
+                totalNotes       = record.TotalNotes,
+                isFullCombo      = record.IsFullCombo,
+                isAllPerfect     = record.IsAllPerfect,
+                isAllPerfectPlus = record.IsAllPerfectPlus,
+            };
+
+            var r = await net.ValidateReplayAsync(record.ChartHash, replayBytes, claim, meta);
+            if (!r.Ok)
+            {
+                Debug.LogWarning("[GamePlay] Server submit transport failed: " + r.TransportError + " — enqueuing");
+                RhythmGame.Network.SubmissionQueue.Enqueue(new RhythmGame.Network.SubmissionQueue.QueuedEntry
+                {
+                    ChartHash  = record.ChartHash,
+                    ReplayPath = record.ReplayPath,
+                    Claim      = claim,
+                    Meta       = meta,
+                });
+                return;
+            }
+            if (r.Body.isValid)
+            {
+                Debug.Log($"[GamePlay] Server VALID — score={r.Body.serverResult?.score} (rt={r.RoundtripMs}ms)");
+            }
+            else
+            {
+                Debug.LogWarning($"[GamePlay] Server INVALID — {r.Body.mismatchReason} (rt={r.RoundtripMs}ms)");
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[GamePlay] Server submit exception: " + e.Message);
+        }
     }
 
     static string[] ParseModifiers(string mod)

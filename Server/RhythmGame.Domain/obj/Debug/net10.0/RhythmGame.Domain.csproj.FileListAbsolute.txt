@@ -10,3 +10,4 @@ C:\Users\CaSte\PVP\Server\RhythmGame.Domain\obj\Debug\net10.0\refint\RhythmGame.
 C:\Users\CaSte\PVP\Server\RhythmGame.Domain\obj\Debug\net10.0\RhythmGame.Domain.pdb
 C:\Users\CaSte\PVP\Server\RhythmGame.Domain\obj\Debug\net10.0\ref\RhythmGame.Domain.dll
 C:\Users\CaSte\PVP\Server\RhythmGame.Domain\obj\Debug\net10.0\RhythmGame.Domain.csproj.AssemblyReference.cache
+C:\Users\CaSte\PVP\Server\RhythmGame.Domain\obj\Debug\net10.0\RhythmGame.Domain.sourcelink.json

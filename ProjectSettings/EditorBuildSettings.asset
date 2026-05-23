@@ -29,6 +29,12 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/History.unity
     guid: 46d542bac2a00804fb5e0b260e3862da
+  - enabled: 1
+    path: Assets/_Project/Scenes/Matchmaking.unity
+    guid: b9fe49e40ded2ec4bb08e20ab2b853df
+  - enabled: 1
+    path: Assets/_Project/Scenes/PVPMatchEnd.unity
+    guid: cb2632f065b0ba84b8e9d6195318322a
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

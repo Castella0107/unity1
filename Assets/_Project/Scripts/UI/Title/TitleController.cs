@@ -168,7 +168,7 @@ public class TitleController : MonoBehaviour
                 SceneRouter.Instance.GoTo(SceneId.SongSelect);
                 break;
             case MenuId.Online:
-                Debug.Log("[Title] ONLINE — 未実装 (Phase 4-5)");
+                SceneRouter.Instance.GoTo(SceneId.Matchmaking);
                 break;
             case MenuId.Config:
                 SceneRouter.Instance.GoTo(SceneId.Config);
