@@ -15,9 +15,13 @@ namespace RhythmGame.Network
     ///   - PingAsync(): GET /api/ping
     ///   - ValidateReplayAsync(): POST /api/replay/validate
     /// </summary>
-    public class NetworkClient : MonoBehaviour
+    public class NetworkClient : MonoBehaviour, INetworkClient
     {
-        public static NetworkClient Instance { get; private set; }
+        /// <summary>
+        /// シングルトン instance。<see cref="INetworkClient"/> 型として公開し、
+        /// 将来 WebSocket/S3 PUT 版実装への差し替えを透過化する。
+        /// </summary>
+        public static INetworkClient Instance { get; private set; }
 
         /// <summary>直近の Ping 成功時刻 (Unix ms)。0 はまだ成功していない。</summary>
         public long LastPingUnixMs { get; private set; }
