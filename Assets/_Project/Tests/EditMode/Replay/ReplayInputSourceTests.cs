@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using NUnit.Framework;
 
+/// <summary><see cref="ReplayInputSource"/> のユニットテスト。</summary>
 public class ReplayInputSourceTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────

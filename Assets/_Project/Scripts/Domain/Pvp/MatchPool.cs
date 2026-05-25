@@ -9,10 +9,14 @@ namespace Domain.Pvp
     /// </summary>
     public readonly struct MatchPoolEntry
     {
+        /// <summary>楽曲ID。</summary>
         public readonly string SongId;
-        public readonly string Difficulty;     // easy / normal / hard / extra
-        public readonly int    Level;          // 表示譜面レベル (UI 並び替え用)
+        /// <summary>難易度 (easy / normal / hard / extra)。</summary>
+        public readonly string Difficulty;
+        /// <summary>表示譜面レベル(UI 並び替え用)。</summary>
+        public readonly int    Level;
 
+        /// <summary>楽曲ID・難易度・レベルを指定してプールエントリを生成する。</summary>
         public MatchPoolEntry(string songId, string difficulty, int level)
         {
             SongId     = songId;
@@ -27,9 +31,12 @@ namespace Domain.Pvp
     /// </summary>
     public sealed class MatchPool
     {
+        /// <summary>シーズン識別子。</summary>
         public string                       SeasonId { get; }
+        /// <summary>プール内の楽曲エントリ一覧。</summary>
         public IReadOnlyList<MatchPoolEntry> Entries  { get; }
 
+        /// <summary>シーズンIDとエントリ一覧からマッチプールを生成する(null は空に正規化)。</summary>
         public MatchPool(string seasonId, IReadOnlyList<MatchPoolEntry> entries)
         {
             SeasonId = seasonId ?? "";

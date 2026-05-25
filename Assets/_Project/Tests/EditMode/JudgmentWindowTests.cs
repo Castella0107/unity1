@@ -1,5 +1,6 @@
 using NUnit.Framework;
 
+/// <summary><see cref="JudgmentWindow"/> のユニットテスト。</summary>
 [TestFixture]
 public class JudgmentWindowTests
 {

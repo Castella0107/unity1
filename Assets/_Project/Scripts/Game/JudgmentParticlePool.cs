@@ -25,6 +25,7 @@ public class JudgmentParticlePool : MonoBehaviour
         }
     }
 
+    /// <summary>プールからパーティクルを取得し、指定位置・色・量倍率で再生する。枯渇時は拡張する。</summary>
     public void Spawn(Vector3 worldPos, Color color, float countMultiplier)
     {
         ParticleSystem ps;
@@ -55,6 +56,7 @@ public class JudgmentParticlePool : MonoBehaviour
         StartCoroutine(ReturnAfter(ps, main.duration + main.startLifetime.constantMax + 0.1f));
     }
 
+    /// <summary>稼働中の全パーティクルを停止してプールに戻す。</summary>
     public void ReleaseAll()
     {
         foreach (var ps in _all)

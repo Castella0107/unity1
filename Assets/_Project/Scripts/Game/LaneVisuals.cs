@@ -38,9 +38,15 @@ public class LaneVisuals : MonoBehaviour
 
     void SpawnMainLaneDividers()
     {
+        // 6 lanes: FX (±1.2 wide) flank 4 main lanes (±1.0). Field spans X -3.2..+3.2.
+        // 7 boundary lines: outer FX edges at ±3.2, inner boundaries at integer X.
+        SpawnDivider(-3.2f, _outerHeight,  _outerLengthRatio);  // FxL outer edge
+        SpawnDivider(-2.0f, _outerHeight,  _outerLengthRatio);  // FxL|Lane0
         SpawnDivider(-1.0f, _outerHeight,  _outerLengthRatio);  // Lane0|Lane1
         SpawnDivider( 0.0f, _centerHeight, 1.0f);               // Lane1|Lane2 center
         SpawnDivider( 1.0f, _outerHeight,  _outerLengthRatio);  // Lane2|Lane3
+        SpawnDivider( 2.0f, _outerHeight,  _outerLengthRatio);  // Lane3|FxR
+        SpawnDivider( 3.2f, _outerHeight,  _outerLengthRatio);  // FxR outer edge
     }
 
     void SpawnDivider(float xPos, float height, float lengthRatio)

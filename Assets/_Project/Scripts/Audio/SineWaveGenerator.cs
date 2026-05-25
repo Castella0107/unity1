@@ -9,7 +9,7 @@ public static class SineWaveGenerator
 {
     const int SAMPLE_RATE = 44100;
 
-    /// Single-frequency sine wave with ADSR envelope.
+    /// <summary>ADSR エンベロープ付きの単一周波数サイン波 AudioClip を生成する。</summary>
     public static AudioClip Generate(
         string name, float frequency, float durationSec,
         float volume       = 0.5f,
@@ -48,7 +48,7 @@ public static class SineWaveGenerator
         return clip;
     }
 
-    /// Two-frequency dissonant wave for Miss.
+    /// <summary>Miss 音用の二周波数不協和音 AudioClip を生成する。</summary>
     public static AudioClip GenerateDissonant(
         string name, float baseFreq, float durationSec, float volume = 0.5f)
     {

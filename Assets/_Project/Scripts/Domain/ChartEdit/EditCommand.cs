@@ -7,8 +7,11 @@ using System.Collections.Generic;
 /// </summary>
 public interface IEditCommand
 {
+    /// <summary>この操作を状態に適用する。</summary>
     void Apply(EditorState state);
+    /// <summary>この操作を取り消し、適用前の状態へ戻す。</summary>
     void Revert(EditorState state);
+    /// <summary>Undo/Redo 表示用の操作説明。</summary>
     string Description { get; }
 }
 
@@ -16,6 +19,7 @@ public interface IEditCommand
 public sealed class PlaceNoteCommand : IEditCommand
 {
     readonly NoteData _note;
+    /// <summary>追加するノーツを指定してコマンドを生成する。</summary>
     public PlaceNoteCommand(NoteData note) { _note = note; }
     public string Description => $"Place {_note.Type} @ {_note.TimeMs:F0}ms lane={_note.Lane}";
 
@@ -40,6 +44,7 @@ public sealed class PlaceNoteCommand : IEditCommand
 public sealed class DeleteNoteCommand : IEditCommand
 {
     readonly NoteData _snapshot;
+    /// <summary>削除するノーツのスナップショットを取り、Undo で完全復元できるようにする。</summary>
     public DeleteNoteCommand(NoteData note)
     {
         _snapshot = new NoteData
@@ -75,6 +80,7 @@ public sealed class MoveNoteCommand : IEditCommand
     readonly NoteType _oldType, _newType;
     readonly bool _typeChanges;
 
+    /// <summary>ノーツの新しい時刻とレーンを指定して移動コマンドを生成する(種別は変えない)。</summary>
     public MoveNoteCommand(NoteData note, double newTimeMs, LaneRef newLane)
     {
         _id = note.Id;
@@ -119,6 +125,7 @@ public sealed class ResizeHoldCommand : IEditCommand
 {
     readonly int _id;
     readonly double _oldDur, _newDur;
+    /// <summary>対象ホールドと新しい持続時間を指定してリサイズコマンドを生成する。</summary>
     public ResizeHoldCommand(NoteData note, double newDurationMs)
     {
         _id = note.Id; _oldDur = note.DurationMs; _newDur = newDurationMs;
@@ -143,8 +150,11 @@ public sealed class ResizeHoldCommand : IEditCommand
 public sealed class BatchCommand : IEditCommand
 {
     readonly List<IEditCommand> _items;
+    /// <summary>まとめて実行するコマンド列と説明を指定してバッチを生成する。</summary>
     public BatchCommand(List<IEditCommand> items, string desc) { _items = items; Description = desc; }
+    /// <inheritdoc/>
     public string Description { get; }
+    /// <summary>このバッチに含まれる子コマンド一覧。</summary>
     public IReadOnlyList<IEditCommand> Items => _items;
     public void Apply(EditorState state)  { for (int i = 0; i < _items.Count; i++)             _items[i].Apply(state); }
     public void Revert(EditorState state) { for (int i = _items.Count - 1; i >= 0; i--)        _items[i].Revert(state); }
@@ -158,6 +168,7 @@ public sealed class BatchCommand : IEditCommand
 public sealed class AddTempoEventCommand : IEditCommand
 {
     readonly TempoEvent _ev;
+    /// <summary>追加する TempoEvent を指定してコマンドを生成する。</summary>
     public AddTempoEventCommand(TempoEvent ev) { _ev = ev; }
     public string Description => $"Add {_ev.Type} {(_ev.Type == "bpm" ? _ev.Bpm : _ev.Multiplier):F2} @ {_ev.TimeMs:F0}ms";
 
@@ -185,6 +196,7 @@ public sealed class RemoveTempoEventCommand : IEditCommand
 {
     readonly TempoEvent _snapshot;
     readonly int        _originalIndex;
+    /// <summary>削除する TempoEvent と元インデックスをスナップショットし、Undo で完全復元できるようにする。</summary>
     public RemoveTempoEventCommand(TempoEvent ev, int originalIndex)
     {
         _snapshot = new TempoEvent
@@ -228,6 +240,7 @@ public sealed class RemoveTempoEventCommand : IEditCommand
 public sealed class AddSectorCommand : IEditCommand
 {
     readonly SectorDef _sec;
+    /// <summary>追加するセクション定義を指定してコマンドを生成する。</summary>
     public AddSectorCommand(SectorDef sec) { _sec = sec; }
     public string Description => $"Add sector '{_sec.Name}' end={_sec.EndMs}ms";
 
@@ -255,6 +268,7 @@ public sealed class AddSectorCommand : IEditCommand
 public sealed class RemoveSectorCommand : IEditCommand
 {
     readonly SectorDef _snapshot;
+    /// <summary>削除するセクションをスナップショットし、Undo で完全復元できるようにする。</summary>
     public RemoveSectorCommand(SectorDef sec)
     {
         _snapshot = new SectorDef { Id = sec.Id, Name = sec.Name, EndMs = sec.EndMs };
@@ -287,6 +301,7 @@ public sealed class RemoveSectorCommand : IEditCommand
 public sealed class MirrorNotesCommand : IEditCommand
 {
     readonly List<(int id, LaneRef oldLane, LaneRef newLane)> _ops;
+    /// <summary>反転対象ノーツ群から、各ノーツの新旧レーン対応を記録してコマンドを生成する。</summary>
     public MirrorNotesCommand(List<NoteData> notes)
     {
         _ops = new List<(int, LaneRef, LaneRef)>(notes.Count);
@@ -310,6 +325,7 @@ public sealed class MirrorNotesCommand : IEditCommand
             if (dict.TryGetValue(n.Id, out var lane)) n.Lane = lane;
         }
     }
+    /// <summary>レーンを左右反転する (Lane0↔Lane3, Lane1↔Lane2, FxL↔FxR)。</summary>
     public static LaneRef Mirror(LaneRef lane)
     {
         switch (lane)
@@ -329,6 +345,7 @@ public sealed class MirrorNotesCommand : IEditCommand
 public sealed class PasteNotesCommand : IEditCommand
 {
     readonly List<NoteData> _pasted; // newly issued ids
+    /// <summary>貼り付ける(新規ID採番済みの)ノーツ群を指定してコマンドを生成する。</summary>
     public PasteNotesCommand(List<NoteData> pasted) { _pasted = pasted; }
     public string Description => $"Paste {_pasted.Count} notes";
 

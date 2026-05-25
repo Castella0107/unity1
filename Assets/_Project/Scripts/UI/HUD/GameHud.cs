@@ -1,29 +1,35 @@
-using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
 /// ゲームプレイ中の HUD を管理するコンポーネント。
-/// 判定カウント・コンボ・スコア・楽曲情報の表示、セクタープログレスパネルの更新、および PVP 用次曲インジケーターを担当する。
+/// 左上の楽曲情報ボックス、上中央の判定カウント、左の縦スコアゲージ＋総合 RATE、
+/// および S1..S5 のセクター達成率(菱形マーカー)を表示する。PVP 用の次曲インジケーターも担当する。
 /// </summary>
 public class GameHud : MonoBehaviour
 {
-    [Header("Top Bar — Judgment Counts")]
+    [Header("Song Info Box (top-left)")]
+    [SerializeField] RawImage        _jacket;
+    [SerializeField] TextMeshProUGUI _songTitle;
+    [SerializeField] TextMeshProUGUI _songArtist;
+    [SerializeField] TextMeshProUGUI _difficulty;
+
+    [Header("Judgment Counts (top-center)")]
     [SerializeField] TextMeshProUGUI _ppCount;
     [SerializeField] TextMeshProUGUI _pCount;
     [SerializeField] TextMeshProUGUI _grCount;
     [SerializeField] TextMeshProUGUI _gdCount;
     [SerializeField] TextMeshProUGUI _mCount;
-    [SerializeField] TextMeshProUGUI _comboValue;
 
-    [Header("Sector Panel")]
-    [SerializeField] RectTransform _sectorPanelContent;
-    [SerializeField] GameObject    _sectorItemPrefab;
+    [Header("Score Panel (left)")]
+    [SerializeField] Image           _scoreGauge;   // filled vertical, fillAmount = score/1,000,000
+    [SerializeField] TextMeshProUGUI _scoreValue;
+    [SerializeField] TextMeshProUGUI _rateValue;
 
-    [Header("Bottom Bar")]
-    [SerializeField] TextMeshProUGUI _scoreText;
-    [SerializeField] TextMeshProUGUI _songInfoText;
+    [Header("Sector Diamonds — index 0 = S1 (bottom) .. 4 = S5 (top)")]
+    [SerializeField] Image[]           _sectorDiamonds = new Image[5];
+    [SerializeField] TextMeshProUGUI[] _sectorPercents = new TextMeshProUGUI[5];
 
     [Header("Next Song Indicator (PVP Only)")]
     [SerializeField] GameObject      _nextIndicator;
@@ -34,44 +40,53 @@ public class GameHud : MonoBehaviour
     [SerializeField] JudgmentSystem  _judgment;
     [SerializeField] AudioConductor  _conductor;
 
-    SongMetadata          _meta;
-    ChartData             _chart;
-    List<SectorItemView>  _sectorItems = new();
-    int                   _currentSectorIdx;
+    static readonly Color ColIdle   = new Color(0.35f, 0.35f, 0.35f, 1f);  // future sector
+    static readonly Color ColJacketFallback = new Color(0.12f, 0.13f, 0.18f, 1f);
+
+    SongMetadata _meta;
+    ChartData    _chart;
+    JacketLoader _jacketLoader;
+    int          _shownSectorIdx = -1;   // highest sector index whose final value is locked in
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>楽曲メタ・譜面・PvP フラグから HUD(曲情報・スコア・セクターパネル等)を初期化する。</summary>
     public void Initialize(SongMetadata meta, ChartData chart, bool isPvP)
     {
         _meta  = meta;
         _chart = chart;
 
-        _scoreText.text    = "SCORE: 0,000,000";
-        _songInfoText.text = $"{meta.Title}  -  {meta.Artist}  [Lv.{chart.Level}]";
-
-        // Sector panel
-        foreach (Transform t in _sectorPanelContent) Destroy(t.gameObject);
-        _sectorItems.Clear();
-
-        for (int i = 0; i < meta.Sectors.Count; i++)
+        if (_songTitle  != null) _songTitle.text  = meta.Title;
+        if (_songArtist != null) _songArtist.text = meta.Artist;
+        if (_difficulty != null)
         {
-            var go   = Instantiate(_sectorItemPrefab, _sectorPanelContent);
-            var view = new SectorItemView(go, meta.Sectors[i].Name);
-            _sectorItems.Add(view);
+            _difficulty.text  = $"{DifficultyLabel(chart.Difficulty)} {chart.Level}";
+            _difficulty.color = RankColors.GetDifficultyColor(chart.Difficulty);
         }
 
-        _currentSectorIdx = 0;
-        if (_sectorItems.Count > 0) _sectorItems[0].SetInProgress();
+        LoadJacket(meta.SongId);
 
-        _nextIndicator.SetActive(isPvP);
+        if (_scoreValue != null) _scoreValue.text = "0";
+        if (_rateValue  != null) _rateValue.text  = "0.00%";
+        if (_scoreGauge != null) _scoreGauge.fillAmount = 0f;
+
+        _shownSectorIdx = -1;
+        for (int i = 0; i < _sectorDiamonds.Length; i++)
+        {
+            bool exists = _meta.Sectors != null && i < _meta.Sectors.Count;
+            if (_sectorDiamonds[i] != null)
+            {
+                _sectorDiamonds[i].color = ColIdle;
+                _sectorDiamonds[i].enabled = exists;
+            }
+            if (_sectorPercents[i] != null)
+                _sectorPercents[i].text = exists ? "--" : "";
+        }
+
+        if (_nextIndicator != null) _nextIndicator.SetActive(isPvP);
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
-
-    void OnDisable()
-    {
-        // No event subscriptions — polling in Update
-    }
 
     void Update()
     {
@@ -80,112 +95,91 @@ public class GameHud : MonoBehaviour
         var agg = _judgment.Aggregator;
         if (agg == null) return;
 
-        _ppCount.text    = agg.Counts[(int)Judgment.PerfectPlus].ToString();
-        _pCount.text     = agg.Counts[(int)Judgment.Perfect].ToString();
-        _grCount.text    = agg.Counts[(int)Judgment.Great].ToString();
-        _gdCount.text    = agg.Counts[(int)Judgment.Good].ToString();
-        _mCount.text     = agg.Counts[(int)Judgment.Miss].ToString();
-        _comboValue.text = agg.CurrentCombo.ToString();
+        _ppCount.text = agg.Counts[(int)Judgment.PerfectPlus].ToString();
+        _pCount.text  = agg.Counts[(int)Judgment.Perfect].ToString();
+        _grCount.text = agg.Counts[(int)Judgment.Great].ToString();
+        _gdCount.text = agg.Counts[(int)Judgment.Good].ToString();
+        _mCount.text  = agg.Counts[(int)Judgment.Miss].ToString();
 
-        _scoreText.text = $"SCORE: {agg.CurrentScore:N0}";
+        int score = agg.CurrentScore;
+        if (_scoreValue != null) _scoreValue.text = score.ToString("N0");
+        if (_scoreGauge != null) _scoreGauge.fillAmount = score / 1_000_000f;
 
-        UpdateSectorProgress();
+        // Overall RATE = accuracy = score / max-so-far. At song end == score/10000.
+        if (_rateValue != null)
+            _rateValue.text = Rate(score, agg.CurrentMaxScore).ToString("F2") + "%";
+
+        UpdateSectorDiamonds(agg);
     }
 
-    // ── Sector logic ──────────────────────────────────────────────────────────
+    // ── Sector diamonds ─────────────────────────────────────────────────────────
 
-    void UpdateSectorProgress()
+    // Driven off the aggregator's CurrentSectorIdx so the display matches the exact
+    // moment each sector's score delta is finalized (idx > i ⇒ sector i is locked in).
+    void UpdateSectorDiamonds(PlayProgressAggregator agg)
     {
-        if (_meta.Sectors == null || _meta.Sectors.Count == 0) return;
+        int curIdx     = agg.CurrentSectorIdx;
+        int sectorCount = _meta.Sectors != null ? _meta.Sectors.Count : 0;
 
-        double now = _conductor.SongTimeMs;
-
-        // Advance past completed sectors
-        while (_currentSectorIdx < _meta.Sectors.Count
-               && now >= _meta.Sectors[_currentSectorIdx].EndMs)
+        // Lock in newly-completed sectors with their final accuracy + rank color.
+        while (_shownSectorIdx < curIdx - 1 && _shownSectorIdx < 4)
         {
-            if (_currentSectorIdx < _sectorItems.Count)
-            {
-                string rank = _judgment.Aggregator != null
-                    ? ScoreCalculator.ComputeRank(_judgment.Aggregator.CurrentScore)
-                    : "--";
-                _sectorItems[_currentSectorIdx].SetCompleted(rank);
-            }
-            _currentSectorIdx++;
-            if (_currentSectorIdx < _sectorItems.Count)
-                _sectorItems[_currentSectorIdx].SetInProgress();
+            _shownSectorIdx++;
+            int i = _shownSectorIdx;
+            if (i < sectorCount)
+                SetDiamond(i, Rate(agg.SectorScores[i], agg.SectorMaxScores[i]), final: true);
         }
 
-        // Progress bar for current sector
-        if (_currentSectorIdx < _sectorItems.Count
-            && _currentSectorIdx < _meta.Sectors.Count)
-        {
-            int prevEnd = _currentSectorIdx == 0
-                ? 0 : _meta.Sectors[_currentSectorIdx - 1].EndMs;
-            int curEnd  = _meta.Sectors[_currentSectorIdx].EndMs;
-            float prog  = Mathf.Clamp01(
-                (float)((now - prevEnd) / System.Math.Max(1, curEnd - prevEnd)));
-            _sectorItems[_currentSectorIdx].SetProgress(prog);
-        }
+        // Live update for the in-progress sector.
+        if (curIdx < 5 && curIdx < sectorCount && agg.CurrentSectorMaxScore > 0)
+            SetDiamond(curIdx, Rate(agg.CurrentSectorScore, agg.CurrentSectorMaxScore), final: false);
+    }
+
+    void SetDiamond(int i, float ratePct, bool final)
+    {
+        if (i < 0 || i >= _sectorDiamonds.Length) return;
+        string rank = ScoreCalculator.ComputeRank(Mathf.RoundToInt(ratePct * 10000f));
+        if (_sectorDiamonds[i] != null) _sectorDiamonds[i].color = RankColors.GetRankColor(rank);
+        if (_sectorPercents[i] != null) _sectorPercents[i].text  = ratePct.ToString("F2") + "%";
     }
 
     // ── PVP helper ────────────────────────────────────────────────────────────
 
+    /// <summary>次曲のタイトルとジャケットを表示する(PVP の曲間表示用)。</summary>
     public void SetNextSong(string title, Texture2D jacket)
     {
         if (_nextSongTitle != null) _nextSongTitle.text = title;
         if (_nextJacket    != null) _nextJacket.texture = jacket;
     }
-}
 
-// ── SectorItemView ────────────────────────────────────────────────────────────
-// Controls one entry in the sector panel. Kept in same file to avoid extra prefab script.
+    // ── Helpers ─────────────────────────────────────────────────────────────────
 
-/// <summary>
-/// セクターパネルの1エントリーの表示状態（待機中・進行中・完了・進捗バー）を制御するビューヘルパークラス。
-/// </summary>
-public class SectorItemView
-{
-    Image            _bg;
-    TextMeshProUGUI  _label;
-    TextMeshProUGUI  _rank;
-    Image            _progressBar;
+    static float Rate(int score, int maxScore)
+        => maxScore > 0 ? score / (float)maxScore * 100f : 0f;
 
-    static readonly Color ColIdle       = new Color(1f, 1f, 1f, 0.08f);
-    static readonly Color ColInProgress = new Color(0.17f, 0.35f, 0.63f, 0.50f);
-    static readonly Color ColDone       = new Color(0.17f, 0.35f, 0.63f, 0.25f);
-
-    public SectorItemView(GameObject go, string sectorName)
+    static string DifficultyLabel(string diff)
     {
-        _bg          = go.transform.Find("Background")?.GetComponent<Image>();
-        _progressBar = go.transform.Find("ProgressBar")?.GetComponent<Image>();
-
-        var tmps = go.GetComponentsInChildren<TextMeshProUGUI>(true);
-        if (tmps.Length >= 1) _label = tmps[0];
-        if (tmps.Length >= 2) _rank  = tmps[1];
-
-        if (_label != null) _label.text = sectorName;
-        if (_rank  != null) { _rank.text = "--"; _rank.color = new Color(.5f,.5f,.5f,1f); }
-        if (_bg    != null) _bg.color = ColIdle;
-        if (_progressBar != null) _progressBar.fillAmount = 0f;
+        switch (diff?.ToLower())
+        {
+            case "easy":   return "ESY";
+            case "normal": return "NML";
+            case "hard":   return "HRD";
+            case "extra":  return "EX";
+            default:       return string.IsNullOrEmpty(diff) ? "??" : diff.ToUpper();
+        }
     }
 
-    public void SetInProgress()
+    async void LoadJacket(string songId)
     {
-        if (_bg   != null) _bg.color = ColInProgress;
-        if (_rank != null) { _rank.text = "..."; _rank.color = new Color(.8f,.8f,.8f,1f); }
+        if (_jacket == null) return;
+        _jacket.color = Color.white;
+        _jacketLoader ??= new JacketLoader();
+        var tex = await LoadJacketTexture(songId);
+        if (_jacket == null) return;   // destroyed while awaiting
+        if (tex != null) _jacket.texture = tex;
+        else             _jacket.color   = ColJacketFallback;
     }
 
-    public void SetProgress(float p)
-    {
-        if (_progressBar != null) _progressBar.fillAmount = p;
-    }
-
-    public void SetCompleted(string rank)
-    {
-        if (_bg   != null) _bg.color = ColDone;
-        if (_rank != null) { _rank.text = rank; _rank.color = RankColors.GetRankColor(rank); }
-        if (_progressBar != null) _progressBar.fillAmount = 1f;
-    }
-
+    System.Threading.Tasks.Task<Texture2D> LoadJacketTexture(string songId)
+        => _jacketLoader.LoadAsync(songId);
 }

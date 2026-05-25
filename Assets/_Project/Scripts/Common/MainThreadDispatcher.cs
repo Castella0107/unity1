@@ -10,6 +10,7 @@ using UnityEngine;
 /// </summary>
 public class MainThreadDispatcher : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static MainThreadDispatcher Instance { get; private set; }
 
     readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
@@ -21,6 +22,7 @@ public class MainThreadDispatcher : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    /// <summary>次回 Update でメインスレッド実行するアクションをキューに積む(スレッドセーフ)。</summary>
     public void Enqueue(Action action)
     {
         if (action != null) _queue.Enqueue(action);

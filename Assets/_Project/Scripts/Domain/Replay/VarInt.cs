@@ -13,6 +13,7 @@ public static class VarInt
     static uint ZigZagEncode(int value) => (uint)((value << 1) ^ (value >> 31));
     static int  ZigZagDecode(uint value) => (int)((value >> 1) ^ -(int)(value & 1));
 
+    /// <summary>符号付き整数を ZigZag+VLQ で可変長エンコードして書き込む。</summary>
     public static void WriteSignedVarInt(BinaryWriter writer, int value)
     {
         uint v = ZigZagEncode(value);
@@ -24,6 +25,7 @@ public static class VarInt
         writer.Write((byte)v);
     }
 
+    /// <summary>ZigZag+VLQ でエンコードされた符号付き整数を読み出す。35bit 超過時は例外。</summary>
     public static int ReadSignedVarInt(BinaryReader reader)
     {
         uint result = 0;

@@ -12,6 +12,7 @@ using System.IO;
 /// </summary>
 public static class BuildHistoryScene
 {
+    /// <summary>History シーンと HistoryItem プレハブを構築し HistoryController を配線する。</summary>
     [MenuItem("Tools/Build History Scene + Prefab")]
     public static void Build()
     {

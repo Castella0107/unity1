@@ -10,6 +10,7 @@ using UnityEngine.Audio;
 /// </summary>
 public class AudioVolumeBinder : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static AudioVolumeBinder Instance { get; private set; }
 
     [Header("Mixer (optional — assign after creating MainAudioMixer)")]
@@ -36,6 +37,7 @@ public class AudioVolumeBinder : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>PlayerPrefs に保存された Master/Music/Sfx の各音量を読み込んで適用する。</summary>
     public void ApplyAllFromPrefs()
     {
         SetMasterVolume(PlayerPrefs.GetFloat("Vol_Master", 80f));
@@ -43,6 +45,7 @@ public class AudioVolumeBinder : MonoBehaviour
         SetSfxVolume(PlayerPrefs.GetFloat("Vol_Sfx",    70f));
     }
 
+    /// <summary>マスター音量(0〜100%)を設定する。</summary>
     public void SetMasterVolume(float percent)
     {
         SetParam(MASTER_PARAM, percent);
@@ -50,11 +53,13 @@ public class AudioVolumeBinder : MonoBehaviour
         // No direct source override needed.
     }
 
+    /// <summary>音楽音量(0〜100%)を設定する。</summary>
     public void SetMusicVolume(float percent)
     {
         SetParam(MUSIC_PARAM, percent);
     }
 
+    /// <summary>効果音音量(0〜100%)を設定する。Mixer 未割り当て時は HitSoundPlayer に直接フォールバック。</summary>
     public void SetSfxVolume(float percent)
     {
         SetParam(SFX_PARAM, percent);

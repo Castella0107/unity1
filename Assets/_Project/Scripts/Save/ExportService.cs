@@ -45,12 +45,17 @@ public static class ExportService
 
     enum PrefType { Int, Float, String }
 
+    /// <summary>エクスポートの結果。成否・出力ファイルパス・失敗理由を保持する。</summary>
     public readonly struct Result
     {
+        /// <summary>成功したか。</summary>
         public readonly bool   Success;
+        /// <summary>出力した JSON ファイルのパス。</summary>
         public readonly string FilePath;
+        /// <summary>失敗時の理由(成功時は null)。</summary>
         public readonly string FailureReason;
 
+        /// <summary>結果を生成する。</summary>
         public Result(bool success, string filePath, string reason)
         {
             Success       = success;

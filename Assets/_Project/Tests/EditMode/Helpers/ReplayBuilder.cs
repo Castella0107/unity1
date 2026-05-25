@@ -1,10 +1,10 @@
 using System.Collections.Generic;
 using System.Linq;
 
-// Test helper: generates synthetic ReplayInputEvent lists for judgment engine tests.
+/// <summary>判定エンジンテスト用に合成 <see cref="ReplayInputEvent"/> 列を生成するテストヘルパー。</summary>
 public static class ReplayBuilder
 {
-    /// Each note hit at exactly its time (delta = 0 → Perfect+).
+    /// <summary>全ノーツをジャストタイミング(delta=0 → PerfectPlus)でヒットする入力列を生成する。</summary>
     public static List<ReplayInputEvent> AllPerfectPlus(ChartData chart)
     {
         var abs = new List<(double timeMs, byte lane, byte action)>();
@@ -28,14 +28,13 @@ public static class ReplayBuilder
         return ToReplayEvents(abs);
     }
 
-    /// No input — all notes auto-miss.
+    /// <summary>入力なし(全ノーツがオートミス)の空入力列を生成する。</summary>
     public static List<ReplayInputEvent> AllMiss()
     {
         return new List<ReplayInputEvent>();
     }
 
-    /// All tap notes hit with a fixed time offset (positive = late, negative = fast).
-    /// Hold notes are skipped (complex tail timing with offset).
+    /// <summary>全タップを一定のタイミングずれ(正=遅れ、負=早押し)でヒットする入力列を生成する(ホールドは除外)。</summary>
     public static List<ReplayInputEvent> AllWithOffset(ChartData chart, double offsetMs)
     {
         var abs = new List<(double timeMs, byte lane, byte action)>();

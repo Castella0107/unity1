@@ -1,6 +1,7 @@
 using System.Threading.Tasks;
 using NUnit.Framework;
 
+/// <summary><see cref="InMemoryOffsetRepository"/> のユニットテスト。</summary>
 public class InMemoryOffsetRepositoryTests
 {
     IOffsetRepository _repo;

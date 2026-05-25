@@ -17,8 +17,10 @@ public sealed class ChartDataNoteSource : INoteSource
     readonly HashSet<int>                         _judgedHeads = new HashSet<int>();
     readonly HashSet<int>                         _judgedTails = new HashSet<int>();
 
+    /// <inheritdoc/>
     public IReadOnlyList<NoteData> AllNotes => _allNotes;
 
+    /// <summary>譜面のノーツをレーン別・種別別に振り分けてインデックスを構築する。</summary>
     public ChartDataNoteSource(ChartData chart)
     {
         _allNotes = chart.Notes;
@@ -38,6 +40,7 @@ public sealed class ChartDataNoteSource : INoteSource
         }
     }
 
+    /// <inheritdoc/>
     public NoteData FindNearestUnhitTap(LaneRef lane, double timeMs, double maxDeltaMs)
     {
         if (!_tapsByLane.TryGetValue(lane, out var list)) return null;
@@ -54,6 +57,7 @@ public sealed class ChartDataNoteSource : INoteSource
         return best;
     }
 
+    /// <inheritdoc/>
     public NoteData FindNearestUnjudgedHold(LaneRef lane, double timeMs)
     {
         if (!_holdsByLane.TryGetValue(lane, out var list)) return null;
@@ -70,6 +74,7 @@ public sealed class ChartDataNoteSource : INoteSource
         return best;
     }
 
+    /// <inheritdoc/>
     public IEnumerable<NoteData> EnumerateUnhitTapsExpiredAt(double currentMs, double goodMs)
     {
         foreach (var list in _tapsByLane.Values)
@@ -78,9 +83,14 @@ public sealed class ChartDataNoteSource : INoteSource
                     yield return n;
     }
 
+    /// <inheritdoc/>
     public void MarkTapHit(int noteId)                      => _hitTaps.Add(noteId);
+    /// <inheritdoc/>
     public void MarkHoldHeadJudged(int noteId, Judgment j)  => _judgedHeads.Add(noteId);
+    /// <inheritdoc/>
     public void MarkHoldTailJudged(int noteId, Judgment j)  => _judgedTails.Add(noteId);
+    /// <inheritdoc/>
     public bool IsTapHit(int noteId)                        => _hitTaps.Contains(noteId);
+    /// <inheritdoc/>
     public bool IsHoldHeadJudged(int noteId)                => _judgedHeads.Contains(noteId);
 }

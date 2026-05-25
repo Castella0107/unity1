@@ -302,14 +302,18 @@ public class HistoryController : MonoBehaviour
 /// </summary>
 public class HistoryItemView
 {
+    /// <summary>このアイテムのルート GameObject。</summary>
     public GameObject  Root   { get; }
+    /// <summary>アイテムのクリック用ボタン。</summary>
     public Button      Button { get; }
+    /// <summary>このアイテムが表すプレイ記録。</summary>
     public PlayRecord  Record { get; }
 
     Image _bg;
     static readonly Color IdleColor     = new Color(1f, 1f, 1f, 0.04f);
     static readonly Color SelectedColor = new Color(0.17f, 0.35f, 0.63f, 0.5f);
 
+    /// <summary>GameObject とプレイ記録から履歴アイテムの表示を構築する。</summary>
     public HistoryItemView(GameObject go, PlayRecord rec)
     {
         Root   = go;
@@ -334,6 +338,7 @@ public class HistoryItemView
         SetSelected(false);
     }
 
+    /// <summary>選択状態に応じて背景色を切り替える。</summary>
     public void SetSelected(bool on)
     {
         if (_bg != null) _bg.color = on ? SelectedColor : IdleColor;

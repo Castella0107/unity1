@@ -18,7 +18,7 @@ public class JacketLoader
 
     static readonly string[] Extensions = { "jacket.png", "jacket.jpg", "jacket.jpeg" };
 
-    /// Load jacket for songId. Returns null if not found or on error.
+    /// <summary>指定楽曲のジャケット画像を非同期でロードする(LRU キャッシュ利用)。見つからない/失敗時は null。</summary>
     public async Task<Texture2D> LoadAsync(string songId)
     {
         if (string.IsNullOrEmpty(songId)) return null;
@@ -82,6 +82,7 @@ public class JacketLoader
         }
     }
 
+    /// <summary>キャッシュ済みの全テクスチャを破棄してキャッシュを空にする。</summary>
     public void ClearCache()
     {
         foreach (var tex in _cache.Values)

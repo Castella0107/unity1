@@ -8,6 +8,7 @@ using System.IO;
 /// </summary>
 public static class CreateJudgmentParticlePrefab
 {
+    /// <summary>判定エフェクト用パーティクルプレハブ (JudgmentParticle.prefab) を生成する。</summary>
     [MenuItem("Tools/Create JudgmentParticle Prefab")]
     public static void Create()
     {

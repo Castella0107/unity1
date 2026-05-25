@@ -31,37 +31,37 @@ public class NoteScroller : MonoBehaviour
 
     // ── Judgment notifications (NoteId-based, replaces direct NoteController access) ──
 
-    // Tap/FxTap hit: deactivate the note.
+    /// <summary>Tap/FxTap のヒットを通知し、対応するノートを非表示にする。</summary>
     public void NotifyHit(int noteId, Judgment j)
     {
         if (_noteById.TryGetValue(noteId, out var ctrl))
             ctrl.OnHit(j);
     }
 
-    // Hold head hit: mark IsHit but keep the note visible until tail despawns.
+    /// <summary>ホールド頭のヒットを通知する。IsHit は立てるが尾の消滅まで表示は維持する。</summary>
     public void NotifyHitHead(int noteId)
     {
         if (_noteById.TryGetValue(noteId, out var ctrl))
             ctrl.SetHit();
     }
 
-    // Tap/FxTap auto-miss: deactivate the note.
+    /// <summary>Tap/FxTap のオートミスを通知し、ノートを非表示にする。</summary>
     public void NotifyMiss(int noteId)
     {
         if (_noteById.TryGetValue(noteId, out var ctrl))
             ctrl.OnMiss();
     }
 
-    // ── Legacy API (kept for internal use; JudgmentSystem no longer calls these) ──
-
+    /// <summary>ノートをヒット済みにマークする(内部用の旧 API)。</summary>
     public void MarkHit(NoteController note)
     {
         if (note != null) note.SetHit();
     }
 
-    // ── Public read-only access ────────────────────────────────────────────────
+    /// <summary>現在アクティブなノート一覧(読み取り専用)。</summary>
     public IReadOnlyList<NoteController> ActiveNotes => _activeNotes;
 
+    /// <summary>指定レーンで <paramref name="timeMs"/> に最も近い未ヒットのアクティブノートを返す(無ければ null)。</summary>
     public NoteController FindNearestUnhitNote(LaneRef lane, double timeMs)
     {
         NoteController best     = null;
@@ -77,6 +77,7 @@ public class NoteScroller : MonoBehaviour
         return best;
     }
 
+    /// <summary>未ヒットのアクティブノートを列挙する。</summary>
     public System.Collections.Generic.IEnumerable<NoteController> GetUnhitNotes()
     {
         for (int i = 0; i < _activeNotes.Count; i++)
@@ -88,6 +89,7 @@ public class NoteScroller : MonoBehaviour
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
+    /// <summary>譜面でスクローラーを初期化する(時刻昇順に並べ替えて準備)。</summary>
     public void Initialize(ChartData chart)
     {
         Reset();
@@ -95,6 +97,7 @@ public class NoteScroller : MonoBehaviour
         _nextSpawnIdx = 0;
     }
 
+    /// <summary>全アクティブノートをプールに返却し、内部状態をリセットする。</summary>
     public void Reset()
     {
         foreach (var n in _activeNotes)

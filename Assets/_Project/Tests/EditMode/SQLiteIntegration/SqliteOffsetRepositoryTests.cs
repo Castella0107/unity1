@@ -3,6 +3,7 @@ using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
+/// <summary><see cref="SqliteOffsetRepository"/> の統合テスト(一時 SQLite DB を使用)。</summary>
 public class SqliteOffsetRepositoryTests
 {
     TempSqliteDb _temp;

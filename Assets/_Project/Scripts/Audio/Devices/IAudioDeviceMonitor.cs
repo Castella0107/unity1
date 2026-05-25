@@ -9,15 +9,17 @@ using System;
 /// </summary>
 public interface IAudioDeviceMonitor
 {
-    /// OS-side friendly name of the current default output device (null if unavailable).
+    /// <summary>現在の既定出力デバイスの OS 表示名(取得不可なら null)。</summary>
     string CurrentDeviceName { get; }
 
-    /// True only on platforms where monitoring is actually implemented.
+    /// <summary>このプラットフォームで監視が実装されている場合のみ true。</summary>
     bool IsAvailable { get; }
 
+    /// <summary>デバイス監視を開始する。</summary>
     void Start();
+    /// <summary>デバイス監視を停止する。</summary>
     void Stop();
 
-    /// Fired on the main thread whenever the default output device changes.
+    /// <summary>既定出力デバイスが変化したときメインスレッドで発火する。</summary>
     event Action<string> OnDeviceChanged;
 }

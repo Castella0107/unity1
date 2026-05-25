@@ -26,6 +26,7 @@ public static class ChartLoader
             : Path.Combine(Application.streamingAssetsPath, "Songs", songId);
     }
 
+    /// <summary>指定楽曲の meta.json を読み込んで <see cref="SongMetadata"/> を返す。</summary>
     public static async Task<SongMetadata> LoadMetaAsync(string songId)
     {
         string path = Path.Combine(ResolveBaseDir(songId), "meta.json");
@@ -33,6 +34,7 @@ public static class ChartLoader
         return ChartParser.ParseMeta(json);
     }
 
+    /// <summary>指定楽曲・難易度のチャートを読み込む。<c>charts/&lt;diff&gt;.json</c> と <c>&lt;diff&gt;.json</c> の両配置に対応。</summary>
     public static async Task<ChartData> LoadChartAsync(string songId, string difficulty)
     {
         // 本体配置: <base>/charts/<diff>.json。ChartEditor 配置: <base>/<diff>.json も許容。
@@ -44,6 +46,7 @@ public static class ChartLoader
         return ChartParser.ParseChart(json);
     }
 
+    /// <summary>指定楽曲の音源を読み込む。<c>audio.*</c> を優先し、無ければフォルダ内の .ogg/.mp3/.wav を走査する。</summary>
     public static async Task<AudioClip> LoadAudioAsync(string songId)
     {
         // 1) audio.{ogg,mp3,wav} を優先 (PVP 本体の StreamingAssets 配置)

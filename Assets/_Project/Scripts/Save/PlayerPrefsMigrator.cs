@@ -13,6 +13,7 @@ public static class PlayerPrefsMigrator
 {
     const string MigrationFlagKey = "DBMigrationComplete_v1";
 
+    /// <summary>未移行なら旧 PlayerPrefs のベストスコアを SQLite へ移行する(初回起動時に1回のみ)。</summary>
     public static async Task MigrateIfNeeded(IPlayRecordRepository repo)
     {
         if (PlayerPrefs.GetInt(MigrationFlagKey, 0) == 1) return;

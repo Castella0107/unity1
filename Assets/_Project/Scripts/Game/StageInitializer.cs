@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Threading.Tasks;
 using UnityEngine;
 
@@ -14,6 +13,7 @@ using UnityEngine;
 /// </summary>
 public static class StageInitializer
 {
+    /// <summary>チャート/メタ読み込み後にステージビジュアル(ノートスクローラー・HUD)を初期化する。</summary>
     public static void BindStageVisuals(
         AudioConductor conductor,
         ChartData      chart,
@@ -25,19 +25,23 @@ public static class StageInitializer
         // the 3D camera output. Must be the first call here.
         JacketBackgroundController.Instance?.SetCanvasEnabled(false);
 
-        var bpmTimeline = new BpmTimeline(chart.Events ?? new List<TempoEvent>());
-        BeatGridController.Instance?.BindGamePlay(conductor, bpmTimeline);
+        // Pulsing beat grid intentionally disabled — static gray background only.
 
         scroller?.Initialize(chart);
         hud?.Initialize(meta, chart, isPvP: false);
     }
 
+    /// <summary>セッション終了時にステージビジュアルのバインドを解除する。</summary>
     public static void UnbindStageVisuals()
     {
         BeatGridController.Instance?.Unbind();
         JacketBackgroundController.Instance?.SetCanvasEnabled(true);
     }
 
+    /// <summary>
+    /// 楽曲のオフセットを AudioConductor に適用する。RepositoryService が利用可能ならアクティブプロファイル+曲別オフセットを、
+    /// 無ければ SimpleCalibration の保存値(またはフォールバック引数)を使う。
+    /// </summary>
     public static async Task ApplyAudioOffsetsAsync(
         AudioConductor conductor,
         string         songId,

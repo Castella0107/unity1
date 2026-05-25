@@ -15,6 +15,7 @@ using TMPro;
 /// </summary>
 public static class BuildPvpScenes
 {
+    /// <summary>Matchmaking.unity と PvpMatchEnd.unity をプログラム的に構築する。</summary>
     [MenuItem("Tools/PVP/Build PVP Scenes")]
     public static void BuildAll()
     {

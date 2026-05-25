@@ -11,9 +11,12 @@ namespace RhythmGame.Network
     /// </summary>
     public static class LocalIdentity
     {
-        public const string PrefKey  = "DisplayName";       // AccountTabController と共通
+        /// <summary>表示名を保存する PlayerPrefs キー(AccountTabController と共通)。</summary>
+        public const string PrefKey  = "DisplayName";
+        /// <summary>未設定時のフォールバックユーザー名。</summary>
         public const string Fallback = "anon";
-        public const int    MaxLen   = 32;                  // サーバー PlayRecordEntity.UserId VARCHAR(64) の半分
+        /// <summary>UserId の最大長(サーバー側 VARCHAR(64) の半分)。</summary>
+        public const int    MaxLen   = 32;
 
         /// <summary>サーバー送信用に正規化された UserId。常に非空文字列を返す。</summary>
         public static string UserId
@@ -25,6 +28,7 @@ namespace RhythmGame.Network
             }
         }
 
+        /// <summary>表示名を正規化する(trim + 最大長切り詰め、空なら "anon")。</summary>
         public static string Sanitize(string raw)
         {
             if (string.IsNullOrEmpty(raw)) return Fallback;

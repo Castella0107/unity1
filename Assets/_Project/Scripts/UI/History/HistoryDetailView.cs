@@ -55,6 +55,7 @@ public class HistoryDetailView : MonoBehaviour
             _replayButton.onClick.AddListener(OnReplayClicked);
     }
 
+    /// <summary>指定プレイ記録の詳細(スコア・判定内訳・リプレイボタン等)を表示する。</summary>
     public void Show(PlayRecord r)
     {
         _current = r;

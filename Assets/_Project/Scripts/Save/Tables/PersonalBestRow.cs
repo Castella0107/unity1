@@ -22,6 +22,7 @@ public class PersonalBestRow
     public long   FirstPlayedAt                   { get; set; }
     public long   LastPlayedAt                    { get; set; }
 
+    /// <summary>楽曲ID + 難易度から主キー文字列 ("{songId}:{difficulty}") を生成する。</summary>
     public static string MakeKey(string songId, string difficulty) =>
         songId + ":" + difficulty;
 }

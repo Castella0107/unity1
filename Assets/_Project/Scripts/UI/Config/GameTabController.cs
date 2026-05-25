@@ -105,8 +105,7 @@ public class GameTabController : MonoBehaviour
         _judgmentEffectDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("JudgmentEffectStyleIdx", 1));
     }
 
-    /// Returns the combo border Judgment value from PlayerPrefs.
-    /// Call from GamePlayController.Start() to pass into JudgmentSystem.Initialize.
+    /// <summary>保存済みのコンボ継続境界となる判定値を返す。GamePlayController から JudgmentSystem.Initialize に渡す。</summary>
     public static Judgment GetSavedComboBorder()
     {
         switch (PlayerPrefs.GetInt("ComboBorderIdx", 0))

@@ -8,6 +8,7 @@ using System;
 public static class RowMapper
 {
 #if SQLITE_NET_PCL
+    /// <summary>プレイ記録を SQLite 行オブジェクトに変換する。</summary>
     public static PlayRow ToRow(PlayRecord r)
     {
         return new PlayRow
@@ -46,6 +47,7 @@ public static class RowMapper
         };
     }
 
+    /// <summary>SQLite 行オブジェクトをプレイ記録に変換する(null は null)。</summary>
     public static PlayRecord ToRecord(PlayRow row)
     {
         if (row == null) return null;
@@ -83,6 +85,7 @@ public static class RowMapper
         };
     }
 
+    /// <summary>SQLite 行オブジェクトをパーソナルベストに変換する(null は null)。</summary>
     public static PersonalBest ToBest(PersonalBestRow row)
     {
         if (row == null) return null;

@@ -9,8 +9,9 @@ using System.Text;
 /// </summary>
 public static class ReplayEncoder
 {
-    /// Serialize ReplayData to a gzip-compressed binary blob.
-    /// Format: [header][metadata][result][events][crc32] → gzip
+    /// <summary>
+    /// <see cref="ReplayData"/> をバイナリ([header][metadata][result][events][crc32])にシリアライズし gzip 圧縮して返す。
+    /// </summary>
     public static byte[] Encode(ReplayData data)
     {
         using var raw = new MemoryStream();

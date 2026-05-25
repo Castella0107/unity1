@@ -10,7 +10,7 @@ using System.Text;
 /// </summary>
 public static class ReplayDecoder
 {
-    /// Read and validate the header without fully decompressing/parsing.
+    /// <summary>全体を解析せずヘッダーのみ読み取って検証する。</summary>
     public static ReplayHeader DecodeHeaderOnly(byte[] compressed)
     {
         using var input  = new MemoryStream(compressed);
@@ -19,7 +19,7 @@ public static class ReplayDecoder
         return ReadHeader(reader);
     }
 
-    /// Full decode with CRC32 verification.
+    /// <summary>gzip 解凍 → CRC32 検証 → 全セクションをパースして <see cref="ReplayData"/> を返す。検証失敗時は例外。</summary>
     public static ReplayData Decode(byte[] compressed)
     {
         // 1. Decompress entirely into memory

@@ -10,6 +10,7 @@ using UnityEngine.SceneManagement;
 /// </summary>
 public class SceneRouter : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static SceneRouter Instance { get; private set; }
 
     [SerializeField] TransitionFx _transitionFx;
@@ -49,11 +50,14 @@ public class SceneRouter : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    /// <summary>現在表示中のシーン。</summary>
     public SceneId CurrentScene    => _currentScene;
+    /// <summary>シーン遷移の実行中か。</summary>
     public bool    IsTransitioning => _isTransitioning;
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>指定シーンへ遷移する。パラメータと遷移演出を指定可能。遷移中の呼び出しは無視される。</summary>
     public void GoTo(
         SceneId          target,
         ISceneParameters parameters = null,
@@ -68,6 +72,7 @@ public class SceneRouter : MonoBehaviour
         StartCoroutine(GoToRoutine(target, parameters ?? EmptyParameters.Instance, style));
     }
 
+    /// <summary>起動時に Title シーンへ遷移する(起動時の黒フラッシュを避けるため演出なし)。</summary>
     public void InitialBoot()
     {
         // Use None for boot (no black flash on startup)
@@ -190,6 +195,7 @@ public class SceneRouter : MonoBehaviour
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /// <summary>未使用アセットを解放し GC を強制実行してメモリを積極的に回収する。</summary>
     public static IEnumerator AggressiveCleanup()
     {
         yield return Resources.UnloadUnusedAssets();

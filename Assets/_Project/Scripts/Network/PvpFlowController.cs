@@ -17,13 +17,20 @@ namespace RhythmGame.Network
     /// </summary>
     public class PvpFlowController : MonoBehaviour
     {
+        /// <summary>シングルトンインスタンス。</summary>
         public static PvpFlowController Instance { get; private set; }
 
+        /// <summary>PVP マッチ進行中か。</summary>
         public bool   IsActive       { get; private set; }
+        /// <summary>現在のマッチID。</summary>
         public string MatchId        { get; private set; }
+        /// <summary>対戦相手のユーザーID。</summary>
         public string OpponentId     { get; private set; }
+        /// <summary>自分のユーザーID。</summary>
         public string SelfUserId     { get; private set; }
+        /// <summary>現在プレイ中の曲インデックス(0 始まり)。</summary>
         public int    CurrentSongIndex { get; private set; }
+        /// <summary>このマッチの選曲一覧。</summary>
         public IReadOnlyList<SongPickDto> Songs => _songs;
 
         List<SongPickDto> _songs = new();

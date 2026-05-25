@@ -3,6 +3,7 @@ using NUnit.Framework;
 
 // JudgmentEngine と JudgmentRunner の結果が一致することを確認する統合テスト。
 // 特に「同一レーンに Tap と Hold が近接」する難しいケースを重点的に検証する。
+/// <summary>JudgmentEngine と JudgmentRunner の結果一致を検証する統合テスト(同一レーンの Tap/Hold 近接ケース重点)。</summary>
 public class TapHoldNearbyConsistencyTests
 {
     static PlayProgressSnapshot RunEngine(ChartData chart, IReadOnlyList<ReplayInputEvent> events)

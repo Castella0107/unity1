@@ -19,6 +19,7 @@ public static class Crc32
         return t;
     }
 
+    /// <summary>バイト列の CRC32 チェックサムを計算する。</summary>
     public static uint Compute(byte[] data)
     {
         uint crc = 0xFFFFFFFFu;

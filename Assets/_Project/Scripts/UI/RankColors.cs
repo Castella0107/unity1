@@ -1,7 +1,9 @@
 using UnityEngine;
 
+/// <summary>ランク文字列・難易度文字列に対応する表示色を提供する静的ユーティリティ。</summary>
 public static class RankColors
 {
+    /// <summary>ランク (S+/S/A+/A/B/C/D) に対応する表示色を返す。</summary>
     public static Color GetRankColor(string rank)
     {
         switch (rank)
@@ -16,6 +18,7 @@ public static class RankColors
         }
     }
 
+    /// <summary>難易度 (easy/normal/hard/extra) に対応する表示色を返す。</summary>
     public static Color GetDifficultyColor(string diff)
     {
         switch (diff?.ToLower())

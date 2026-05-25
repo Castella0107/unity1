@@ -15,9 +15,11 @@ public static class BuildPvpStandalone
     const string ProductName = "PVP";
     const string ExeName     = "PVP.exe";
 
+    /// <summary>メニュー「PVP/Build (Win64)」のエントリ。<see cref="BuildWin64"/> を呼ぶ。</summary>
     [MenuItem("Tools/PVP/Build (Win64)")]
     public static void BuildWin64Menu() => BuildWin64();
 
+    /// <summary>PVP本体の Windows64 スタンドアロンをビルドする(batch: -executeMethod BuildPvpStandalone.BuildWin64)。</summary>
     public static void BuildWin64()
     {
         var scenes = CollectEnabledScenes();

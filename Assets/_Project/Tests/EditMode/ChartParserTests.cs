@@ -5,6 +5,7 @@ using System.IO;
 // Inline JSON strings avoid file I/O in the first four tests.
 // The fifth/sixth tests read the actual StreamingAssets files.
 
+/// <summary><see cref="ChartParser"/> のユニットテスト。</summary>
 [TestFixture]
 public class ChartParserTests
 {

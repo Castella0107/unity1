@@ -185,7 +185,7 @@ public class DisplayTabController : MonoBehaviour
         if (counter != null) counter.gameObject.SetActive(enabled);
     }
 
-    /// Called from BootstrapController on app start (no MonoBehaviour needed).
+    /// <summary>保存済みの解像度・画面モード等の表示設定を適用する。アプリ起動時に BootstrapController から呼ばれる。</summary>
     public static void ApplySettingsOnBoot()
     {
         int resIdx  = PlayerPrefs.GetInt("ResolutionIdx",  0);

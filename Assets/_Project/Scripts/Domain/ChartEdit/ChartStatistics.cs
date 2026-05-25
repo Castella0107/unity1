@@ -7,34 +7,53 @@ using System.Collections.Generic;
 /// </summary>
 public sealed class ChartStatistics
 {
+    /// <summary>総ノーツ数。</summary>
     public int    TotalNotes;
+    /// <summary>Tap ノーツ数。</summary>
     public int    TapCount;
+    /// <summary>Hold ノーツ数。</summary>
     public int    HoldCount;
+    /// <summary>FxTap ノーツ数。</summary>
     public int    FxTapCount;
+    /// <summary>FxHold ノーツ数。</summary>
     public int    FxHoldCount;
-    public int    MaxCombo;            // approximation: notes + hold ticks (simple count of notes for v1)
+    /// <summary>最大コンボ概算(v1 では総ノーツ数)。</summary>
+    public int    MaxCombo;
+    /// <summary>集計対象の総時間(ms)。</summary>
     public double TotalDurationMs;
+    /// <summary>毎秒ノーツ数(NPS)。</summary>
     public double NotesPerSecond;
-    public double HoldOccupancyRatio;  // sum(hold durations) / song duration
-    public int[]  LaneDistribution = new int[6];   // counts per lane
+    /// <summary>ホールド占有率(ホールド長合計 / 楽曲長)。</summary>
+    public double HoldOccupancyRatio;
+    /// <summary>レーン別ノーツ数(インデックス 0-5)。</summary>
+    public int[]  LaneDistribution = new int[6];
+    /// <summary>セクション別統計。</summary>
     public List<SectorStat> Sectors = new List<SectorStat>();
 }
 
 /// <summary>セクター単位の統計。</summary>
 public sealed class SectorStat
 {
+    /// <summary>セクションID。</summary>
     public int    Id;
+    /// <summary>セクション名。</summary>
     public string Name;
+    /// <summary>セクション開始時刻(ms)。</summary>
     public int    StartMs;
+    /// <summary>セクション終了時刻(ms)。</summary>
     public int    EndMs;
+    /// <summary>このセクション内のノーツ数。</summary>
     public int    NoteCount;
+    /// <summary>セクション長(ms)。</summary>
     public double DurationMs;
+    /// <summary>このセクションの毎秒ノーツ数(NPS)。</summary>
     public double NotesPerSecond;
 }
 
 /// <summary>譜面から統計値を計算する静的ヘルパー。</summary>
 public static class ChartStatisticsCalculator
 {
+    /// <summary>譜面とメタデータから統計値(種別別カウント・NPS・ホールド占有率・レーン分布・セクション統計)を計算する。</summary>
     public static ChartStatistics Compute(ChartData chart, SongMetadata meta, double audioDurationMs)
     {
         var st = new ChartStatistics

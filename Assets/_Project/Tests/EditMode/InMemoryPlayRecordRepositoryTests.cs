@@ -2,6 +2,7 @@ using System;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
+/// <summary><see cref="InMemoryPlayRecordRepository"/> のユニットテスト。</summary>
 public class InMemoryPlayRecordRepositoryTests
 {
     IPlayRecordRepository _repo;

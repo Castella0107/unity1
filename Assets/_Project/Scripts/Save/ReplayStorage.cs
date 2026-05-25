@@ -11,13 +11,14 @@ public class ReplayStorage
 {
     string _root;
 
+    /// <summary>保存先ルートディレクトリを準備する。</summary>
     public void Initialize()
     {
         _root = Path.Combine(Application.persistentDataPath, "replays");
         if (!Directory.Exists(_root)) Directory.CreateDirectory(_root);
     }
 
-    /// Encode and write a replay file. Returns the absolute path, or null on failure.
+    /// <summary>リプレイをエンコードして YYYY/MM/{playId}.replay に書き出す。成功時は絶対パス、失敗時 null。</summary>
     public async Task<string> SaveAsync(string playId, ReplayData data, long playedAtUnixMs)
     {
         if (string.IsNullOrEmpty(_root)) Initialize();
@@ -44,9 +45,11 @@ public class ReplayStorage
         }
     }
 
+    /// <summary>リプレイファイルが存在するか。</summary>
     public bool Exists(string replayPath)
         => !string.IsNullOrEmpty(replayPath) && File.Exists(replayPath);
 
+    /// <summary>リプレイファイルのバイト列を非同期で読み込む(存在しなければ null)。</summary>
     public async Task<byte[]> ReadAsync(string replayPath)
     {
         if (!Exists(replayPath)) return null;
@@ -60,9 +63,11 @@ public class ReplayStorage
         return buf;
     }
 
+    /// <summary>保存済みリプレイファイルの総数を返す。</summary>
     public int  GetReplayCount() => Directory.Exists(_root)
         ? Directory.GetFiles(_root, "*.replay", SearchOption.AllDirectories).Length : 0;
 
+    /// <summary>保存済みリプレイファイルの合計バイト数を返す。</summary>
     public long GetTotalSize()
     {
         if (!Directory.Exists(_root)) return 0;

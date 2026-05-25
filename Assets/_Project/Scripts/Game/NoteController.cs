@@ -9,9 +9,13 @@ using UnityEngine;
 public class NoteController : MonoBehaviour
 {
     // ── State ──────────────────────────────────────────────────────────────
+    /// <summary>このノートが表すノーツデータ。</summary>
     public NoteData Data       { get; private set; }
+    /// <summary>GameObject がアクティブ(使用中)か。</summary>
     public bool     IsActive   => gameObject.activeSelf;
-    public NoteType PoolType   { get; set; }   // set by NotePool on pre-warm
+    /// <summary>プール上の種別。NotePool が事前生成時に設定する。</summary>
+    public NoteType PoolType   { get; set; }
+    /// <summary>ヒット/ミス処理済みか。</summary>
     public bool     IsHit      { get; private set; }
 
     // ── Lane colour table (indexed by (int)LaneRef) ────────────────────────
@@ -37,6 +41,7 @@ public class NoteController : MonoBehaviour
 
     // ── Public API ─────────────────────────────────────────────────────────
 
+    /// <summary>ノーツデータを割り当ててノートを初期化し、レーン色を適用して表示する。</summary>
     public virtual void Initialize(NoteData data)
     {
         Data  = data;
@@ -49,8 +54,8 @@ public class NoteController : MonoBehaviour
     }
 
     /// <summary>
-    /// Called every frame by the gameplay manager.
-    /// dtMs &gt; 0 = note is in the future (in front of camera).
+    /// 毎フレーム呼ばれ、現在の視覚時刻とスクロール速度からノートの Z 位置を更新する。
+    /// 時間差 &gt; 0 はノートが未来(カメラ前方)にあることを意味する。
     /// </summary>
     public virtual void UpdatePosition(double currentVisualMs, float scrollSpeed)
     {
@@ -58,19 +63,34 @@ public class NoteController : MonoBehaviour
         double dtMs = Data.TimeMs - currentVisualMs;
         float  z    = (float)(dtMs / 1000.0 * scrollSpeed);
         transform.localPosition = new Vector3(LaneLayout.GetX(Data.Lane), 0f, LaneLayout.JudgmentLineZ + z);
+
+        // Tap visual width is driven by the lane note width (FX lanes are wider) so prefab
+        // scale needn't be tuned per lane. HoldNoteController overrides this and sizes its
+        // own head/body/tail, so only Tap / FxTap are affected here.
+        float width = LaneLayout.GetNoteWidth(Data.Lane);
+        foreach (var r in _renderers)
+        {
+            var t = r.transform;
+            var s = t.localScale;
+            if (!Mathf.Approximately(s.x, width))
+                t.localScale = new Vector3(width, s.y, s.z);
+        }
     }
 
+    /// <summary>ヒット時に呼ばれ、ヒット済みにして非表示にする。</summary>
     public virtual void OnHit(Judgment j)
     {
         IsHit = true;
         gameObject.SetActive(false);
     }
 
+    /// <summary>ミス時に呼ばれ、処理済みにして非表示にする。</summary>
     public virtual void OnMiss()
     {
         IsHit = true;
         gameObject.SetActive(false);
     }
 
+    /// <summary>非表示にせずヒット済みフラグだけ立てる。</summary>
     public void SetHit() => IsHit = true;
 }

@@ -7,10 +7,13 @@ using UnityEngine.UI;
 /// 設定可能な遅延後にロード進捗インジケーターを表示するシングルトン MonoBehaviour。
 /// ロードが _showThresholdSec より長くかかった場合にのみオーバーレイを表示する。
 /// </summary>
-// Shows a loading progress indicator after a configurable delay.
-// Only appears when a load takes longer than _showThresholdSec.
+/// <summary>
+/// ロード進捗インジケータを設定可能な遅延後に表示するシングルトン。
+/// ロードが閾値 (_showThresholdSec) より長くかかった場合のみ表示される。
+/// </summary>
 public class LoadingOverlay : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static LoadingOverlay Instance { get; private set; }
 
     [SerializeField] Canvas          _canvas;
@@ -32,7 +35,7 @@ public class LoadingOverlay : MonoBehaviour
         SetVisible(false);
     }
 
-    // Begin loading: start threshold timer. Pass initialStage for the label.
+    /// <summary>ロード開始。閾値タイマーを開始する(早く終わればオーバーレイは出ない)。<paramref name="initialStage"/> はラベル文字列。</summary>
     public IEnumerator Show(string initialStage = "Loading...")
     {
         _wantsVisible = true;
@@ -46,7 +49,7 @@ public class LoadingOverlay : MonoBehaviour
         yield return null;
     }
 
-    // Update progress (0–1) and optional label.
+    /// <summary>進捗(0〜1)と任意のステージラベルを更新する。</summary>
     public void SetProgress(float value, string stage = null)
     {
         float v = Mathf.Clamp01(value);
@@ -55,7 +58,7 @@ public class LoadingOverlay : MonoBehaviour
         if (stage != null && _stageText != null) _stageText.text = stage;
     }
 
-    // Hide immediately (cancels any pending show).
+    /// <summary>即座に非表示にする(保留中の表示もキャンセル)。</summary>
     public IEnumerator Hide()
     {
         _wantsVisible = false;

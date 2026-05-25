@@ -10,9 +10,12 @@ public sealed class ChartClipboard
 {
     /// <summary>クリップボード内ノーツ。TimeMs はコピー時の基準時刻からの相対 ms。</summary>
     readonly List<NoteData> _items = new List<NoteData>();
+    /// <summary>クリップボードに格納されているノーツ数。</summary>
     public int Count => _items.Count;
+    /// <summary>クリップボードが空か。</summary>
     public bool IsEmpty => _items.Count == 0;
 
+    /// <summary>クリップボードを空にする。</summary>
     public void Clear() => _items.Clear();
 
     /// <summary>選択ノーツをクリップボードに格納。基準時刻 = 選択ノーツの最早時刻。</summary>

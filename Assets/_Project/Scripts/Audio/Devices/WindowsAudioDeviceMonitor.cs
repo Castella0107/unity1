@@ -12,9 +12,12 @@ using UnityEngine;
 /// </summary>
 public class WindowsAudioDeviceMonitor : IAudioDeviceMonitor
 {
+    /// <inheritdoc/>
     public string CurrentDeviceName { get; private set; }
+    /// <inheritdoc/>
     public bool   IsAvailable       => true;
 
+    /// <inheritdoc/>
     public event Action<string> OnDeviceChanged;
 
     Thread    _pollingThread;
@@ -24,6 +27,7 @@ public class WindowsAudioDeviceMonitor : IAudioDeviceMonitor
 
     const int PollIntervalMs = 2000;
 
+    /// <inheritdoc/>
     public void Start()
     {
         if (_running) return;
@@ -50,6 +54,7 @@ public class WindowsAudioDeviceMonitor : IAudioDeviceMonitor
         Debug.Log("[AudioDeviceMonitor] Started — current device: " + CurrentDeviceName);
     }
 
+    /// <inheritdoc/>
     public void Stop()
     {
         _running = false;

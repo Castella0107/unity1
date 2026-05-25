@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Domain.Calibration;
 using NUnit.Framework;
 
+/// <summary><see cref="Domain.Calibration.OffsetEstimator"/> のユニットテスト。</summary>
 public class OffsetEstimatorTests
 {
     [Test]

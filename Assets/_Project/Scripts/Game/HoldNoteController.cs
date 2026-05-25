@@ -13,6 +13,7 @@ public class HoldNoteController : NoteController
 
     private const float NoteHeight = 0.05f;
 
+    /// <inheritdoc/>
     public override void UpdatePosition(double currentVisualMs, float scrollSpeed)
     {
         if (Data == null) return;
@@ -25,8 +26,14 @@ public class HoldNoteController : NoteController
         // Root at lane X, Z = 0 (children use world-space Z via localPosition)
         transform.localPosition = new Vector3(x, 0f, 0f);
 
+        // Head/tail caps: match their width to the body so FX holds aren't wider than
+        // their lane (prefab caps were baked for the old 2-unit-wide FX lanes). Y/Z kept.
         if (_headTransform != null)
+        {
             _headTransform.localPosition = new Vector3(0f, 0f, startZ);
+            var hs = _headTransform.localScale;
+            _headTransform.localScale = new Vector3(width, hs.y, hs.z);
+        }
 
         if (_bodyTransform != null)
         {
@@ -35,6 +42,10 @@ public class HoldNoteController : NoteController
         }
 
         if (_tailTransform != null)
+        {
             _tailTransform.localPosition = new Vector3(0f, 0f, endZ);
+            var ts = _tailTransform.localScale;
+            _tailTransform.localScale = new Vector3(width, ts.y, ts.z);
+        }
     }
 }

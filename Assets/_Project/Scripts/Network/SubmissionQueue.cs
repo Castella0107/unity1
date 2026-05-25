@@ -21,14 +21,21 @@ namespace RhythmGame.Network
     {
         const string DirName = "submission_queue";
 
+        /// <summary>送信待ちの1件。譜面ハッシュ・リプレイパス・主張結果・メタ・投入時刻・試行回数を保持する。</summary>
         [Serializable]
         public class QueuedEntry
         {
+            /// <summary>譜面ハッシュ。</summary>
             public string         ChartHash;
+            /// <summary>リプレイファイルへのパス(再読込時に存在しなければスキップ)。</summary>
             public string         ReplayPath;
+            /// <summary>クライアントが主張するプレイ結果。</summary>
             public ResultClaimDto Claim;
+            /// <summary>検証/永続化用メタデータ。</summary>
             public ValidateRequestDto Meta;
+            /// <summary>キュー投入時刻(Unix ms)。</summary>
             public long           EnqueuedAtUnixMs;
+            /// <summary>送信試行回数。</summary>
             public int            Attempts;
         }
 
@@ -61,6 +68,7 @@ namespace RhythmGame.Network
             }
         }
 
+        /// <summary>キューに残っている件数を返す。</summary>
         public static int Count()
         {
             try

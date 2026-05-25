@@ -1,5 +1,6 @@
 using NUnit.Framework;
 
+/// <summary><see cref="PlayRecordFactory"/> のユニットテスト。</summary>
 public class PlayRecordFactoryTests
 {
     [Test]

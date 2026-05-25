@@ -1,20 +1,23 @@
 using System.Collections.Generic;
 
-// Test helper: builds small ChartData objects for judgment engine tests.
-// TotalNotes is computed as the total number of scoring events
-// (tap = 1, hold = head + ticks + tail) so that all-perfect always gives 1,000,000.
+/// <summary>
+/// 判定エンジンテスト用に小さな <see cref="ChartData"/> を組み立てるフルーエントなテストヘルパー。
+/// TotalNotes はスコアリングイベント総数で算出され、オールパーフェクトが常に 1,000,000 になる。
+/// </summary>
 public class ChartBuilder
 {
     int _nextId = 1;
     readonly List<NoteData>   _notes  = new List<NoteData>();
     readonly List<TempoEvent> _tempos = new List<TempoEvent>();
 
+    /// <summary>BPM イベントを追加する。</summary>
     public ChartBuilder WithBpm(double bpm, double timeMs = 0)
     {
         _tempos.Add(new TempoEvent { Type = "bpm", TimeMs = timeMs, Bpm = bpm });
         return this;
     }
 
+    /// <summary>タップ(FX レーンなら FxTap)を追加する。</summary>
     public ChartBuilder AddTap(LaneRef lane, double timeMs)
     {
         _notes.Add(new NoteData
@@ -29,6 +32,7 @@ public class ChartBuilder
         return this;
     }
 
+    /// <summary>ホールド(FX レーンなら FxHold)を追加する。</summary>
     public ChartBuilder AddHold(LaneRef lane, double startMs, double durationMs)
     {
         _notes.Add(new NoteData
@@ -43,6 +47,7 @@ public class ChartBuilder
         return this;
     }
 
+    /// <summary>蓄積したノーツとテンポから <see cref="ChartData"/> を生成する(BPM 未指定なら 120)。</summary>
     public ChartData Build()
     {
         if (_tempos.Count == 0) WithBpm(120);

@@ -7,7 +7,7 @@ using System.Linq;
 /// </summary>
 public static class ReplayValidator
 {
-    // ReplayData.Metadata.ChartHash is byte[], ChartData.ChartHash is a hex string.
+    /// <summary>リプレイのチャートハッシュ(byte[])と譜面のハッシュ(hex 文字列)が一致するか検証する。</summary>
     public static bool MatchesChart(ReplayData replay, ChartData chart)
     {
         if (replay?.Metadata?.ChartHash == null) return false;

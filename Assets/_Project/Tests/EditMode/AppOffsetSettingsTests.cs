@@ -1,5 +1,6 @@
 using NUnit.Framework;
 
+/// <summary><see cref="AppOffsetSettings"/> のユニットテスト。</summary>
 public class AppOffsetSettingsTests
 {
     [Test]
@@ -38,6 +39,7 @@ public class AppOffsetSettingsTests
     }
 }
 
+/// <summary><see cref="PerSongOffset"/> のユニットテスト。</summary>
 public class PerSongOffsetTests
 {
     [Test]

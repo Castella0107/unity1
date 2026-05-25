@@ -10,6 +10,7 @@ using TMPro;
 /// </summary>
 public static class BuildConfigPanels
 {
+    /// <summary>Config.unity に CalibrationPanel / ManageSongsPanel を構築・配線する。</summary>
     [MenuItem("Tools/Build Calibration & Manage Songs Panels")]
     public static void Build()
     {

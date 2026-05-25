@@ -111,6 +111,7 @@ public class ConfigController : MonoBehaviour
         }
     }
 
+    /// <summary>指定タブに切り替え、ボタンの選択状態とパネルの表示を更新する。</summary>
     public void SwitchTab(ConfigTab tab)
     {
         _currentTab = tab;
@@ -122,7 +123,7 @@ public class ConfigController : MonoBehaviour
             if (kvp.Value != null) kvp.Value.SetActive(kvp.Key == tab);
     }
 
-    /// Switch to a tab by name (used by child controllers to navigate between tabs).
+    /// <summary>タブ名(文字列)でタブを切り替える。子コントローラーからのタブ間遷移に使う。</summary>
     public void SwitchToTab(string tabName)
     {
         if (System.Enum.TryParse<ConfigTab>(tabName, ignoreCase: true, out var tab))
@@ -156,7 +157,9 @@ public class ConfigController : MonoBehaviour
 /// </summary>
 public class TabButtonView
 {
+    /// <summary>このタブボタンのルート GameObject。</summary>
     public GameObject Root   { get; }
+    /// <summary>クリック用ボタン。</summary>
     public Button     Button { get; }
 
     Image            _bg;
@@ -165,6 +168,7 @@ public class TabButtonView
     static readonly Color ColIdle     = new Color(1f, 1f, 1f, 0.05f);
     static readonly Color ColSelected = new Color(0.17f, 0.35f, 0.63f, 0.80f);
 
+    /// <summary>GameObject とラベル文字列からタブボタンの表示を構築する。</summary>
     public TabButtonView(GameObject go, string labelText)
     {
         Root   = go;
@@ -176,6 +180,7 @@ public class TabButtonView
         SetSelected(false);
     }
 
+    /// <summary>選択状態に応じて背景色とラベル色を切り替える。</summary>
     public void SetSelected(bool selected)
     {
         if (_bg != null) _bg.color = selected ? ColSelected : ColIdle;

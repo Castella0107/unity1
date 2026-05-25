@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 
+/// <summary><see cref="HoldJudgmentTracker"/> のユニットテスト。</summary>
 public class HoldJudgmentTrackerTests
 {
     static BpmTimeline Bpm120 => new BpmTimeline(new[]
@@ -16,10 +17,30 @@ public class HoldJudgmentTrackerTests
             Bpm120);
 
     [Test]
-    public void TickInterval_120Bpm_Is31_25ms()
+    public void HoldTickInterval_120Bpm_Is1000ms()
     {
-        // 120 BPM → 1 beat = 500 ms → 1/16 beat = 31.25 ms
-        Assert.AreEqual(31.25, Bpm120.GetTickIntervalMs(0), 0.01);
+        // 120 BPM → measure 2000 ms; 2 ticks per measure → tick interval 1000 ms (2 beats)
+        Assert.AreEqual(1000.0, Bpm120.GetHoldTickIntervalMs(0), 0.01);
+    }
+
+    [Test]
+    public void TickTimes_AreHoldTickSpaced()
+    {
+        // 5000 ms hold at 120 BPM (tick = 1000 ms) → ticks at 1000,2000,3000,4000 = 4 ticks
+        var tracker = MakeTracker(0, 5000);
+        Assert.AreEqual(4, tracker.TickTimes.Count);
+        Assert.AreEqual(1000.0, tracker.TickTimes[0], 0.01);
+        Assert.AreEqual(4000.0, tracker.TickTimes[3], 0.01);
+    }
+
+    [Test]
+    public void TickTimes_EndOnBoundary_ExcludesEndTick_TailWins()
+    {
+        // 2000 ms hold at 120 BPM = exactly 2 tick intervals. The boundary tick at 2000
+        // (= end) is dropped so the tail owns the end (no double combo). Only 1000 remains.
+        var tracker = MakeTracker(0, 2000);
+        Assert.AreEqual(1, tracker.TickTimes.Count);
+        Assert.AreEqual(1000.0, tracker.TickTimes[0], 0.01);
     }
 
     [Test]
@@ -43,9 +64,9 @@ public class HoldJudgmentTrackerTests
     [Test]
     public void AdvanceTo_AllHeld_ReturnsAllPerfectPlus()
     {
-        var tracker = MakeTracker(0, 200);
+        var tracker = MakeTracker(0, 5000);   // ticks at 2000, 4000
         tracker.OnHeadInput(0);
-        var ticks = tracker.AdvanceTo(250).ToList();
+        var ticks = tracker.AdvanceTo(5000).ToList();
         Assert.IsTrue(ticks.Count > 0);
         Assert.IsTrue(ticks.All(t => t.Judgment == Judgment.PerfectPlus));
     }
@@ -53,53 +74,76 @@ public class HoldJudgmentTrackerTests
     [Test]
     public void HeadNotJudged_AdvanceTo_YieldsNothing()
     {
-        var tracker = MakeTracker(0, 200);
-        // head NOT judged — AdvanceTo must yield nothing
-        var ticks = tracker.AdvanceTo(250).ToList();
+        var tracker = MakeTracker(0, 5000);
+        // head NOT judged — AdvanceTo must yield nothing even though ticks exist
+        var ticks = tracker.AdvanceTo(5000).ToList();
         Assert.AreEqual(0, ticks.Count);
     }
 
     [Test]
     public void GuardWindow_AllowsBriefRelease()
     {
-        var tracker = MakeTracker(0, 200);
+        var tracker = MakeTracker(0, 2500);   // single tick at 2000
         tracker.OnHeadInput(0);
-        tracker.OnReleased(50);   // release at 50 ms
-        tracker.OnPressed(80);    // re-press 30 ms later (within 50 ms guard)
-        var ticks = tracker.AdvanceTo(150).ToList();
+        tracker.OnReleased(1970);             // release 30 ms before the tick (within 50 ms guard)
+        var ticks = tracker.AdvanceTo(2100).ToList();
+        Assert.IsTrue(ticks.Count > 0);
         Assert.IsTrue(ticks.All(t => t.Judgment == Judgment.PerfectPlus));
+        Assert.IsFalse(tracker.IsAbandoned);
     }
 
     [Test]
     public void GuardExceeded_RemainingTicksAllMiss()
     {
-        var tracker = MakeTracker(0, 500);
+        var tracker = MakeTracker(0, 5000);   // ticks at 1000,2000,3000,4000
         tracker.OnHeadInput(0);
-        tracker.OnReleased(50);
-        // No re-press; advance well past the guard window
-        var ticks = tracker.AdvanceTo(400).ToList();
+        tracker.OnReleased(500);              // released well before the first tick (1000)
+        var ticks = tracker.AdvanceTo(4500).ToList();
         Assert.IsTrue(ticks.Any(t => t.Judgment == Judgment.Miss));
         Assert.IsTrue(tracker.IsAbandoned);
     }
 
     [Test]
-    public void OnTailInput_WithinWindow_ReturnsJudgment()
+    public void ResolveTail_HeldThrough_ReturnsPerfectPlus()
     {
-        var tracker = MakeTracker(0, 500);
+        // No release at all — holding through to the end yields a Perfect+ tail.
+        var tracker = MakeTracker(0, 5000);
         tracker.OnHeadInput(0);
-        var j = tracker.OnTailInput(500);
+        var j = tracker.ResolveTail(5000);
         Assert.AreEqual(Judgment.PerfectPlus, j);
         Assert.IsTrue(tracker.IsTailJudged);
     }
 
     [Test]
-    public void OnTailMissed_PastWindow_SetsCompleted()
+    public void ResolveTail_ReleasedNearEnd_ReturnsPerfectPlus()
     {
-        var tracker = MakeTracker(0, 500);
+        // Releasing within the 50 ms guard of the end still counts as a held tail.
+        var tracker = MakeTracker(0, 1000);   // no body ticks (< 1 measure)
         tracker.OnHeadInput(0);
-        bool missed = tracker.OnTailMissed(500 + JudgmentWindow.GoodMs + 1);
-        Assert.IsTrue(missed);
+        tracker.OnReleased(980);              // 20 ms before end
+        var j = tracker.ResolveTail(1000);
+        Assert.AreEqual(Judgment.PerfectPlus, j);
+        Assert.IsTrue(tracker.IsTailJudged);
+    }
+
+    [Test]
+    public void ResolveTail_ReleasedEarly_ReturnsMiss()
+    {
+        var tracker = MakeTracker(0, 1000);   // no body ticks (< 1 measure)
+        tracker.OnHeadInput(0);
+        tracker.OnReleased(100);              // released far too early
+        var j = tracker.ResolveTail(1000);
+        Assert.AreEqual(Judgment.Miss, j);
         Assert.IsTrue(tracker.IsCompleted);
+    }
+
+    [Test]
+    public void ResolveTail_BeforeEnd_ReturnsNull()
+    {
+        var tracker = MakeTracker(0, 5000);
+        tracker.OnHeadInput(0);
+        Assert.IsNull(tracker.ResolveTail(4999));
+        Assert.IsFalse(tracker.IsTailJudged);
     }
 
     [Test]

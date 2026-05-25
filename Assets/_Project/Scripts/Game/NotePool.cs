@@ -49,6 +49,7 @@ public class NotePool : MonoBehaviour
         _pools[type] = queue;
     }
 
+    /// <summary>指定種別のノートをプールから取得する。枯渇時は新規生成して拡張する。</summary>
     public NoteController Acquire(NoteType type)
     {
         if (_pools.TryGetValue(type, out var queue) && queue.Count > 0)
@@ -61,6 +62,7 @@ public class NotePool : MonoBehaviour
         return ctrl;
     }
 
+    /// <summary>ノートを非表示にしてプールへ返却する。</summary>
     public void Release(NoteController note)
     {
         if (note == null) return;

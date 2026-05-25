@@ -7,18 +7,27 @@ using UnityEngine;
 /// _Persistent.unity の GameObject にアタッチする MonoBehaviour。
 /// すべてのストレージリポジトリを初期化し、シングルトンとして公開する。
 /// </summary>
-// Attach to a GameObject in _Persistent.unity.
-// Initializes all storage repositories and exposes them as singletons.
+/// <summary>
+/// 全ストレージリポジトリ(プレイ記録・オフセット・リプレイ)を初期化してシングルトンとして公開する。
+/// _Persistent.unity の GameObject にアタッチする。
+/// </summary>
 public class RepositoryService : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static RepositoryService Instance { get; private set; }
 
+    /// <summary>プレイ記録リポジトリ。</summary>
     public IPlayRecordRepository PlayRecords    { get; private set; }
+    /// <summary>オフセット/プロファイルリポジトリ。</summary>
     public IOffsetRepository     Offsets        { get; private set; }
+    /// <summary>リプレイファイルストレージ。</summary>
     public ReplayStorage         Replays        { get; private set; }
+    /// <summary>現在アクティブなデバイスプロファイル。</summary>
     public DeviceProfile         ActiveProfile  { get; private set; }
+    /// <summary>初期化が完了して利用可能か。</summary>
     public bool                  IsReady        { get; private set; }
 
+    /// <summary>アクティブプロファイルが変更されたとき発火する。</summary>
     public event Action<DeviceProfile> OnActiveProfileChanged;
 
     async void Awake()
@@ -113,7 +122,7 @@ public class RepositoryService : MonoBehaviour
         }
     }
 
-    /// Switch the active device profile (Phase 2 will also call this from auto-detection).
+    /// <summary>アクティブなデバイスプロファイルを切り替え、オフセットを再適用して OnActiveProfileChanged を発火する。</summary>
     public async Task<bool> SetActiveProfileAsync(string profileId)
     {
         var profile = await Offsets.GetProfileByIdAsync(profileId);

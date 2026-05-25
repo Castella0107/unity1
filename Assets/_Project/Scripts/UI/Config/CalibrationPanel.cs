@@ -16,9 +16,13 @@ using UnityEngine.UI;
 /// </remarks>
 public class CalibrationPanel : MonoBehaviour
 {
-    public const double BpmPeriodSec = 0.5;   // BPM 120
-    public const int    PrerollBeats = 4;     // 最初の 4 ビートは準備(計測しない)
-    public const int    SampleBeats  = 12;    // 計測対象ビート数
+    /// <summary>キャリブレーション用ビート周期(秒)。BPM 120 相当。</summary>
+    public const double BpmPeriodSec = 0.5;
+    /// <summary>計測前の準備ビート数(この間は計測しない)。</summary>
+    public const int    PrerollBeats = 4;
+    /// <summary>計測対象のビート数。</summary>
+    public const int    SampleBeats  = 12;
+    /// <summary>総ビート数(準備 + 計測)。</summary>
     public const int    TotalBeats   = PrerollBeats + SampleBeats;
 
     [Header("Panel")]
@@ -88,12 +92,14 @@ public class CalibrationPanel : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>キャリブレーションパネルを開いてアイドル状態を表示する。</summary>
     public void Open()
     {
         if (_root != null) _root.SetActive(true);
         ShowIdle();
     }
 
+    /// <summary>パネルを閉じ、計測用ビート音源を破棄してアイドルに戻す。</summary>
     public void Close()
     {
         CleanupBeatSources();

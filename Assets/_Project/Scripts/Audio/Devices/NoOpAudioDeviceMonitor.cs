@@ -7,13 +7,18 @@ using System;
 /// </summary>
 public class NoOpAudioDeviceMonitor : IAudioDeviceMonitor
 {
+    /// <inheritdoc/>
     public string CurrentDeviceName => null;
+    /// <inheritdoc/>
     public bool   IsAvailable       => false;
 
 #pragma warning disable CS0067   // event is never used — intentional for the no-op
+    /// <inheritdoc/>
     public event Action<string> OnDeviceChanged;
 #pragma warning restore CS0067
 
+    /// <inheritdoc/>
     public void Start() { }
+    /// <inheritdoc/>
     public void Stop()  { }
 }

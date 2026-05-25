@@ -14,14 +14,19 @@ using UnityEngine;
 /// </remarks>
 public static class ImportService
 {
-    /// <summary>JSON ファイルを読み込んでパースする(書き込みはしない)。</summary>
+    /// <summary>インポート前のプレビュー結果(読み込み+検証のみ、書き込みはしない)。</summary>
     public readonly struct Preview
     {
+        /// <summary>読み込み・検証に成功したか。</summary>
         public readonly bool         Success;
+        /// <summary>対象ファイルのパス。</summary>
         public readonly string       FilePath;
+        /// <summary>デコードされたスキーマ。</summary>
         public readonly ExportSchema Schema;
+        /// <summary>失敗時の理由(成功時は null)。</summary>
         public readonly string       FailureReason;
 
+        /// <summary>プレビュー結果を生成する。</summary>
         public Preview(bool success, string filePath, ExportSchema schema, string reason)
         {
             Success       = success;
@@ -31,16 +36,25 @@ public static class ImportService
         }
     }
 
+    /// <summary>インポート実行の結果。成否・失敗理由と各種別の取り込み件数を保持する。</summary>
     public readonly struct Result
     {
+        /// <summary>成功したか。</summary>
         public readonly bool   Success;
+        /// <summary>失敗時の理由(成功時は null)。</summary>
         public readonly string FailureReason;
+        /// <summary>取り込んだプレイ記録数。</summary>
         public readonly int    ImportedPlayRecords;
+        /// <summary>取り込んだデバイスプロファイル数。</summary>
         public readonly int    ImportedProfiles;
+        /// <summary>取り込んだ曲別オフセット数。</summary>
         public readonly int    ImportedPerSongOffsets;
+        /// <summary>取り込んだパーソナルベスト数。</summary>
         public readonly int    ImportedPersonalBests;
+        /// <summary>取り込んだ PlayerPrefs エントリ数。</summary>
         public readonly int    ImportedPlayerPrefs;
 
+        /// <summary>結果を生成する。</summary>
         public Result(bool success, string reason, int plays, int profiles, int perSong, int bests, int prefs)
         {
             Success                = success;

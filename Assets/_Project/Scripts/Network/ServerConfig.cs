@@ -10,10 +10,14 @@ public static class ServerConfig
     const string PrefKey_TimeoutSec    = "Network_TimeoutSec";
     const string PrefKey_Enabled       = "Network_Enabled";
 
+    /// <summary>既定のサーバーベース URL。</summary>
     public const string DefaultBaseUrl    = "http://localhost:5246";
+    /// <summary>既定のリクエストタイムアウト(秒)。</summary>
     public const int    DefaultTimeoutSec = 10;
+    /// <summary>ネットワーク機能の既定有効状態。</summary>
     public const bool   DefaultEnabled    = true;
 
+    /// <summary>サーバーのベース URL(PlayerPrefs 永続化)。</summary>
     public static string BaseUrl
     {
         get => PlayerPrefs.GetString(PrefKey_BaseUrl, DefaultBaseUrl);
@@ -24,6 +28,7 @@ public static class ServerConfig
         }
     }
 
+    /// <summary>リクエストタイムアウト(秒、1〜120 にクランプ)。</summary>
     public static int TimeoutSeconds
     {
         get => PlayerPrefs.GetInt(PrefKey_TimeoutSec, DefaultTimeoutSec);
@@ -34,6 +39,7 @@ public static class ServerConfig
         }
     }
 
+    /// <summary>ネットワーク機能が有効か(PlayerPrefs 永続化)。false なら全通信を無効化する。</summary>
     public static bool Enabled
     {
         get => PlayerPrefs.GetInt(PrefKey_Enabled, DefaultEnabled ? 1 : 0) != 0;

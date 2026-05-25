@@ -3,6 +3,7 @@ using NUnit.Framework;
 
 // Verifies that JudgmentRunner (headless) and ReplayInputSource+JudgmentEngine
 // (the path taken during actual replay playback) produce identical scores.
+/// <summary>JudgmentRunner とリプレイ再生経路(ReplayInputSource+JudgmentEngine)のスコア一致を検証する E2E テスト。</summary>
 public class ReplayPlaybackEndToEndTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────

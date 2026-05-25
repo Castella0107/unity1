@@ -26,7 +26,7 @@ public class TransitionFx : MonoBehaviour
         }
     }
 
-    // Screen fades OUT (overlay covers the screen).
+    /// <summary>画面をフェードアウトする(オーバーレイで画面を覆う)。</summary>
     public IEnumerator FadeOut(TransitionStyle style)
     {
         if (style == TransitionStyle.None || style == TransitionStyle.FastCut)
@@ -38,7 +38,7 @@ public class TransitionFx : MonoBehaviour
         yield return TweenAlpha(0f, 1f);
     }
 
-    // Screen fades IN (overlay retreats, revealing the new scene).
+    /// <summary>画面をフェードインする(オーバーレイが退いて新シーンが現れる)。</summary>
     public IEnumerator FadeIn(TransitionStyle style)
     {
         if (style == TransitionStyle.None || style == TransitionStyle.FastCut)

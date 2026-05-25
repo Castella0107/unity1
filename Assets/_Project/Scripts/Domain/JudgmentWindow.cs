@@ -8,9 +8,13 @@ using System;
 /// </summary>
 public static class JudgmentWindow
 {
+    /// <summary>PerfectPlus 判定の許容タイミング差(±ms)。</summary>
     public const int PerfectPlusMs = 16;
+    /// <summary>Perfect 判定の許容タイミング差(±ms)。</summary>
     public const int PerfectMs     = 33;
+    /// <summary>Great 判定の許容タイミング差(±ms)。</summary>
     public const int GreatMs       = 50;
+    /// <summary>Good 判定の許容タイミング差(±ms)。これを超えると Miss。</summary>
     public const int GoodMs        = 83;
 
     /// <summary>

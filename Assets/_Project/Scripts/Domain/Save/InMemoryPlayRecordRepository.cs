@@ -14,8 +14,10 @@ public class InMemoryPlayRecordRepository : IPlayRecordRepository
     readonly Dictionary<string, PlayRecord>   _records = new Dictionary<string, PlayRecord>();
     readonly Dictionary<string, PersonalBest> _bests   = new Dictionary<string, PersonalBest>();
 
+    /// <inheritdoc/>
     public Task InitializeAsync(string dbPath) => Task.CompletedTask;
 
+    /// <inheritdoc/>
     public Task<bool> SaveAsync(PlayRecord record)
     {
         _records[record.PlayId] = record;
@@ -66,34 +68,41 @@ public class InMemoryPlayRecordRepository : IPlayRecordRepository
         };
     }
 
+    /// <inheritdoc/>
     public Task<PlayRecord> GetByIdAsync(string playId)
     {
         _records.TryGetValue(playId, out var r);
         return Task.FromResult(r);
     }
 
+    /// <inheritdoc/>
     public Task<PersonalBest> GetBestAsync(string songId, string difficulty)
     {
         _bests.TryGetValue(songId + ":" + difficulty, out var b);
         return Task.FromResult(b);
     }
 
+    /// <inheritdoc/>
     public Task<List<PersonalBest>> GetAllBestsAsync() =>
         Task.FromResult(_bests.Values.ToList());
 
+    /// <inheritdoc/>
     public Task<List<PlayRecord>> GetHistoryAsync(string songId, string difficulty, int limit = 50) =>
         Task.FromResult(_records.Values
             .Where(r => r.SongId == songId && r.Difficulty == difficulty)
             .OrderByDescending(r => r.PlayedAtUnixMs)
             .Take(limit).ToList());
 
+    /// <inheritdoc/>
     public Task<List<PlayRecord>> GetAllHistoryAsync(int limit = 50, int offset = 0) =>
         Task.FromResult(_records.Values
             .OrderByDescending(r => r.PlayedAtUnixMs)
             .Skip(offset).Take(limit).ToList());
 
+    /// <inheritdoc/>
     public Task<int> GetTotalPlaysAsync() => Task.FromResult(_records.Count);
 
+    /// <inheritdoc/>
     public Task<bool> DeleteAllAsync()
     {
         _records.Clear();

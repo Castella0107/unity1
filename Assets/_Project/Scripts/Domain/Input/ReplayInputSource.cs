@@ -11,16 +11,22 @@ using System.Collections.Generic;
 /// </summary>
 public sealed class ReplayInputSource : IInputSource
 {
+    /// <inheritdoc/>
     public event Action<LaneRef, double> OnLaneDown;
+    /// <inheritdoc/>
     public event Action<LaneRef, double> OnLaneUp;
 
     readonly List<AbsEvent> _events;
     int _cursor;
 
+    /// <summary>全イベントを発火済みか。</summary>
     public bool IsFinished  => _cursor >= _events.Count;
+    /// <summary>次に発火するイベントのインデックス。</summary>
     public int  CursorIndex => _cursor;
+    /// <summary>総イベント数。</summary>
     public int  EventCount  => _events.Count;
 
+    /// <summary>リプレイのデルタエンコード入力列を絶対時刻に展開して初期化する。</summary>
     public ReplayInputSource(ReplayData replay)
     {
         if (replay == null) throw new ArgumentNullException("replay");
@@ -38,7 +44,7 @@ public sealed class ReplayInputSource : IInputSource
         }
     }
 
-    // Fires all events whose timestamp is <= timeMs.
+    /// <summary>タイムスタンプが <paramref name="timeMs"/> 以下の未発火イベントをすべて発火する。</summary>
     public void Advance(double timeMs)
     {
         while (_cursor < _events.Count && _events[_cursor].TimeMs <= timeMs)

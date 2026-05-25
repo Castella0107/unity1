@@ -5,6 +5,7 @@ using System.Linq;
 
 namespace Domain.Pvp.Tests
 {
+    /// <summary><see cref="MatchScoring"/> のユニットテスト。</summary>
     [TestFixture]
     public class MatchScoringTests
     {

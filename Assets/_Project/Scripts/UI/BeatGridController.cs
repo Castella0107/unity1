@@ -7,9 +7,13 @@ using UnityEngine.UI;
 /// </summary>
 // Persistent singleton that drives the BPM-synced grid overlay during GamePlay.
 // Attach to BeatGridCanvas in _Persistent.unity.
-// Canvas is disabled outside GamePlay; GamePlayController calls BindGamePlay / Unbind.
+/// <summary>
+/// 拍に合わせて背景グリッドをパルスさせるシングルトン。GamePlay 以外では Canvas を無効化し、
+/// GamePlayController が BindGamePlay / Unbind で制御する。
+/// </summary>
 public class BeatGridController : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static BeatGridController Instance { get; private set; }
 
     [Header("UI References")]
@@ -59,7 +63,7 @@ public class BeatGridController : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /// Called by GamePlayController when a song starts.
+    /// <summary>曲開始時に GamePlayController から呼ばれ、拍パルスを開始する。</summary>
     public void BindGamePlay(AudioConductor conductor, BpmTimeline bpm)
     {
         _conductor      = conductor;
@@ -70,7 +74,7 @@ public class BeatGridController : MonoBehaviour
         SetCanvasEnabled(true);
     }
 
-    /// Called by GamePlayController on song end / scene exit.
+    /// <summary>曲終了/シーン退出時に呼ばれ、パルスを停止してマテリアルを既定値へ戻す。</summary>
     public void Unbind()
     {
         _conductor = null;
@@ -85,7 +89,7 @@ public class BeatGridController : MonoBehaviour
         }
     }
 
-    /// Called by GameTabController Background Effects slider (0–1).
+    /// <summary>背景エフェクト強度(0〜1)を設定する。GameTabController のスライダーから呼ばれる。</summary>
     public void SetUserIntensity(float intensity01)
     {
         if (_gridMaterial != null)

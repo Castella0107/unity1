@@ -7,6 +7,7 @@ using UnityEngine;
 /// </summary>
 public static class CreateAudioMixer
 {
+    /// <summary>MainAudioMixer.mixer を生成し Master / Music / SFX グループを追加する。</summary>
     [MenuItem("Tools/Create MainAudioMixer")]
     public static void Create()
     {

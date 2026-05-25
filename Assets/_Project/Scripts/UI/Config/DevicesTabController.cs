@@ -233,8 +233,11 @@ public class DevicesTabController : MonoBehaviour
 /// </summary>
 public class ProfileListItemView
 {
+    /// <summary>このアイテムのルート GameObject。</summary>
     public GameObject Root      { get; }
+    /// <summary>選択用ボタン。</summary>
     public Button     Button    { get; }
+    /// <summary>このアイテムが表すプロファイルID。</summary>
     public string     ProfileId { get; }
 
     Image _bg;
@@ -243,6 +246,7 @@ public class ProfileListItemView
     static readonly Color ColIdle     = new Color(1f, 1f, 1f, 0.05f);
     static readonly Color ColSelected = new Color(0.17f, 0.35f, 0.63f, 0.5f);
 
+    /// <summary>GameObject・プロファイル・アクティブ状態からリストアイテムの表示を構築する。</summary>
     public ProfileListItemView(GameObject go, DeviceProfile profile, bool isActive)
     {
         Root      = go;
@@ -264,6 +268,7 @@ public class ProfileListItemView
         SetSelected(false);
     }
 
+    /// <summary>選択状態に応じて背景色を切り替える。</summary>
     public void SetSelected(bool selected)
     {
         if (_bg != null) _bg.color = selected ? ColSelected : ColIdle;

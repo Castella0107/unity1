@@ -24,15 +24,18 @@ public class JudgmentSystem : MonoBehaviour
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
+    /// <summary>内部の判定エンジン。</summary>
     public JudgmentEngine      Engine       => _engine;
+    /// <summary>記録中のリプレイ入力バッファ。</summary>
     public ReplayInputBuffer   ReplayBuffer { get; private set; }
 
-    // Legacy event kept for JudgmentEffectsController.
+    /// <summary>判定確定時に発火する旧来イベント(JudgmentEffectsController 用)。引数: 判定, 時刻ms。</summary>
     public event Action<Judgment, double> OnJudged;
 
-    // Backward-compat accessor used by JudgmentEffectsController.Update.
+    /// <summary>スコア・コンボ集計アグリゲータ(後方互換アクセサ)。</summary>
     public PlayProgressAggregator Aggregator => _engine?.Progress;
 
+    /// <summary>譜面・メタ・入力ソースから判定システムを初期化する。再初期化時は前の入力購読を解除する。</summary>
     public void Initialize(
         ChartData    chart,
         SongMetadata meta,
@@ -128,6 +131,7 @@ public class JudgmentSystem : MonoBehaviour
 
     // ── Result ────────────────────────────────────────────────────────────────
 
+    /// <summary>最終結果のプレイ進行スナップショットを構築して返す。</summary>
     public PlayProgressSnapshot SnapshotForResult() => _engine?.BuildResult();
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────

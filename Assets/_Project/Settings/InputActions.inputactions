@@ -17,8 +17,8 @@
                 { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000002", "path": "<Keyboard>/f", "interactions": "", "processors": "", "groups": "", "action": "Lane1", "isComposite": false, "isPartOfComposite": false },
                 { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000003", "path": "<Keyboard>/j", "interactions": "", "processors": "", "groups": "", "action": "Lane2", "isComposite": false, "isPartOfComposite": false },
                 { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000004", "path": "<Keyboard>/k", "interactions": "", "processors": "", "groups": "", "action": "Lane3", "isComposite": false, "isPartOfComposite": false },
-                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000005", "path": "<Keyboard>/z", "interactions": "", "processors": "", "groups": "", "action": "FxL",   "isComposite": false, "isPartOfComposite": false },
-                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000006", "path": "<Keyboard>/m", "interactions": "", "processors": "", "groups": "", "action": "FxR",   "isComposite": false, "isPartOfComposite": false }
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000005", "path": "<Keyboard>/leftShift", "interactions": "", "processors": "", "groups": "", "action": "FxL",   "isComposite": false, "isPartOfComposite": false },
+                { "name": "", "id": "aaaaaaaa-0000-0000-0000-000000000006", "path": "<Keyboard>/rightShift", "interactions": "", "processors": "", "groups": "", "action": "FxR",   "isComposite": false, "isPartOfComposite": false }
             ]
         },
         {

@@ -5,14 +5,19 @@
 /// </summary>
 public sealed class PerSongOffset
 {
+    /// <summary>対象楽曲ID。</summary>
     public string SongId           { get; set; }
+    /// <summary>この楽曲固有の判定オフセット(ms)。</summary>
     public int    JudgmentOffsetMs { get; set; }
+    /// <summary>更新日時(Unix エポックからのミリ秒)。</summary>
     public long   UpdatedAtUnixMs  { get; set; }
 
-    // Per-song adjustment is intentionally narrow (±50 ms)
+    /// <summary>曲別調整の下限(ms)。意図的に狭め(±50ms)。</summary>
     public const int MinMs = -50;
+    /// <summary>曲別調整の上限(ms)。</summary>
     public const int MaxMs = +50;
 
+    /// <summary>指定楽曲の既定オフセット(0)を生成する。</summary>
     public static PerSongOffset DefaultFor(string songId) => new PerSongOffset
     {
         SongId           = songId,
@@ -20,6 +25,7 @@ public sealed class PerSongOffset
         UpdatedAtUnixMs  = 0,
     };
 
+    /// <summary>オフセットを ±50ms にクランプした新インスタンスを返す。</summary>
     public PerSongOffset Clamped() => new PerSongOffset
     {
         SongId           = SongId,

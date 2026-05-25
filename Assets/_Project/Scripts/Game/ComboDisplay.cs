@@ -27,6 +27,7 @@ public class ComboDisplay : MonoBehaviour
         gameObject.SetActive(false);
     }
 
+    /// <summary>コンボ数を設定して表示を更新する(0 でリセット)。</summary>
     public void SetCombo(int combo)
     {
         if (combo == _currentCombo) return;

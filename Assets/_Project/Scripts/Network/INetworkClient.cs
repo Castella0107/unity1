@@ -15,33 +15,39 @@ namespace RhythmGame.Network
     /// </summary>
     public interface INetworkClient
     {
-        // ── Health ──────────────────────────────────────────────────────────────
+        /// <summary>サーバーへの疎通確認(ping)。</summary>
         Task<NetworkClient.PingResult> PingAsync();
 
-        // ── Replay validate (ソロ) ──────────────────────────────────────────────
+        /// <summary>ソロプレイのリプレイをサーバーで検証し、サーバー側判定結果を取得する。</summary>
         Task<NetworkClient.ValidateResult> ValidateReplayAsync(
             string chartHashHex,
             byte[] replayBytes,
             ResultClaimDto claim,
             ValidateRequestDto metadata = null);
 
-        // ── Leaderboard ─────────────────────────────────────────────────────────
+        /// <summary>指定楽曲・難易度のリーダーボード上位を取得する。</summary>
         Task<NetworkClient.LeaderboardResult>  FetchLeaderboardAsync(string songId, string difficulty, int limit = 10);
+        /// <summary>指定ユーザーのパーソナルベストと順位を取得する。</summary>
         Task<NetworkClient.PersonalBestResult> FetchPersonalBestAsync(string songId, string difficulty, string userId);
 
-        // ── PVP Match ───────────────────────────────────────────────────────────
+        /// <summary>PVP マッチを作成する(選曲プールは任意)。</summary>
         Task<NetworkClient.PvpCreateResult> CreateMatchAsync(string userIdA, string userIdB, string[] poolSongIds = null);
+        /// <summary>マッチ結果(全曲リプレイ)を提出する。</summary>
         Task<NetworkClient.PvpSubmitResult> SubmitMatchAsync(string matchId, string userId, List<SubmitMatchSongDto> songs);
+        /// <summary>確定済みマッチ結果を取得する。</summary>
         Task<NetworkClient.PvpFetchResult>  FetchMatchAsync(string matchId);
 
-        // ── PVP Progress (in-match real-time) ───────────────────────────────────
+        /// <summary>試合中のリアルタイム進捗をサーバーへ送信する。</summary>
         Task<NetworkClient.PvpProgressResult> SendPvpProgressAsync(
             string matchId, string userId, int songIndex, int percentX1000, int score);
+        /// <summary>試合中の相手進捗を取得する。</summary>
         Task<NetworkClient.PvpProgressResult> FetchPvpProgressAsync(string matchId);
 
-        // ── PVP Queue ───────────────────────────────────────────────────────────
+        /// <summary>マッチキューに参加する。</summary>
         Task<NetworkClient.QueueResult> JoinQueueAsync(string userId);
+        /// <summary>マッチキューから退出する。</summary>
         Task<NetworkClient.QueueResult> LeaveQueueAsync(string userId);
+        /// <summary>マッチキューの現在状態を取得する。</summary>
         Task<NetworkClient.QueueResult> GetQueueStatusAsync(string userId);
     }
 }

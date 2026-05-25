@@ -199,7 +199,7 @@ public class InputTabController : MonoBehaviour
 
     // ── Static boot helper ────────────────────────────────────────────────────
 
-    /// Restore any saved binding overrides. Call once on app startup.
+    /// <summary>保存済みのキーバインド上書きを復元する。アプリ起動時に1回呼ぶ。</summary>
     public static void LoadBindingsFromPrefs(InputActionAsset asset)
     {
         string json = PlayerPrefs.GetString("InputBindings_Gameplay", "");

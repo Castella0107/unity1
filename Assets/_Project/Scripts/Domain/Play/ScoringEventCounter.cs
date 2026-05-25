@@ -7,15 +7,17 @@ using System.Collections.Generic;
 //
 // Scoring events per note type:
 //   Tap / FxTap : 1 (the tap itself)
-//   Hold / FxHold : 1 (head) + N (ticks) + 1 (tail)
+//   Hold / FxHold : 1 (head) + N (body ticks) + 1 (tail)
 //
-// Tick count uses the same BpmTimeline.GetTickIntervalMs loop as HoldJudgmentTracker.
+// Tick count uses the same BpmTimeline.GetHoldTickIntervalMs loop as HoldJudgmentTracker
+// (2 scoring events per measure of hold duration). The two MUST stay identical.
 /// <summary>
 /// チャート内のスコアリングイベント総数を算出する静的クラス。
 /// Tap/FxTap は1イベント、Hold/FxHold はヘッド＋ティック数＋テールの合計としてカウントする。
 /// </summary>
 public static class ScoringEventCounter
 {
+    /// <summary>譜面の総スコアリングイベント数を数える。Tap/FxTap=1、Hold/FxHold=頭+ティック数+尾。ScoreCalculator の totalNotes に渡す値。</summary>
     public static int Count(IEnumerable<NoteData> notes, BpmTimeline bpm)
     {
         if (notes == null) return 0;
@@ -39,7 +41,7 @@ public static class ScoringEventCounter
         return total;
     }
 
-    // Returns the number of interior ticks (same loop as HoldJudgmentTracker.ComputeTickTimes).
+    /// <summary>ホールド内部のティック数(1 小節 2 ノーツ)を返す(HoldJudgmentTracker のティック計算と同一ロジック)。</summary>
     public static int CountHoldTicks(NoteData hold, BpmTimeline bpm)
     {
         double cursor = hold.TimeMs;
@@ -47,8 +49,8 @@ public static class ScoringEventCounter
         int    count  = 0;
         while (true)
         {
-            cursor += bpm.GetTickIntervalMs(cursor);
-            if (cursor >= end) break;
+            cursor += bpm.GetHoldTickIntervalMs(cursor);
+            if (cursor >= end - BpmTimeline.HoldTailGuardMs) break;
             count++;
         }
         return count;

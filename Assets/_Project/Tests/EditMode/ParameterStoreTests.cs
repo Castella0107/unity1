@@ -1,5 +1,6 @@
 using NUnit.Framework;
 
+/// <summary><see cref="ParameterStore"/> のユニットテスト。</summary>
 public class ParameterStoreTests
 {
     [SetUp]    public void SetUp()    => ParameterStore.Clear();

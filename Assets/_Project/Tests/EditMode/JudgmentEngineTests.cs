@@ -4,6 +4,7 @@ using NUnit.Framework;
 
 // JudgmentEngine 単体テスト。
 // JudgmentRunnerTests と同型 — Engine が同じ結果を返すことを保証する。
+/// <summary><see cref="JudgmentEngine"/> のユニットテスト。</summary>
 public class JudgmentEngineTests
 {
     // ── Helpers ───────────────────────────────────────────────────────────────

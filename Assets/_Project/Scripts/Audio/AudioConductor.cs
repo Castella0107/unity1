@@ -19,12 +19,12 @@ using UnityEngine;
 [RequireComponent(typeof(AudioSource))]
 public sealed class AudioConductor : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static AudioConductor Instance { get; private set; }
 
     // ── Time properties ───────────────────────────────────────────────────────
 
-    /// Milliseconds since the song origin (negative during preroll).
-    /// Scaled by PlaybackSpeed — at 2x speed, time advances twice as fast.
+    /// <summary>曲開始からの経過時間(ms、プリロール中は負)。PlaybackSpeed で倍率がかかる。</summary>
     public double SongTimeMs
     {
         get
@@ -35,20 +35,23 @@ public sealed class AudioConductor : MonoBehaviour
         }
     }
 
-    /// SongTimeMs minus all judgment offsets. Use for hit-window checks.
+    /// <summary>全判定オフセットを差し引いた時刻。ヒット窓判定に使う。</summary>
     public double JudgmentTimeMs =>
         SongTimeMs - _appOffsets.JudgmentOffsetMs - (_perSongOffset?.JudgmentOffsetMs ?? 0);
 
-    /// SongTimeMs minus app visual offset. Use for note scroll position.
-    /// Per-song offset is intentionally NOT applied here (it is a judgment-only correction).
+    /// <summary>アプリ映像オフセットを差し引いた時刻。ノーツのスクロール位置に使う(曲別オフセットは判定専用のため適用しない)。</summary>
     public double VisualTimeMs => SongTimeMs - _appOffsets.VisualOffsetMs;
 
     // ── State ─────────────────────────────────────────────────────────────────
 
+    /// <summary>再生中か。</summary>
     public bool IsPlaying => _isPlaying;
+    /// <summary>一時停止中か。</summary>
     public bool IsPaused  => _isPaused;
 
+    /// <summary>現在適用中のアプリ(デバイスプロファイル)オフセット。</summary>
     public AppOffsetSettings AppOffsets    => _appOffsets;
+    /// <summary>現在適用中の曲別オフセット。</summary>
     public PerSongOffset     PerSongOffset => _perSongOffset;
 
     // ── Private ───────────────────────────────────────────────────────────────
@@ -62,6 +65,7 @@ public sealed class AudioConductor : MonoBehaviour
     AppOffsetSettings _appOffsets    = AppOffsetSettings.Default;
     PerSongOffset     _perSongOffset;
 
+    /// <summary>現在の再生速度倍率(0.1〜4.0)。</summary>
     public double PlaybackSpeed => _playbackSpeed;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -77,7 +81,7 @@ public sealed class AudioConductor : MonoBehaviour
 
     // ── Offset API (new) ──────────────────────────────────────────────────────
 
-    /// Apply app-level (device profile) offsets. Call before StartSong.
+    /// <summary>アプリ(デバイスプロファイル)レベルのオフセットを適用する。StartSong より前に呼ぶ。</summary>
     public void ApplyAppOffsets(AppOffsetSettings settings)
     {
         _appOffsets = (settings ?? AppOffsetSettings.Default).Clamped();
@@ -85,7 +89,7 @@ public sealed class AudioConductor : MonoBehaviour
             _appOffsets.JudgmentOffsetMs, _appOffsets.VisualOffsetMs));
     }
 
-    /// Apply per-song judgment offset. Call before StartSong.
+    /// <summary>曲別の判定オフセットを適用する。StartSong より前に呼ぶ。</summary>
     public void ApplyPerSongOffset(PerSongOffset offset)
     {
         _perSongOffset = offset?.Clamped();
@@ -96,6 +100,7 @@ public sealed class AudioConductor : MonoBehaviour
 
     // ── Playback API ──────────────────────────────────────────────────────────
 
+    /// <summary>曲を開始する。<paramref name="prerollSec"/> の間は SongTimeMs が負となり、視覚初期化の猶予になる。</summary>
     public void StartSong(AudioClip clip, double prerollSec = 1.0)
     {
         if (clip == null) { Debug.LogWarning("[AudioConductor] StartSong: clip is null"); return; }
@@ -109,6 +114,7 @@ public sealed class AudioConductor : MonoBehaviour
         _pausedSongTimeMs   = 0.0;
     }
 
+    /// <summary>再生を一時停止し、現在の曲時刻を保持する。</summary>
     public void Pause()
     {
         if (!_isPlaying) return;
@@ -118,6 +124,7 @@ public sealed class AudioConductor : MonoBehaviour
         _isPaused  = true;
     }
 
+    /// <summary>一時停止位置から再生を再開する(<paramref name="prerollSec"/> の猶予付き)。</summary>
     public void Resume(double prerollSec = 0.5)
     {
         if (_isPlaying || !_isPaused || _audioSource.clip == null) return;
@@ -136,8 +143,7 @@ public sealed class AudioConductor : MonoBehaviour
         _isPaused     = false;
     }
 
-    /// Change playback speed while preserving the current song position.
-    /// Adjusts AudioSource.pitch and recalculates _dspStartTime.
+    /// <summary>現在の曲位置を保ったまま再生速度を変更する(AudioSource.pitch を調整し基準時刻を再計算)。0.1〜4.0 にクランプ。</summary>
     public void SetPlaybackSpeed(double speed)
     {
         speed = speed < 0.1 ? 0.1 : speed > 4.0 ? 4.0 : speed;
@@ -155,6 +161,7 @@ public sealed class AudioConductor : MonoBehaviour
         }
     }
 
+    /// <summary>再生を停止し、内部状態をリセットする。</summary>
     public void Stop()
     {
         _audioSource.Stop();
@@ -166,6 +173,7 @@ public sealed class AudioConductor : MonoBehaviour
 
     // ── Legacy API (Obsolete) ─────────────────────────────────────────────────
 
+    /// <summary>[非推奨] アプリ判定オフセット(ms)。<see cref="ApplyAppOffsets"/> を使うこと。</summary>
     [System.Obsolete("Use ApplyAppOffsets(AppOffsetSettings)")]
     public int GlobalJudgmentOffsetMs
     {
@@ -174,6 +182,7 @@ public sealed class AudioConductor : MonoBehaviour
             { JudgmentOffsetMs = value, VisualOffsetMs = _appOffsets.VisualOffsetMs });
     }
 
+    /// <summary>[非推奨] アプリ映像オフセット(ms)。<see cref="ApplyAppOffsets"/> を使うこと。</summary>
     [System.Obsolete("Use ApplyAppOffsets(AppOffsetSettings)")]
     public int GlobalVisualOffsetMs
     {
@@ -182,6 +191,7 @@ public sealed class AudioConductor : MonoBehaviour
             { JudgmentOffsetMs = _appOffsets.JudgmentOffsetMs, VisualOffsetMs = value });
     }
 
+    /// <summary>[非推奨] 曲別判定オフセット(ms)。<see cref="ApplyPerSongOffset"/> を使うこと。</summary>
     [System.Obsolete("Use ApplyPerSongOffset(PerSongOffset)")]
     public int PerSongOffsetMs
     {

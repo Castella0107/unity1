@@ -12,6 +12,7 @@ public static class PlayerPrefsOffsetMigrator
 {
     const string MigrationFlagKey = "OffsetMigrationComplete_v1";
 
+    /// <summary>未移行なら旧 PlayerPrefs のオフセット設定を SQLite へ移行する(初回起動時に1回のみ)。</summary>
     public static async Task MigrateIfNeeded(IOffsetRepository repo)
     {
         if (PlayerPrefs.GetInt(MigrationFlagKey, 0) == 1) return;

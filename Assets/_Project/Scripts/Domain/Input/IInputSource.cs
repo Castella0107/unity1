@@ -9,6 +9,8 @@ using System;
 /// </summary>
 public interface IInputSource
 {
+    /// <summary>レーン押下時に発火(引数: レーン, 入力時刻ms)。</summary>
     event Action<LaneRef, double> OnLaneDown;
+    /// <summary>レーン離上時に発火(引数: レーン, 入力時刻ms)。</summary>
     event Action<LaneRef, double> OnLaneUp;
 }

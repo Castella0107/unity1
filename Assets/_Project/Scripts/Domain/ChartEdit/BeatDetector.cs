@@ -13,8 +13,11 @@ public static class BeatDetector
     /// <summary>検出結果。</summary>
     public sealed class Result
     {
+        /// <summary>推定 BPM(検出失敗時は 0)。</summary>
         public double      EstimatedBpm;
+        /// <summary>最初のオンセット時刻(ms)。</summary>
         public double      FirstOnsetMs;
+        /// <summary>検出した全オンセット時刻(ms)。</summary>
         public List<double> OnsetTimesMs = new List<double>();
     }
 

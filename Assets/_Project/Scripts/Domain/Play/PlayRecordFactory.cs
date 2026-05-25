@@ -8,8 +8,10 @@ using System;
 /// </summary>
 public static class PlayRecordFactory
 {
+    /// <summary>記録に埋め込む判定エンジンのバージョン。</summary>
     public const string EngineVersion = "1.0.0";
 
+    /// <summary>スナップショットとメタ情報から <see cref="PlayRecord"/> を生成する(難易度補正・ランク・達成フラグを算出)。</summary>
     public static PlayRecord Create(
         PlayProgressSnapshot snap,
         string   songId,
@@ -60,7 +62,7 @@ public static class PlayRecordFactory
         };
     }
 
-    // Integer arithmetic avoids float rounding errors (e.g. 1_000_000 * 0.90f = 899_999).
+    /// <summary>素点に難易度倍率(easy=75% / normal=80% / hard=90% / extra=100%)を整数演算で適用する。</summary>
     public static int ApplyDifficultyMultiplier(int raw, string difficulty)
     {
         switch (difficulty != null ? difficulty.ToLower() : "")

@@ -17,6 +17,7 @@ public class ScoreCalculator
     private readonly long _xMicro;   // micro-points per perfect note
     private long          _scoreMicro;
 
+    /// <summary>総ノーツ数から 1 ノーツあたりのマイクロポイントを算出して初期化する。</summary>
     public ScoreCalculator(int totalNotes)
     {
         // Ceiling division: ensures totalNotes * _xMicro >= 10^12
@@ -24,6 +25,7 @@ public class ScoreCalculator
         _xMicro = (1_000_000_000_000L + totalNotes - 1) / totalNotes;
     }
 
+    /// <summary>判定 1 件分のスコアを加算する(PerfectPlus/Perfect=満点、Great=199/200、Good=3/4、Miss=0)。</summary>
     public void Add(Judgment j)
     {
         switch (j)
@@ -36,9 +38,10 @@ public class ScoreCalculator
         }
     }
 
-    /// Display score in [0, 1,000,000] range.
+    /// <summary>現在の表示スコア(0〜1,000,000)。</summary>
     public int CurrentScore => (int)(_scoreMicro / 1_000_000L);
 
+    /// <summary>表示スコアからランク文字列 (S+/S/A+/A/B/C/D) を算出する。</summary>
     public static string ComputeRank(int score)
     {
         if (score >= 997_000) return "S+";

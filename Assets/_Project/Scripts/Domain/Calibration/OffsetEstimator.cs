@@ -19,15 +19,23 @@ namespace Domain.Calibration
         public const int MinOffsetMs = -200;
         public const int MaxOffsetMs =  200;
 
+        /// <summary>オフセット推定の結果。成否・推奨値・採用/棄却サンプル数・標準偏差・失敗理由を保持する。</summary>
         public readonly struct Result
         {
+            /// <summary>推定に成功したか。</summary>
             public readonly bool   Success;
+            /// <summary>推奨判定オフセット(ms)。</summary>
             public readonly int    RecommendedOffsetMs;
+            /// <summary>外れ値除去後に採用されたサンプル数。</summary>
             public readonly int    AcceptedCount;
+            /// <summary>外れ値として棄却されたサンプル数。</summary>
             public readonly int    RejectedCount;
+            /// <summary>採用サンプルの標準偏差(ms)。</summary>
             public readonly double StdDevMs;
+            /// <summary>失敗時の理由(成功時は null)。</summary>
             public readonly string FailureReason;
 
+            /// <summary>全フィールドを指定して結果を生成する。</summary>
             public Result(bool success, int recommended, int accepted, int rejected, double stdev, string reason)
             {
                 Success             = success;
@@ -38,6 +46,7 @@ namespace Domain.Calibration
                 FailureReason       = reason;
             }
 
+            /// <summary>失敗結果を生成する(理由と元サンプル数を記録)。</summary>
             public static Result Failure(string reason, int rawCount)
                 => new Result(false, 0, 0, rawCount, 0.0, reason);
         }

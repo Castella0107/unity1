@@ -7,13 +7,20 @@ using UnityEngine;
 /// </summary>
 public class HitSoundLibrary
 {
+    /// <summary>タップ時のクリック音。</summary>
     public AudioClip TapClick   { get; private set; }
+    /// <summary>PerfectPlus 判定音。</summary>
     public AudioClip PerfectPlus { get; private set; }
+    /// <summary>Perfect 判定音。</summary>
     public AudioClip Perfect    { get; private set; }
+    /// <summary>Great 判定音。</summary>
     public AudioClip Great      { get; private set; }
+    /// <summary>Good 判定音。</summary>
     public AudioClip Good       { get; private set; }
+    /// <summary>Miss 判定音(不協和音)。</summary>
     public AudioClip Miss       { get; private set; }
 
+    /// <summary>全ヒット音クリップを生成してプロパティにキャッシュする。</summary>
     public void GenerateAll()
     {
         TapClick = SineWaveGenerator.Generate(
@@ -40,6 +47,7 @@ public class HitSoundLibrary
             "Miss",       baseFreq: 200,   durationSec: 0.150f, volume: 0.45f);
     }
 
+    /// <summary>判定に対応するヒット音クリップを返す。</summary>
     public AudioClip GetForJudgment(Judgment j)
     {
         switch (j)

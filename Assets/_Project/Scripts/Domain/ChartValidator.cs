@@ -12,7 +12,9 @@ public class ValidationIssue
     /// バリデーション問題の重大度レベル。
     /// </summary>
     public enum SeverityLevel { Critical, Warning, Info }
+    /// <summary>問題の重大度。</summary>
     public SeverityLevel Severity;
+    /// <summary>問題内容を説明するメッセージ。</summary>
     public string        Message;
 }
 
@@ -22,6 +24,10 @@ public class ValidationIssue
 /// </summary>
 public static class ChartValidator
 {
+    /// <summary>
+    /// 譜面とメタデータを検証し、検出した問題を一覧で返す。重複ノーツ・不正ホールド長・楽曲長超過・
+    /// FX/非FXレーンの種別不一致を Critical、極端に短いホールドやセクション分布の偏りを Warning として報告する。
+    /// </summary>
     public static List<ValidationIssue> Validate(ChartData chart, SongMetadata song)
     {
         if (chart == null) throw new ArgumentNullException("chart");

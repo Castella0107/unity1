@@ -11,7 +11,9 @@ using Newtonsoft.Json;
 /// </summary>
 public class ChartParseException : Exception
 {
+    /// <summary>エラーメッセージを指定して例外を生成する。</summary>
     public ChartParseException(string message) : base(message) { }
+    /// <summary>エラーメッセージと内部例外を指定して例外を生成する。</summary>
     public ChartParseException(string message, Exception inner) : base(message, inner) { }
 }
 
@@ -82,6 +84,7 @@ public static class ChartParser
 
     // ── Public API ─────────────────────────────────────────────────────────
 
+    /// <summary>JSON テキストから <see cref="SongMetadata"/> をパースする。先頭の UTF-8 BOM は除去。失敗時 <see cref="ChartParseException"/>。</summary>
     public static SongMetadata ParseMeta(string json)
     {
         if (json != null && json.Length > 0 && (int)json[0] == 0xFEFF)
@@ -117,6 +120,10 @@ public static class ChartParser
         }
     }
 
+    /// <summary>
+    /// JSON テキストから <see cref="ChartData"/> をパースする。先頭の UTF-8 BOM は除去。
+    /// TotalNotes はスコアリング対象イベント数で補正し、ChartHash が無効なら JSON の SHA-256 で代替する。失敗時 <see cref="ChartParseException"/>。
+    /// </summary>
     public static ChartData ParseChart(string json)
     {
         // Strip UTF-8 BOM (U+FEFF) if present — PS5.1 -Encoding utf8 adds it.

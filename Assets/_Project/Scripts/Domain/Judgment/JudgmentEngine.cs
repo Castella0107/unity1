@@ -15,12 +15,17 @@ public sealed class JudgmentEngine
     readonly Dictionary<int,      HoldJudgmentTracker> _holds            = new Dictionary<int, HoldJudgmentTracker>();
     readonly Dictionary<LaneRef, HoldJudgmentTracker>  _activeHoldByLane = new Dictionary<LaneRef, HoldJudgmentTracker>();
 
+    /// <summary>判定が確定するたびに発火する(タップ/ホールド頭/ティック/尾、オートミス含む)。</summary>
     public event Action<JudgmentEvent> OnJudgment;
 
+    /// <summary>現在のコンボ数。</summary>
     public int                    CurrentCombo => _progress.CurrentCombo;
+    /// <summary>これまでの最大コンボ数。</summary>
     public int                    MaxCombo     => _progress.MaxCombo;
+    /// <summary>スコア・コンボ・セクション集計を保持するアグリゲータ。</summary>
     public PlayProgressAggregator Progress     => _progress;
 
+    /// <summary>譜面・ノーツソース・BPMタイムラインから判定エンジンを構築し、ホールドトラッカーを準備する。</summary>
     public JudgmentEngine(
         ChartData   chart,
         INoteSource notes,
@@ -38,6 +43,7 @@ public sealed class JudgmentEngine
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
+    /// <summary>レーン押下を処理する。アクティブホールドの再押下、最近傍タップ、ホールド頭の順に判定を試みる。</summary>
     public void ProcessLaneDown(LaneRef lane, double timeMs)
     {
         // Re-press while a hold is active on this lane → guard recovery
@@ -75,29 +81,16 @@ public sealed class JudgmentEngine
         }
     }
 
+    /// <summary>レーン離上を処理する。尾は時間経過(ProcessTime の ResolveTail)で自動解決するため、ここではリリース状態のみ記録する。</summary>
     public void ProcessLaneUp(LaneRef lane, double timeMs)
     {
         if (!_activeHoldByLane.TryGetValue(lane, out var tracker)) return;
-
-        if (Math.Abs(timeMs - tracker.EndMs) <= JudgmentWindow.GoodMs)
-        {
-            Judgment? j = tracker.OnTailInput(timeMs);
-            if (j.HasValue)
-            {
-                _notes.MarkHoldTailJudged(tracker.NoteId, j.Value);
-                double delta = timeMs - tracker.EndMs;
-                _progress.ApplyHit(j.Value, delta, tracker.EndMs);
-                _activeHoldByLane.Remove(lane);
-                Fire(new JudgmentEvent(tracker.NoteId, NoteKind.HoldTail, lane, j.Value, delta, timeMs, _progress.CurrentCombo));
-                return;
-            }
-        }
-
         tracker.OnReleased(timeMs);
     }
 
     // ── Time advancement (auto-miss + hold ticks + hold tail) ─────────────────
 
+    /// <summary>時刻を進め、タップ/ホールド頭のオートミス、ホールドのティック加算、ホールド尾のオートミスを処理する。</summary>
     public void ProcessTime(double timeMs)
     {
         // 1. Tap / FxTap auto-miss — collect first to avoid modifying during iteration
@@ -142,13 +135,16 @@ public sealed class JudgmentEngine
                                        tick.Judgment, 0, tick.TickTimeMs, _progress.CurrentCombo));
             }
 
-            if (tracker.OnTailMissed(timeMs))
+            // Tail auto-resolves at EndMs: held-through (or guard-tolerant release) = P+, else Miss.
+            Judgment? tailJ = tracker.ResolveTail(timeMs);
+            if (tailJ.HasValue)
             {
-                _notes.MarkHoldTailJudged(tracker.NoteId, Judgment.Miss);
-                _progress.ApplyMiss(tracker.EndMs);
+                _notes.MarkHoldTailJudged(tracker.NoteId, tailJ.Value);
+                if (tailJ.Value == Judgment.Miss) _progress.ApplyMiss(tracker.EndMs);
+                else                              _progress.ApplyHit(tailJ.Value, 0, tracker.EndMs);
                 _activeHoldByLane.Remove(lane);
-                Fire(new JudgmentEvent(tracker.NoteId, NoteKind.HoldTail, lane, Judgment.Miss, 0, tracker.EndMs,
-                                       _progress.CurrentCombo, isAutoMiss: true));
+                Fire(new JudgmentEvent(tracker.NoteId, NoteKind.HoldTail, lane, tailJ.Value, 0, tracker.EndMs,
+                                       _progress.CurrentCombo, isAutoMiss: tailJ.Value == Judgment.Miss));
                 continue;
             }
 
@@ -159,7 +155,7 @@ public sealed class JudgmentEngine
 
     // ── Result ────────────────────────────────────────────────────────────────
 
-    // Idempotent: FinalizeLastSector advances sectorIdx to 5 and is safe to call repeatedly.
+    /// <summary>最終セクションを確定してプレイ結果スナップショットを返す。冪等で複数回呼んでも安全。</summary>
     public PlayProgressSnapshot BuildResult()
     {
         _progress.FinalizeLastSector();

@@ -7,6 +7,7 @@ using UnityEngine;
 /// </summary>
 public static class CreateBootstrapScene
 {
+    /// <summary>Bootstrap.unity を生成し Build Settings の先頭に追加する。</summary>
     [MenuItem("Tools/Create Bootstrap Scene")]
     public static void Create()
     {

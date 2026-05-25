@@ -12,6 +12,7 @@ public static class SongSelectSceneBuilder
     const string ScenePath  = "Assets/_Project/Scenes/SongSelect.unity";
     const string PrefabPath = "Assets/_Project/Prefabs/UI/SongListItem.prefab";
 
+    /// <summary>SongSelect シーンをスクラッチから構築する。</summary>
     [MenuItem("Tools/Build SongSelect Scene")]
     public static void Build()
     {

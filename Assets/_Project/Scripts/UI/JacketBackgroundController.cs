@@ -7,10 +7,13 @@ using UnityEngine.UI;
 /// _Persistent.unity 内の GameObject にアタッチし、Canvas Sort Order -1000 で他の UI の背面に配置する。
 /// </summary>
 // Persistent singleton that manages the full-screen blurred jacket background.
-// Attach to a GameObject in _Persistent.unity.
-// Canvas Sort Order -1000 keeps it behind all other UI.
+/// <summary>
+/// 楽曲ジャケットをぼかし背景として表示するシングルトン。_Persistent.unity に配置し、
+/// Canvas Sort Order -1000 で全 UI の背後に描画する。
+/// </summary>
 public class JacketBackgroundController : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static JacketBackgroundController Instance { get; private set; }
 
     [Header("UI References")]
@@ -81,8 +84,7 @@ public class JacketBackgroundController : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /// Switch to the jacket for the given song (null → fallback color).
-    /// Ignores duplicate calls for the same songId.
+    /// <summary>指定楽曲のジャケットへ切り替える(null はフォールバック色)。同一 songId の連続呼び出しは無視。</summary>
     public async void SetJacket(string songId)
     {
         if (_currentSongId == songId) return;
@@ -108,23 +110,23 @@ public class JacketBackgroundController : MonoBehaviour
         _fadeRoutine = StartCoroutine(FadeToTexture(newTex));
     }
 
-    /// Switch to the fallback color (use on Title, Config, etc.)
+    /// <summary>フォールバック色に切り替える(Title/Config 等で使用)。</summary>
     public void SetFallback() => SetJacket(null);
 
-    /// Show or hide the jacket canvas (disable during 3D scenes so the camera is not occluded).
+    /// <summary>ジャケット Canvas の表示/非表示を切り替える(3D シーンではカメラを遮らないよう無効化)。</summary>
     public void SetCanvasEnabled(bool enabled)
     {
         if (_canvas != null) _canvas.enabled = enabled;
     }
 
-    /// Adjust blur strength at runtime (Config slider → Phase 2).
+    /// <summary>ぼかしの強さをランタイムで調整する(0〜10)。</summary>
     public void SetBlurSize(float size)
     {
         _blurSize = Mathf.Clamp(size, 0, 10);
         if (_blurMaterial != null) _blurMaterial.SetFloat("_BlurSize", _blurSize);
     }
 
-    /// Adjust brightness at runtime (Config Background Effects slider).
+    /// <summary>背景の明るさをランタイムで調整する(0〜1)。Config の背景エフェクトスライダーから呼ばれる。</summary>
     public void SetBrightness(float brightness)
     {
         _brightness = Mathf.Clamp01(brightness);

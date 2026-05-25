@@ -46,6 +46,7 @@ public class SimpleCalibration : MonoBehaviour
         Refresh();
     }
 
+    /// <summary>キャリブレーションパネルを開き、保存済みのオフセット値をスライダーに反映する。</summary>
     public void Open()
     {
         if (_judgeSlider  != null) _judgeSlider.value  = PlayerPrefs.GetInt(KEY_JUDGE,  0);
@@ -75,7 +76,8 @@ public class SimpleCalibration : MonoBehaviour
         PlayerPrefs.Save();
     }
 
-    // Called by GamePlayController on song start
+    /// <summary>保存済みの判定オフセット(ms)を返す。曲開始時に GamePlayController が参照する。</summary>
     public static int GetJudgmentOffset() => PlayerPrefs.GetInt(KEY_JUDGE,  0);
+    /// <summary>保存済みの映像オフセット(ms)を返す。</summary>
     public static int GetVisualOffset()   => PlayerPrefs.GetInt(KEY_VISUAL, 0);
 }

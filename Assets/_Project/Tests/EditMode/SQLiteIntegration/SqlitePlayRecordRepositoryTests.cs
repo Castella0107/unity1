@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using NUnit.Framework;
 
+/// <summary><see cref="SqlitePlayRecordRepository"/> の統合テスト(一時 SQLite DB を使用)。</summary>
 public class SqlitePlayRecordRepositoryTests
 {
     TempSqliteDb _temp;

@@ -15,6 +15,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
 {
     SQLiteAsyncConnection _db;
 
+    /// <inheritdoc/>
     public async Task InitializeAsync(string dbPath)
     {
         _db = new SQLiteAsyncConnection(dbPath);
@@ -23,6 +24,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         Debug.Log("[Repo] SQLite initialized at " + dbPath);
     }
 
+    /// <inheritdoc/>
     public async Task<bool> SaveAsync(PlayRecord record)
     {
         if (_db == null) return false;
@@ -84,12 +86,14 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         await _db.UpdateAsync(existing);
     }
 
+    /// <inheritdoc/>
     public async Task<PlayRecord> GetByIdAsync(string playId)
     {
         if (_db == null) return null;
         return RowMapper.ToRecord(await _db.FindAsync<PlayRow>(playId));
     }
 
+    /// <inheritdoc/>
     public async Task<PersonalBest> GetBestAsync(string songId, string difficulty)
     {
         if (_db == null) return null;
@@ -97,6 +101,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         return RowMapper.ToBest(await _db.FindAsync<PersonalBestRow>(key));
     }
 
+    /// <inheritdoc/>
     public async Task<List<PersonalBest>> GetAllBestsAsync()
     {
         if (_db == null) return new List<PersonalBest>();
@@ -104,6 +109,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         return rows.Select(RowMapper.ToBest).ToList();
     }
 
+    /// <inheritdoc/>
     public async Task<List<PlayRecord>> GetHistoryAsync(string songId, string difficulty, int limit = 50)
     {
         if (_db == null) return new List<PlayRecord>();
@@ -115,6 +121,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         return rows.Select(RowMapper.ToRecord).ToList();
     }
 
+    /// <inheritdoc/>
     public async Task<List<PlayRecord>> GetAllHistoryAsync(int limit = 50, int offset = 0)
     {
         if (_db == null) return new List<PlayRecord>();
@@ -124,12 +131,14 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         return rows.Select(RowMapper.ToRecord).ToList();
     }
 
+    /// <inheritdoc/>
     public async Task<int> GetTotalPlaysAsync()
     {
         if (_db == null) return 0;
         return await _db.Table<PlayRow>().CountAsync();
     }
 
+    /// <inheritdoc/>
     public async Task<bool> DeleteAllAsync()
     {
         if (_db == null) return false;
@@ -138,6 +147,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         return true;
     }
 
+    /// <summary>SQLite 接続を閉じる。</summary>
     public System.Threading.Tasks.Task CloseAsync()
         => _db?.CloseAsync() ?? System.Threading.Tasks.Task.CompletedTask;
 }

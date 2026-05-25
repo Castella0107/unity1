@@ -10,6 +10,7 @@ public interface ISceneParameters { }
 /// </summary>
 public sealed class EmptyParameters : ISceneParameters
 {
+    /// <summary>共有シングルトンインスタンス。</summary>
     public static readonly EmptyParameters Instance = new EmptyParameters();
 }
 
@@ -18,40 +19,63 @@ public sealed class EmptyParameters : ISceneParameters
 /// </summary>
 public sealed class GamePlayParameters : ISceneParameters
 {
+    /// <summary>プレイする楽曲ID。</summary>
     public string SongId       { get; set; }
-    public string Difficulty   { get; set; }   // easy/normal/hard/extra
+    /// <summary>難易度 (easy/normal/hard/extra)。</summary>
+    public string Difficulty   { get; set; }
+    /// <summary>ハイスピード倍率。</summary>
     public float  HiSpeed      { get; set; }
+    /// <summary>判定オフセット(ms)。</summary>
     public int    JudgeOffset  { get; set; }
+    /// <summary>表示オフセット(ms)。</summary>
     public int    VisualOffset { get; set; }
-    public string Modifier     { get; set; }   // None/Mirror/Random
+    /// <summary>モディファイア (None/Mirror/Random)。</summary>
+    public string Modifier     { get; set; }
 
-    // Replay mode
+    /// <summary>リプレイ再生モードか。</summary>
     public bool   IsReplay            { get; set; }
+    /// <summary>リプレイファイルのパス。</summary>
     public string ReplayPath          { get; set; }
+    /// <summary>リプレイの初期再生速度。</summary>
     public double InitialPlaybackSpeed { get; set; } = 1.0;
 
-    // PVP mode (Phase 5-γ)
+    /// <summary>PVP マッチでのプレイか。</summary>
     public bool   IsPvp           { get; set; }
+    /// <summary>PVP マッチID。</summary>
     public string PvpMatchId      { get; set; }
-    public int    PvpSongIndex    { get; set; }    // 0..2 (1試合 3曲)
+    /// <summary>PVP の曲インデックス(0〜2、1試合3曲)。</summary>
+    public int    PvpSongIndex    { get; set; }
+    /// <summary>PVP 対戦相手のユーザーID。</summary>
     public string PvpOpponentId   { get; set; }
 }
 
 /// <summary>PVP マッチ確定後の最終結果シーンへ渡すパラメータ。</summary>
 public sealed class PvpMatchEndParameters : ISceneParameters
 {
+    /// <summary>マッチID。</summary>
     public string MatchId        { get; set; }
+    /// <summary>Player A のユーザーID。</summary>
     public string UserIdA        { get; set; }
+    /// <summary>Player B のユーザーID。</summary>
     public string UserIdB        { get; set; }
-    public string SelfUserId     { get; set; }    // 自分が A か B かの区別
+    /// <summary>自分が A か B かを区別する自ユーザーID。</summary>
+    public string SelfUserId     { get; set; }
+    /// <summary>Player A の合計ポイント。</summary>
     public double TotalPointsA   { get; set; }
+    /// <summary>Player B の合計ポイント。</summary>
     public double TotalPointsB   { get; set; }
-    public int    OutcomeKind    { get; set; }    // 0=Draw, 1=AWins, 2=BWins
+    /// <summary>勝敗種別 (0=Draw, 1=AWins, 2=BWins)。</summary>
+    public int    OutcomeKind    { get; set; }
+    /// <summary>試合前の Player A レーティング。</summary>
     public double RatingABefore  { get; set; }
+    /// <summary>試合後の Player A レーティング。</summary>
     public double RatingAAfter   { get; set; }
+    /// <summary>試合前の Player B レーティング。</summary>
     public double RatingBBefore  { get; set; }
+    /// <summary>試合後の Player B レーティング。</summary>
     public double RatingBAfter   { get; set; }
-    public string ErrorMessage   { get; set; }    // エラー時のフォールバック (試合 abandoned 等)
+    /// <summary>エラー時のフォールバックメッセージ(試合 abandoned 等)。</summary>
+    public string ErrorMessage   { get; set; }
 }
 
 /// <summary>
@@ -60,9 +84,9 @@ public sealed class PvpMatchEndParameters : ISceneParameters
 /// </summary>
 public sealed class ResultParameters : ISceneParameters
 {
+    /// <summary>表示するプレイ結果ビュー。</summary>
     public PlayResultView     View                    { get; set; }
 
-    /// The original parameters used to start this GamePlay session.
-    /// Stored here so ResultController can retry with the exact same settings.
+    /// <summary>この GamePlay を開始した元パラメータ。リトライ時に同一設定で再開するため保持する。</summary>
     public GamePlayParameters SourceGamePlayParameters { get; set; }
 }

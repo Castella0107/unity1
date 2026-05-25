@@ -9,6 +9,7 @@ public static class TestAudioGenerator
 {
     static readonly string[] TestSongIds = { "test_song", "test_song_1", "test_song_2", "test_song_3" };
 
+    /// <summary>テスト用楽曲フォルダにサイン波ベースの WAV を生成する。</summary>
     [MenuItem("Tools/Generate Test Audio")]
     public static void GenerateTestAudio()
     {

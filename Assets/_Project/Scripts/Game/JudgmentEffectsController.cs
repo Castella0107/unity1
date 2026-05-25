@@ -39,7 +39,7 @@ public class JudgmentEffectsController : MonoBehaviour
             _comboDisplay.SetCombo(_judgmentSystem.Aggregator.CurrentCombo);
     }
 
-    // Called by JudgmentSystem immediately before OnJudged fires.
+    /// <summary>次のエフェクト発生レーンを通知する。JudgmentSystem が OnJudged 発火直前に呼ぶ。</summary>
     public void NotifyLane(LaneRef lane)
     {
         _pendingLane = lane;

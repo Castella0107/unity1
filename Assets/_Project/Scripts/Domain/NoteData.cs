@@ -16,9 +16,14 @@ public enum LaneRef  { Lane0, Lane1, Lane2, Lane3, FxL, FxR }
 /// </summary>
 public class NoteData
 {
+    /// <summary>譜面内で一意なノーツID。</summary>
     public int      Id;
+    /// <summary>ノーツ種別。</summary>
     public NoteType Type;
+    /// <summary>配置レーン。</summary>
     public LaneRef  Lane;
+    /// <summary>ノーツのタイミング(ms)。</summary>
     public double   TimeMs;
-    public double   DurationMs; // Hold / FxHold only
+    /// <summary>ホールド持続時間(ms)。Hold / FxHold のみ有効。</summary>
+    public double   DurationMs;
 }

@@ -5,6 +5,7 @@ using System.IO.Compression;
 using System.Text;
 using NUnit.Framework;
 
+/// <summary><see cref="ReplayDecoder"/> のユニットテスト。</summary>
 public class ReplayDecoderTests
 {
     // ── 基本デコード ──────────────────────────────────────────────────────────

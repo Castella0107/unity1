@@ -1,5 +1,6 @@
 using NUnit.Framework;
 
+/// <summary><see cref="PlayProgressAggregator"/> のユニットテスト。</summary>
 public class PlayProgressAggregatorTests
 {
     static int[] FourSectors => new[] { 1000, 2000, 3000, 4000 };

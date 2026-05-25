@@ -9,39 +9,55 @@ using System.Collections.Generic;
 public sealed class EditorState
 {
     // ── Loaded song / chart ────────────────────────────────────────────────
+    /// <summary>ロード中の楽曲メタデータ。</summary>
     public SongMetadata Metadata     { get; set; }
+    /// <summary>編集中の譜面データ。Notes は EditCommand 経由でのみ変更すること。</summary>
     public ChartData    Chart        { get; set; }
+    /// <summary>楽曲フォルダの絶対パス。</summary>
     public string       SongBasePath { get; set; }
+    /// <summary>楽曲ID。</summary>
     public string       SongId       { get; set; }
+    /// <summary>編集中の難易度。</summary>
     public string       Difficulty   { get; set; }
+    /// <summary>音源の長さ(ms)。</summary>
     public double       AudioDurationMs { get; set; }
 
-    // ── Edit UI state ───────────────────────────────────────────────────────
+    /// <summary>現在の再生/編集ヘッド時刻(ms)。</summary>
     public double       CurrentTimeMs   { get; set; }
-    public int          SnapDenominator { get; set; } = 4;     // 1/4 拍刻み
+    /// <summary>スナップ分母(1/4 拍なら 4)。</summary>
+    public int          SnapDenominator { get; set; } = 4;
+    /// <summary>基準 BPM。</summary>
     public double       Bpm             { get; set; } = 120.0;
-    public double       ChartOffsetMs   { get; set; } = 0.0;   // BPM 基準時刻 (1拍目)
+    /// <summary>BPM 格子の基準時刻(1拍目、ms)。</summary>
+    public double       ChartOffsetMs   { get; set; } = 0.0;
+    /// <summary>配置するノーツ種別(パレット)。</summary>
     public NoteType     PaletteType     { get; set; } = NoteType.Tap;
+    /// <summary>未保存の変更があるか。</summary>
     public bool         IsDirty         { get; set; }
 
-    // ── Selection ───────────────────────────────────────────────────────────
+    /// <summary>選択中ノーツのID集合。</summary>
     public readonly HashSet<int> SelectedNoteIds = new HashSet<int>();
 
-    // ── Loop range (難所反復用) ──────────────────────────────────────────────
-    public double LoopStartMs { get; set; } = -1.0;   // -1 = 未設定
+    /// <summary>ループ開始時刻(ms、-1=未設定)。</summary>
+    public double LoopStartMs { get; set; } = -1.0;
+    /// <summary>ループ終了時刻(ms、-1=未設定)。</summary>
     public double LoopEndMs   { get; set; } = -1.0;
+    /// <summary>ループ再生が有効か。</summary>
     public bool   LoopEnabled { get; set; }
+    /// <summary>有効なループ範囲が設定されているか。</summary>
     public bool   HasLoopRange => LoopStartMs >= 0 && LoopEndMs > LoopStartMs;
 
     // ── ID issuance ─────────────────────────────────────────────────────────
     int _nextNoteId;
 
+    /// <summary>新しいノーツIDを採番して返す。</summary>
     public int IssueNoteId()
     {
         int id = _nextNoteId++;
         return id;
     }
 
+    /// <summary>現在の譜面の最大ノーツIDを走査し、採番カウンタを再構築する。</summary>
     public void RebuildNoteIdCounter()
     {
         int max = -1;
@@ -73,6 +89,7 @@ public sealed class EditorState
         return snapped;
     }
 
+    /// <summary>空の譜面(BPM イベント1つのみ)を持つ新規 EditorState を生成する。</summary>
     public static EditorState NewEmpty(string songId, string difficulty, double bpm, double durationMs)
     {
         var s = new EditorState

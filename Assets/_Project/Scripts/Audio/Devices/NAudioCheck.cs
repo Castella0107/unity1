@@ -10,6 +10,7 @@ using NAudio.CoreAudioApi;
 /// </summary>
 public static class NAudioCheck
 {
+    /// <summary>既定オーディオ出力デバイスのフレンドリ名と ID を返す(NAudio 動作確認用)。</summary>
     public static string GetCurrentDeviceInfo()
     {
         using (var enumerator = new MMDeviceEnumerator())

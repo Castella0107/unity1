@@ -11,6 +11,7 @@ using UnityEngine.Audio;
 /// </summary>
 public class HitSoundPlayer : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static HitSoundPlayer Instance { get; private set; }
 
     [Header("Mixer (optional — set after creating MainAudioMixer)")]
@@ -49,14 +50,14 @@ public class HitSoundPlayer : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /// Fire immediately when a key is pressed (before judgment).
+    /// <summary>キー押下時に(判定前に)即座にタップクリック音を鳴らす。</summary>
     public void PlayTapClick()
     {
         if (!_enableTapClick || _library?.TapClick == null) return;
         _source.PlayOneShot(_library.TapClick, _tapClickVolume);
     }
 
-    /// Fire when judgment resolves.
+    /// <summary>判定確定時に対応する効果音を鳴らす。</summary>
     public void PlayJudgment(Judgment j)
     {
         if (!_enableJudgmentSounds) return;
@@ -65,12 +66,14 @@ public class HitSoundPlayer : MonoBehaviour
         _source.PlayOneShot(clip, _judgmentVolume);
     }
 
-    // Called by AudioVolumeBinder when SFX volume changes.
+    /// <summary>効果音 AudioSource のボリューム(0〜1)を設定する。AudioVolumeBinder から呼ばれる。</summary>
     public void SetSourceVolume(float linear01)
     {
         if (_source != null) _source.volume = linear01;
     }
 
+    /// <summary>タップクリック音の有効/無効を切り替える。</summary>
     public void SetTapClickEnabled(bool enabled)       => _enableTapClick       = enabled;
+    /// <summary>判定効果音の有効/無効を切り替える。</summary>
     public void SetJudgmentSoundsEnabled(bool enabled) => _enableJudgmentSounds = enabled;
 }

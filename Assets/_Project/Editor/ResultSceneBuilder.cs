@@ -13,6 +13,7 @@ public static class ResultSceneBuilder
     const string ScenePath   = "Assets/_Project/Scenes/Result.unity";
     const string PrefabPath  = "Assets/_Project/Prefabs/UI/Result/SectorScoreItem.prefab";
 
+    /// <summary>リザルトシーンの UI・プレハブを構築し ResultController を配線する。</summary>
     [MenuItem("Tools/Build Result Scene")]
     public static void Build()
     {

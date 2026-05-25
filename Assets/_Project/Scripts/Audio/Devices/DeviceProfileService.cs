@@ -12,11 +12,14 @@ using UnityEngine;
 /// </summary>
 public class DeviceProfileService : MonoBehaviour
 {
+    /// <summary>シングルトンインスタンス。</summary>
     public static DeviceProfileService Instance { get; private set; }
 
     IAudioDeviceMonitor _monitor;
 
+    /// <summary>現在の OS 既定オーディオデバイス名(監視不可なら null)。</summary>
     public string CurrentOsDeviceName => _monitor?.CurrentDeviceName;
+    /// <summary>デバイス監視が稼働中か。</summary>
     public bool   IsMonitoring        { get; private set; }
 
     void Awake()
@@ -105,7 +108,7 @@ public class DeviceProfileService : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /// Bind the currently active OS device to the given profile (call from Settings UI).
+    /// <summary>現在の OS デバイスを指定プロファイルに紐付ける(設定 UI から呼ぶ)。</summary>
     public async Task<bool> AttachCurrentDeviceToProfileAsync(string profileId)
     {
         string current = CurrentOsDeviceName;

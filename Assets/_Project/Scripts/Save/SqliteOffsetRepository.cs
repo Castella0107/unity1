@@ -15,6 +15,7 @@ public class SqliteOffsetRepository : IOffsetRepository
     SQLiteAsyncConnection _db;
     const string ActiveProfileKey = "active_profile_id";
 
+    /// <inheritdoc/>
     public async Task InitializeAsync(string dbPath)
     {
         _db = new SQLiteAsyncConnection(dbPath);
@@ -32,17 +33,20 @@ public class SqliteOffsetRepository : IOffsetRepository
         Debug.Log("[OffsetRepo] SQLite initialized at " + dbPath);
     }
 
+    /// <inheritdoc/>
     public async Task<List<DeviceProfile>> GetAllProfilesAsync()
     {
         var rows = await _db.Table<DeviceProfileRow>().ToListAsync();
         return rows.Select(ToProfile).ToList();
     }
 
+    /// <inheritdoc/>
     public async Task<DeviceProfile> GetProfileByIdAsync(string profileId)
     {
         return ToProfile(await _db.FindAsync<DeviceProfileRow>(profileId));
     }
 
+    /// <inheritdoc/>
     public async Task<DeviceProfile> GetProfileByOsDeviceNameAsync(string osDeviceName)
     {
         if (string.IsNullOrEmpty(osDeviceName)) return null;
@@ -52,6 +56,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         return ToProfile(row);
     }
 
+    /// <inheritdoc/>
     public async Task<bool> SaveProfileAsync(DeviceProfile profile)
     {
         try
@@ -68,6 +73,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         }
     }
 
+    /// <inheritdoc/>
     public async Task<bool> DeleteProfileAsync(string profileId)
     {
         if (profileId == "default")
@@ -79,12 +85,14 @@ public class SqliteOffsetRepository : IOffsetRepository
         return deleted > 0;
     }
 
+    /// <inheritdoc/>
     public async Task<string> GetActiveProfileIdAsync()
     {
         var row = await _db.FindAsync<KeyValueRow>(ActiveProfileKey);
         return row?.Value ?? "default";
     }
 
+    /// <inheritdoc/>
     public async Task<bool> SetActiveProfileIdAsync(string profileId)
     {
         try
@@ -99,6 +107,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         }
     }
 
+    /// <inheritdoc/>
     public async Task<PerSongOffset> GetPerSongOffsetAsync(string songId)
     {
         var row = await _db.FindAsync<PerSongOffsetRow>(songId);
@@ -111,6 +120,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         };
     }
 
+    /// <inheritdoc/>
     public async Task<List<PerSongOffset>> GetAllPerSongOffsetsAsync()
     {
         var rows = await _db.Table<PerSongOffsetRow>().ToListAsync();
@@ -122,6 +132,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         }).ToList();
     }
 
+    /// <inheritdoc/>
     public async Task<bool> DeleteAllPerSongOffsetsAsync()
     {
         try
@@ -136,6 +147,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         }
     }
 
+    /// <inheritdoc/>
     public async Task<bool> SavePerSongOffsetAsync(PerSongOffset offset)
     {
         try
@@ -193,6 +205,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         };
     }
 
+    /// <summary>SQLite 接続を閉じる。</summary>
     public System.Threading.Tasks.Task CloseAsync()
         => _db?.CloseAsync() ?? System.Threading.Tasks.Task.CompletedTask;
 }

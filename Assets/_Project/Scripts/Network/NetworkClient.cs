@@ -60,17 +60,23 @@ namespace RhythmGame.Network
 
         // ── Ping ────────────────────────────────────────────────────────────────
 
+        /// <summary>Ping の結果。成否・エラー・往復時間・レスポンス本文を保持する。</summary>
         public class PingResult
         {
+            /// <summary>成功したか。</summary>
             public bool   Ok;
+            /// <summary>失敗時のエラー内容。</summary>
             public string Error;
+            /// <summary>往復時間(ms)。</summary>
             public long   RoundtripMs;
+            /// <summary>レスポンス本文。</summary>
             public PingResponseDto Body;
         }
 
         /// <summary>Ping 成功時にバックグラウンドで送信キューを flush するか。</summary>
         public bool AutoFlushOnPingSuccess { get; set; } = true;
 
+        /// <inheritdoc/>
         public async Task<PingResult> PingAsync()
         {
             if (!ServerConfig.Enabled)
@@ -120,11 +126,16 @@ namespace RhythmGame.Network
 
         // ── ValidateReplay ──────────────────────────────────────────────────────
 
+        /// <summary>リプレイ検証の結果。成否・通信エラー・往復時間・レスポンス本文を保持する。</summary>
         public class ValidateResult
         {
+            /// <summary>通信に成功したか(サーバー判定の可否は Body.isValid)。</summary>
             public bool                  Ok;
+            /// <summary>通信失敗時のエラー内容。</summary>
             public string                TransportError;
+            /// <summary>往復時間(ms)。</summary>
             public long                  RoundtripMs;
+            /// <summary>レスポンス本文。</summary>
             public ValidateResponseDto   Body;
         }
 
@@ -193,6 +204,7 @@ namespace RhythmGame.Network
 
         // ── PVP API ─────────────────────────────────────────────────────────────
 
+        /// <summary>マッチ作成の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class PvpCreateResult
         {
             public bool                   Ok;
@@ -201,6 +213,7 @@ namespace RhythmGame.Network
             public CreateMatchResponseDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<PvpCreateResult> CreateMatchAsync(string userIdA, string userIdB, string[] poolSongIds = null)
         {
             if (!ServerConfig.Enabled) return new PvpCreateResult { Ok = false, Error = "Network disabled" };
@@ -213,6 +226,7 @@ namespace RhythmGame.Network
             return new PvpCreateResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        /// <summary>マッチ提出の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class PvpSubmitResult
         {
             public bool                   Ok;
@@ -221,6 +235,7 @@ namespace RhythmGame.Network
             public SubmitMatchResponseDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<PvpSubmitResult> SubmitMatchAsync(string matchId, string userId, System.Collections.Generic.List<SubmitMatchSongDto> songs)
         {
             if (!ServerConfig.Enabled) return new PvpSubmitResult { Ok = false, Error = "Network disabled" };
@@ -230,6 +245,7 @@ namespace RhythmGame.Network
             return new PvpSubmitResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        /// <summary>マッチ取得の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class PvpFetchResult
         {
             public bool           Ok;
@@ -238,6 +254,7 @@ namespace RhythmGame.Network
             public MatchResultDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<PvpFetchResult> FetchMatchAsync(string matchId)
         {
             if (!ServerConfig.Enabled) return new PvpFetchResult { Ok = false, Error = "Network disabled" };
@@ -248,6 +265,7 @@ namespace RhythmGame.Network
 
         // ── PVP Progress (in-match real-time) ───────────────────────────────────
 
+        /// <summary>PVP 進捗送受信の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class PvpProgressResult
         {
             public bool                Ok;
@@ -256,6 +274,7 @@ namespace RhythmGame.Network
             public ProgressSnapshotDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<PvpProgressResult> SendPvpProgressAsync(
             string matchId, string userId, int songIndex, int percentX1000, int score)
         {
@@ -272,6 +291,7 @@ namespace RhythmGame.Network
             return new PvpProgressResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        /// <inheritdoc/>
         public async Task<PvpProgressResult> FetchPvpProgressAsync(string matchId)
         {
             if (!ServerConfig.Enabled) return new PvpProgressResult { Ok = false, Error = "Network disabled" };
@@ -282,6 +302,7 @@ namespace RhythmGame.Network
 
         // ── PVP Queue ───────────────────────────────────────────────────────────
 
+        /// <summary>マッチキュー操作の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class QueueResult
         {
             public bool             Ok;
@@ -290,6 +311,7 @@ namespace RhythmGame.Network
             public QueueResponseDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<QueueResult> JoinQueueAsync(string userId)
         {
             if (!ServerConfig.Enabled) return new QueueResult { Ok = false, Error = "Network disabled" };
@@ -298,6 +320,7 @@ namespace RhythmGame.Network
             return new QueueResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        /// <inheritdoc/>
         public async Task<QueueResult> LeaveQueueAsync(string userId)
         {
             if (!ServerConfig.Enabled) return new QueueResult { Ok = false, Error = "Network disabled" };
@@ -306,6 +329,7 @@ namespace RhythmGame.Network
             return new QueueResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        /// <inheritdoc/>
         public async Task<QueueResult> GetQueueStatusAsync(string userId)
         {
             if (!ServerConfig.Enabled) return new QueueResult { Ok = false, Error = "Network disabled" };
@@ -382,6 +406,7 @@ namespace RhythmGame.Network
 
         // ── FetchLeaderboard ────────────────────────────────────────────────────
 
+        /// <summary>リーダーボード取得の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class LeaderboardResult
         {
             public bool                   Ok;
@@ -390,6 +415,7 @@ namespace RhythmGame.Network
             public LeaderboardResponseDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<LeaderboardResult> FetchLeaderboardAsync(string songId, string difficulty, int limit = 10)
         {
             if (!ServerConfig.Enabled)
@@ -429,6 +455,7 @@ namespace RhythmGame.Network
 
         // ── FetchPersonalBest ───────────────────────────────────────────────────
 
+        /// <summary>パーソナルベスト取得の結果(Ok/Error/RoundtripMs/Body)。</summary>
         public class PersonalBestResult
         {
             public bool                    Ok;
@@ -437,6 +464,7 @@ namespace RhythmGame.Network
             public PersonalBestResponseDto Body;
         }
 
+        /// <inheritdoc/>
         public async Task<PersonalBestResult> FetchPersonalBestAsync(string songId, string difficulty, string userId)
         {
             if (!ServerConfig.Enabled)

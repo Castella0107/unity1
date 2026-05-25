@@ -4,6 +4,7 @@ using NUnit.Framework;
 
 // ── VarInt ────────────────────────────────────────────────────────────────────
 
+/// <summary><see cref="VarInt"/> のユニットテスト。</summary>
 public class VarIntTests
 {
     void RoundTrip(int value)
@@ -47,6 +48,7 @@ public class VarIntTests
 
 // ── ReplayInputBuffer ─────────────────────────────────────────────────────────
 
+/// <summary><see cref="ReplayInputBuffer"/> のユニットテスト。</summary>
 public class ReplayInputBufferTests
 {
     [Test]
@@ -100,6 +102,7 @@ public class ReplayInputBufferTests
 
 // ── ReplayEncoder ─────────────────────────────────────────────────────────────
 
+/// <summary><see cref="ReplayEncoder"/> のユニットテスト。</summary>
 public class ReplayEncoderTests
 {
     static ReplayData MakeMinimal()

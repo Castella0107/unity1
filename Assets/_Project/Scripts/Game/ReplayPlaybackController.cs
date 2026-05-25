@@ -26,8 +26,11 @@ public class ReplayPlaybackController : MonoBehaviour
     SongMetadata      _meta;
     bool              _isPlaying;
 
+    /// <summary>リプレイ再生中か。</summary>
     public bool   IsPlaying     => _isPlaying;
+    /// <summary>現在の再生速度倍率。</summary>
     public double PlaybackSpeed => _conductor != null ? _conductor.PlaybackSpeed : 1.0;
+    /// <summary>リプレイ入力を再生し終えたか。</summary>
     public bool   IsFinished    => _replayInput?.IsFinished ?? false;
 
     // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -134,6 +137,7 @@ public class ReplayPlaybackController : MonoBehaviour
 
     // ── Public controls ────────────────────────────────────────────────────────
 
+    /// <summary>リプレイ再生を一時停止する。</summary>
     public void Pause()
     {
         if (!_isPlaying) return;
@@ -141,6 +145,7 @@ public class ReplayPlaybackController : MonoBehaviour
         _isPlaying = false;
     }
 
+    /// <summary>一時停止したリプレイ再生を再開する。</summary>
     public void Resume()
     {
         if (_isPlaying) return;
@@ -148,6 +153,7 @@ public class ReplayPlaybackController : MonoBehaviour
         _isPlaying = true;
     }
 
+    /// <summary>リプレイを先頭から再生し直す。</summary>
     public void Restart()
     {
         if (_replay == null || _chart == null || _meta == null) return;
@@ -163,6 +169,7 @@ public class ReplayPlaybackController : MonoBehaviour
         _isPlaying = true;
     }
 
+    /// <summary>リプレイ再生速度を設定する。</summary>
     public void SetPlaybackSpeed(double speed)
         => _conductor?.SetPlaybackSpeed(speed);
 

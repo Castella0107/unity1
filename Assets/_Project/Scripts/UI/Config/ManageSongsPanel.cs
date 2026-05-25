@@ -40,12 +40,14 @@ public class ManageSongsPanel : MonoBehaviour
         if (_refreshButton != null) _refreshButton.onClick.AddListener(() => _ = RefreshAsync());
     }
 
+    /// <summary>楽曲管理パネルを開き、一覧を更新する。</summary>
     public void Open()
     {
         if (_root != null) _root.SetActive(true);
         _ = RefreshAsync();
     }
 
+    /// <summary>楽曲管理パネルを閉じる。</summary>
     public void Close()
     {
         if (_root != null) _root.SetActive(false);

@@ -25,7 +25,9 @@ public sealed class GameInputController : MonoBehaviour, IInputSource
 {
     [SerializeField] private InputActionAsset _inputActions;
 
+    /// <inheritdoc/>
     public event Action<LaneRef, double> OnLaneDown;
+    /// <inheritdoc/>
     public event Action<LaneRef, double> OnLaneUp;
 
     private InputActionMap _gameplay;

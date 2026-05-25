@@ -15,6 +15,7 @@ namespace Domain.Pvp
         /// <summary>σ: volatility。レーティング変動の不安定さ (0.06 が初期値、典型 0.03〜0.1)。</summary>
         public double Volatility       { get; }
 
+        /// <summary>レーティング・RD・volatility を指定してプレイヤー状態を生成する。</summary>
         public Glicko2Player(double rating, double ratingDeviation, double volatility)
         {
             Rating           = rating;
@@ -25,6 +26,7 @@ namespace Domain.Pvp
         /// <summary>新規プレイヤー (Glicko-2 公式推奨の初期値)。</summary>
         public static Glicko2Player CreateDefault() => new Glicko2Player(1500.0, 350.0, 0.06);
 
+        /// <inheritdoc/>
         public override string ToString()
             => $"Glicko2Player(R={Rating:F2}, RD={RatingDeviation:F2}, σ={Volatility:F4})";
     }
@@ -32,10 +34,14 @@ namespace Domain.Pvp
     /// <summary>1 つの試合結果。score は 0 = 負け、0.5 = 引分け、1 = 勝ち。</summary>
     public readonly struct Glicko2Result
     {
+        /// <summary>対戦相手のレーティング。</summary>
         public readonly double OpponentRating;
+        /// <summary>対戦相手の rating deviation。</summary>
         public readonly double OpponentRatingDeviation;
-        public readonly double Score;   // 0, 0.5, 1
+        /// <summary>試合結果スコア(0=負け / 0.5=引分け / 1=勝ち)。</summary>
+        public readonly double Score;
 
+        /// <summary>対戦相手のレーティング・RD と結果スコアを指定して試合結果を生成する。</summary>
         public Glicko2Result(double opponentRating, double opponentRD, double score)
         {
             OpponentRating          = opponentRating;

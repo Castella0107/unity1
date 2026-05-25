@@ -8,6 +8,7 @@ using UnityEngine.InputSystem;
 /// </summary>
 public static class WireTitleScene
 {
+    /// <summary>現在開いているシーンの TitleController に InputActionAsset と UI 参照を自動配線する。</summary>
     [MenuItem("Tools/Wire Title Scene References")]
     public static void Wire()
     {

@@ -93,6 +93,7 @@ namespace RhythmGame.Network
 
     // ── PVP DTOs ────────────────────────────────────────────────────────────
 
+    /// <summary>1曲分の選曲(楽曲ID + 難易度)。</summary>
     [Serializable]
     public class SongPickDto
     {
@@ -100,14 +101,17 @@ namespace RhythmGame.Network
         public string difficulty;
     }
 
+    /// <summary>PVP マッチ作成リクエスト。</summary>
     [Serializable]
     public class CreateMatchRequestDto
     {
         public string userIdA;
         public string userIdB;
-        public string[] poolSongIds;   // 任意、null/空ならサーバー側で MatchPool.CreateBootstrapPool()
+        /// <summary>選曲プール。任意、null/空ならサーバー側で MatchPool.CreateBootstrapPool() を使う。</summary>
+        public string[] poolSongIds;
     }
 
+    /// <summary>PVP マッチ作成レスポンス。確定したマッチIDと選曲を返す。</summary>
     [Serializable]
     public class CreateMatchResponseDto
     {
@@ -117,6 +121,7 @@ namespace RhythmGame.Network
         public System.Collections.Generic.List<SongPickDto> songs;
     }
 
+    /// <summary>マッチ提出時の1曲分(楽曲ID + base64 リプレイ)。</summary>
     [Serializable]
     public class SubmitMatchSongDto
     {
@@ -124,6 +129,7 @@ namespace RhythmGame.Network
         public string replayDataBase64;
     }
 
+    /// <summary>マッチ結果の提出リクエスト(全曲のリプレイ)。</summary>
     [Serializable]
     public class SubmitMatchRequestDto
     {
@@ -131,6 +137,7 @@ namespace RhythmGame.Network
         public System.Collections.Generic.List<SubmitMatchSongDto> songs;
     }
 
+    /// <summary>確定したマッチ結果。両者のセクタースコア・ポイント・勝敗・レーティング変動を含む。</summary>
     [Serializable]
     public class MatchResultDto
     {
@@ -142,7 +149,8 @@ namespace RhythmGame.Network
         public System.Collections.Generic.List<int> sectorScoresB;
         public double                     totalPointsA;
         public double                     totalPointsB;
-        public int                        outcomeKind;     // -1=in progress, 0=Draw, 1=AWins, 2=BWins
+        /// <summary>勝敗種別 (-1=進行中, 0=Draw, 1=AWins, 2=BWins)。</summary>
+        public int                        outcomeKind;
         public double                     ratingABefore;
         public double                     ratingAAfter;
         public double                     ratingBBefore;
@@ -150,6 +158,7 @@ namespace RhythmGame.Network
         public long                       completedAtUnixMs;
     }
 
+    /// <summary>マッチ提出レスポンス。受理可否・エラー・確定有無と結果を返す。</summary>
     [Serializable]
     public class SubmitMatchResponseDto
     {
@@ -159,41 +168,49 @@ namespace RhythmGame.Network
         public MatchResultDto  result;
     }
 
+    /// <summary>マッチキュー参加/退出/状態取得リクエスト。</summary>
     [Serializable]
     public class QueueRequestDto
     {
         public string userId;
     }
 
+    /// <summary>マッチキューのレスポンス。</summary>
     [Serializable]
     public class QueueResponseDto
     {
-        public string status;       // "idle" / "queued" / "matched"
+        /// <summary>キュー状態 ("idle" / "queued" / "matched")。</summary>
+        public string status;
         public string matchId;
         public string opponentId;
         public System.Collections.Generic.List<SongPickDto> songs;
         public int    queueDepth;
     }
 
+    /// <summary>PVP 進捗の送信 DTO。</summary>
     [Serializable]
     public class ProgressUpdateDto
     {
         public string userId;
         public int    songIndex;
-        public int    percentX1000;   // 0..100000
+        /// <summary>進捗率 ×1000(0〜100000)。</summary>
+        public int    percentX1000;
         public int    score;
     }
 
+    /// <summary>片側プレイヤーの進捗 DTO。</summary>
     [Serializable]
     public class ProgressSideDto
     {
         public string userId;
         public int    songIndex;
+        /// <summary>進捗率 ×1000(0〜100000)。</summary>
         public int    percentX1000;
         public int    score;
         public long   updatedAtUnixMs;
     }
 
+    /// <summary>両プレイヤーの進捗スナップショット。</summary>
     [Serializable]
     public class ProgressSnapshotDto
     {

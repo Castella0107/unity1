@@ -10,7 +10,10 @@ using System.Linq;
 /// </summary>
 public class JudgmentRunner
 {
-    // Primary API — used by the 18 existing EditMode tests.
+    /// <summary>
+    /// 譜面に対してリプレイ入力列を再生し、最終的なプレイ進行スナップショットを返す。
+    /// デルタ時刻を絶対時刻へ累積しつつ、各イベント前に時間を進めて判定する。
+    /// </summary>
     public PlayProgressSnapshot Run(
         ChartData                      chart,
         IReadOnlyList<ReplayInputEvent> replayEvents,
@@ -37,7 +40,7 @@ public class JudgmentRunner
         return engine.BuildResult();
     }
 
-    // Full-replay API — includes sector ends extracted from SongMetadata.
+    /// <summary>メタデータからセクション終端を抽出してリプレイ全体を再生する。</summary>
     public PlayProgressSnapshot Run(ChartData chart, SongMetadata meta, ReplayData replay)
     {
         int[] sectorEnds = meta?.Sectors != null

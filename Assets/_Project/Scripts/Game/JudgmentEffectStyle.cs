@@ -10,11 +10,13 @@ public enum JudgmentEffectStyle { Subtle = 0, Normal = 1, Bold = 2 }
 /// </summary>
 public static class JudgmentEffectStyleHelper
 {
+    /// <summary>PlayerPrefs に保存された判定エフェクトスタイルを取得する(既定 Normal)。</summary>
     public static JudgmentEffectStyle GetSaved()
     {
         return (JudgmentEffectStyle)PlayerPrefs.GetInt("JudgmentEffectStyleIdx", 1);
     }
 
+    /// <summary>スタイルに応じたパーティクル量の倍率を返す(Subtle=0.5 / Normal=1.0 / Bold=1.5)。</summary>
     public static float GetParticleMultiplier(JudgmentEffectStyle style)
     {
         switch (style)
@@ -26,6 +28,7 @@ public static class JudgmentEffectStyleHelper
         }
     }
 
+    /// <summary>スタイルに応じたテキストスケール倍率を返す(Subtle=0.8 / Normal=1.0 / Bold=1.2)。</summary>
     public static float GetTextScale(JudgmentEffectStyle style)
     {
         switch (style)

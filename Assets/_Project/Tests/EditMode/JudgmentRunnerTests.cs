@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 
+/// <summary><see cref="JudgmentRunner"/> のユニットテスト。</summary>
 public class JudgmentRunnerTests
 {
     // ── 全 Perfect+ : Tap ────────────────────────────────────────────────────

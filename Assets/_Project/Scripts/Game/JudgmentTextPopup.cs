@@ -25,6 +25,7 @@ public class JudgmentTextPopup : MonoBehaviour
         if (_canvasGroup != null) _canvasGroup.alpha = 0f;
     }
 
+    /// <summary>判定に応じたテキストポップアップをアニメーション表示する。</summary>
     public void Show(Judgment j)
     {
         if (_routine != null) StopCoroutine(_routine);
