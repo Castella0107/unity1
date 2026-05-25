@@ -337,7 +337,10 @@ public class GamePlayController : MonoBehaviour
                 isAllPerfectPlus = record.IsAllPerfectPlus,
             };
 
-            var r = await net.ValidateReplayAsync(record.ChartHash, replayBytes, claim, meta);
+            // Result 画面が同じ送信結果 (VALID/INVALID) を表示できるよう、進行中の Task を共有スロットに登録。
+            var validateTask = net.ValidateReplayAsync(record.ChartHash, replayBytes, claim, meta);
+            RhythmGame.Network.ServerSubmissionTracker.Register(record.PlayId, validateTask);
+            var r = await validateTask;
             if (!r.Ok)
             {
                 Debug.LogWarning("[GamePlay] Server submit transport failed: " + r.TransportError + " — enqueuing");

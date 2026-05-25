@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Threading.Tasks;
+using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -47,12 +49,21 @@ public class HistoryDetailView : MonoBehaviour
     [Header("Replay")]
     [SerializeField] Button _replayButton;
 
+    [Header("Server Validate (optional — OnGUI fallback if unassigned)")]
+    [SerializeField] Button          _validateButton;
+    [SerializeField] TextMeshProUGUI _validateResultText;
+
     PlayRecord _current;
+    bool       _hasReplay;
+    bool       _validateBusy;
+    string     _validateResultFallback = "";
 
     void Start()
     {
         if (_replayButton != null)
             _replayButton.onClick.AddListener(OnReplayClicked);
+        if (_validateButton != null)
+            _validateButton.onClick.AddListener(() => _ = DoValidate());
     }
 
     /// <summary>指定プレイ記録の詳細(スコア・判定内訳・リプレイボタン等)を表示する。</summary>
@@ -63,6 +74,11 @@ public class HistoryDetailView : MonoBehaviour
         bool hasReplay = !string.IsNullOrEmpty(r?.ReplayPath)
                       && File.Exists(r.ReplayPath);
         if (_replayButton != null) _replayButton.interactable = hasReplay;
+
+        _hasReplay = hasReplay;
+        SetValidateResult("");   // clear any result carried over from the previous record
+        if (_validateButton != null)
+            _validateButton.interactable = hasReplay && ServerConfig.Enabled && NetworkClient.Instance != null;
 
         var dt = DateTimeOffset.FromUnixTimeMilliseconds(r.PlayedAtUnixMs).LocalDateTime;
 
@@ -144,5 +160,84 @@ public class HistoryDetailView : MonoBehaviour
             SceneRouter.Instance.GoTo(SceneId.GamePlay, prm);
         else
             UnityEngine.SceneManagement.SceneManager.LoadScene("GamePlay");
+    }
+
+    // ── Server validation (re-runs the validation; server save is idempotent by PlayId) ──
+
+    async Task DoValidate()
+    {
+        if (_current == null) return;
+        if (NetworkClient.Instance == null) { SetValidateResult("offline (no server)"); return; }
+        if (string.IsNullOrEmpty(_current.ReplayPath) || !File.Exists(_current.ReplayPath))
+        { SetValidateResult("replay file missing"); return; }
+
+        _validateBusy = true;
+        if (_validateButton != null) _validateButton.interactable = false;
+        SetValidateResult("validating...");
+        try
+        {
+            byte[] bytes = File.ReadAllBytes(_current.ReplayPath);
+            var claim = new ResultClaimDto
+            {
+                score       = _current.RawScore,
+                maxCombo    = _current.MaxCombo,
+                perfectPlus = _current.PerfectPlusCount,
+                perfect     = _current.PerfectCount,
+                great       = _current.GreatCount,
+                good        = _current.GoodCount,
+                miss        = _current.MissCount,
+                rank        = _current.Rank ?? "",
+            };
+            var meta = new ValidateRequestDto
+            {
+                playId           = _current.PlayId,
+                songId           = _current.SongId,
+                difficulty       = _current.Difficulty,
+                userId           = LocalIdentity.UserId,
+                playedAtUnixMs   = _current.PlayedAtUnixMs,
+                totalNotes       = _current.TotalNotes,
+                isFullCombo      = _current.IsFullCombo,
+                isAllPerfect     = _current.IsAllPerfect,
+                isAllPerfectPlus = _current.IsAllPerfectPlus,
+            };
+
+            var r = await NetworkClient.Instance.ValidateReplayAsync(_current.ChartHash, bytes, claim, meta);
+            if (this == null) return;
+            if (!r.Ok)
+                SetValidateResult($"offline / transport error (rt={r.RoundtripMs}ms)");
+            else if (r.Body.isValid)
+                SetValidateResult($"VALID  score={r.Body.serverResult?.score}  (rt={r.RoundtripMs}ms)");
+            else
+                SetValidateResult("INVALID - " + r.Body.mismatchReason);
+        }
+        catch (Exception e) { SetValidateResult("error - " + e.Message); }
+        finally
+        {
+            _validateBusy = false;
+            if (this != null && _validateButton != null) _validateButton.interactable = _hasReplay;
+        }
+    }
+
+    void SetValidateResult(string text)
+    {
+        if (_validateResultText != null) _validateResultText.text = text;
+        else                             _validateResultFallback = text ?? "";
+    }
+
+    // Fallback button + result line when no proper UI is wired (no scene editing required).
+    void OnGUI()
+    {
+        if (_validateButton != null) return;
+        if (_current == null || !_hasReplay) return;
+        if (!ServerConfig.Enabled || NetworkClient.Instance == null) return;
+
+        const float w = 340f, h = 72f;
+        GUILayout.BeginArea(new Rect(16f, Screen.height - h - 16f, w, h), GUI.skin.box);
+        GUI.enabled = !_validateBusy;
+        if (GUILayout.Button("Validate on Server"))
+            _ = DoValidate();
+        GUI.enabled = true;
+        GUILayout.Label(_validateResultFallback);
+        GUILayout.EndArea();
     }
 }

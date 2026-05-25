@@ -1,4 +1,7 @@
+using System;
 using System.Collections;
+using System.Threading.Tasks;
+using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -45,6 +48,9 @@ public class ResultController : MonoBehaviour
     [SerializeField] TextMeshProUGUI _fastCountText;
     [SerializeField] TextMeshProUGUI _lateCountText;
 
+    [Header("Server Result (optional — OnGUI fallback if unassigned)")]
+    [SerializeField] TextMeshProUGUI _serverStatusText;
+
     [Header("Buttons")]
     [SerializeField] Button _retryButton;
     [SerializeField] Button _toSelectButton;
@@ -59,6 +65,7 @@ public class ResultController : MonoBehaviour
     InputAction      _submitAction;
     InputAction      _cancelAction;
     ResultParameters _params;
+    string           _serverStatusFallback;   // shown via OnGUI when _serverStatusText is unassigned
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -98,6 +105,7 @@ public class ResultController : MonoBehaviour
             Debug.Log("[Result] No ResultParameters found — using dummy view");
 
         ApplyView(view);
+        KickoffServerStatus(view.Record);
     }
 
     void OnSubmitKey(InputAction.CallbackContext _) => OnRetry();
@@ -202,6 +210,74 @@ public class ResultController : MonoBehaviour
             SceneRouter.Instance.GoTo(SceneId.Title);
         else
             SceneManager.LoadScene("Title");
+    }
+
+    // ── Server validation + leaderboard rank ────────────────────────────────────
+    // Reuses the submission GamePlayController already fired at song completion (shared via
+    // ServerSubmissionTracker) so we never double-submit. Shows VALID/INVALID and, on VALID,
+    // the player's leaderboard rank. Output goes to _serverStatusText when wired, otherwise an
+    // OnGUI fallback panel — so it works without any scene editing.
+
+    static bool IsServerEligible(ResultParameters p, PlayRecord rec)
+        => p != null && rec != null && !rec.IsPvP && !IsTestPlayMode
+           && ServerConfig.Enabled && NetworkClient.Instance != null;
+
+    async void KickoffServerStatus(PlayRecord rec)
+    {
+        if (!IsServerEligible(_params, rec)) return;   // leave the panel hidden
+        SetServerStatus("Server: checking...");
+
+        // Wait briefly for THIS play's fire-and-forget submission to register its task.
+        Task<NetworkClient.ValidateResult> task = null;
+        float deadline = Time.realtimeSinceStartup + 1.5f;
+        while (true)
+        {
+            if (ServerSubmissionTracker.PlayId == rec.PlayId && ServerSubmissionTracker.Task != null)
+            { task = ServerSubmissionTracker.Task; break; }
+            if (Time.realtimeSinceStartup >= deadline) break;
+            await Task.Delay(50);
+            if (this == null) return;   // scene unloaded while waiting
+        }
+        if (task == null) { SetServerStatus("Server: offline (not submitted)"); return; }
+
+        NetworkClient.ValidateResult r;
+        try { r = await task; }
+        catch (Exception e) { SetServerStatus("Server: error - " + e.Message); return; }
+        if (this == null) return;
+
+        if (!r.Ok)           { SetServerStatus("Server: offline (queued for retry)"); return; }
+        if (!r.Body.isValid) { SetServerStatus("Server: INVALID - " + r.Body.mismatchReason); return; }
+
+        SetServerStatus("Server: VALID  (ranking...)");
+        try
+        {
+            var pb = await NetworkClient.Instance.FetchPersonalBestAsync(rec.SongId, rec.Difficulty, LocalIdentity.UserId);
+            if (this == null) return;
+            if (pb.Ok && pb.Body != null && pb.Body.hasRecord)
+                SetServerStatus($"Server: VALID   Rank #{pb.Body.overallRank} / {pb.Body.totalUsers}");
+            else
+                SetServerStatus("Server: VALID");
+        }
+        catch { SetServerStatus("Server: VALID"); }
+    }
+
+    void SetServerStatus(string text)
+    {
+        if (_serverStatusText != null) _serverStatusText.text = text;
+        else                           _serverStatusFallback = text;
+    }
+
+    void OnGUI()
+    {
+        if (_serverStatusText != null || string.IsNullOrEmpty(_serverStatusFallback)) return;
+        const float w = 440f, h = 30f;
+        var style = new GUIStyle(GUI.skin.box)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            fontSize  = 16,
+            padding   = new RectOffset(10, 10, 4, 4),
+        };
+        GUI.Box(new Rect(16f, Screen.height - h - 16f, w, h), _serverStatusFallback, style);
     }
 
     // ── Animations ────────────────────────────────────────────────────────────

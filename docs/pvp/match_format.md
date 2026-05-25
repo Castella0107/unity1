@@ -307,7 +307,7 @@ Unity 側ラッパは `NetworkClient.{Join,Leave,GetQueueStatus,CreateMatch,Subm
 
 - **正規 PVP UI シーン未実装**: PVPPrematch (試合直前情報)、PVPSongPick (BAN/PICK)、PVPBanPhase は仕様未確定で省略中。現状は queue 入って即 3 曲開始
 - **楽曲プール**: 4 曲固定 (test_song 系) のみ。設計書の「20曲固定 / セクター動的選曲」は Phase 6 コンテンツ制作と同時整備
-- **難易度**: 全曲 `extra` 固定 (設計書: easy 0.75 / normal 0.80 / hard 0.90 / extra 1.00 倍率は未適用)
+- **難易度倍率**: 適用済 (2026-05-26)。`MatchScoring` がセクター獲得ポイントに easy 0.75 / normal 0.80 / hard 0.90 / extra 1.00 を乗算 (`SectorPair.Difficulty` 経由)。倍率は**試合ポイント(15pt表示・勝敗判定)にのみ**効き、**レーティング(Glicko-2)は素の勝敗 1/0.5/0** を使う(重み付けすると A/B スコアの相補性が崩れるため)。`MatchEntity.TotalPointsA/Bx1000` (旧 x10、0.375pt刻みのため精度引上げ)。現プールは全曲 `extra` (×1.0) なので実挙動は従来と同一、非 extra 曲投入時に有効化。**K の Go 再実装時に「倍率は試合ポイントのみ・Glicko は素の勝敗」を共有要**
 - **進捗配信が HTTP polling**: 0.5 秒間隔。SignalR Hub or gRPC duplex stream 化が次段
 - **`GET /match/{id}` が in-progress submit を露出しない**: e2e の片側完了検知に使えない ([[feedback_pvpMatchGetNoSubmittedSignal]])
 - **認証なし**: `LocalIdentity.UserId` (PlayerPrefs `DisplayName` 基準) を信用。Phase 4-B で Discord OAuth + JWT 導入予定

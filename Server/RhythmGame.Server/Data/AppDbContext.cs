@@ -84,8 +84,8 @@ namespace RhythmGame.Server.Data
         public string DifficultiesCsv  { get; set; } = "";
         public string SectorScoresA    { get; set; } = "";   // "1234,5678,..." 15 個
         public string SectorScoresB    { get; set; } = "";
-        public int    TotalPointsAx10  { get; set; }         // 1.5pt → 15 (×10 で整数化)
-        public int    TotalPointsBx10  { get; set; }
+        public int    TotalPointsAx1000 { get; set; }        // 0.375pt → 375 (難易度倍率で 0.375/0.4/0.45/0.5 刻みになるため ×1000 で整数化)
+        public int    TotalPointsBx1000 { get; set; }
         public int    OutcomeKind      { get; set; }         // 0=Draw, 1=AWins, 2=BWins
         public long   CreatedAtUnixMs  { get; set; }
         public long   CompletedAtUnixMs{ get; set; }

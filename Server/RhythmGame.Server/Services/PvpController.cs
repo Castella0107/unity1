@@ -379,7 +379,8 @@ namespace RhythmGame.Server.Services
                 var sB = m.SubmissionB.SectorScores[songIdx];
                 for (int sec = 0; sec < 5; sec++)
                 {
-                    pairs.Add(new SectorPair(m.Songs[songIdx].SongId, sec, sA[sec], sB[sec]));
+                    pairs.Add(new SectorPair(m.Songs[songIdx].SongId, sec, sA[sec], sB[sec],
+                                             m.Songs[songIdx].Difficulty));
                 }
             }
 
@@ -429,8 +430,8 @@ namespace RhythmGame.Server.Services
                 DifficultiesCsv  = string.Join(",", m.Songs.Select(s => s.Difficulty)),
                 SectorScoresA    = string.Join(",", m.SubmissionA.SectorScores.SelectMany(a => a)),
                 SectorScoresB    = string.Join(",", m.SubmissionB.SectorScores.SelectMany(a => a)),
-                TotalPointsAx10  = (int)Math.Round(outcome.TotalPointsA * 10),
-                TotalPointsBx10  = (int)Math.Round(outcome.TotalPointsB * 10),
+                TotalPointsAx1000 = (int)Math.Round(outcome.TotalPointsA * 1000),
+                TotalPointsBx1000 = (int)Math.Round(outcome.TotalPointsB * 1000),
                 OutcomeKind      = (int)outcome.Kind,
                 CreatedAtUnixMs  = m.CreatedAtUnixMs,
                 CompletedAtUnixMs = nowMs,
@@ -496,8 +497,8 @@ namespace RhythmGame.Server.Services
                 Songs         = songs,
                 SectorScoresA = (e.SectorScoresA ?? "").Split(',').Where(s => !string.IsNullOrEmpty(s)).Select(int.Parse).ToList(),
                 SectorScoresB = (e.SectorScoresB ?? "").Split(',').Where(s => !string.IsNullOrEmpty(s)).Select(int.Parse).ToList(),
-                TotalPointsA  = e.TotalPointsAx10 / 10.0,
-                TotalPointsB  = e.TotalPointsBx10 / 10.0,
+                TotalPointsA  = e.TotalPointsAx1000 / 1000.0,
+                TotalPointsB  = e.TotalPointsBx1000 / 1000.0,
                 OutcomeKind   = e.OutcomeKind,
                 RatingABefore = e.RatingABefore,
                 RatingAAfter  = e.RatingAAfter,
