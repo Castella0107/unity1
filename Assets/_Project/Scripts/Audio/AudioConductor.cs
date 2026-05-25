@@ -64,6 +64,7 @@ public sealed class AudioConductor : MonoBehaviour
     double            _playbackSpeed = 1.0;
     AppOffsetSettings _appOffsets    = AppOffsetSettings.Default;
     PerSongOffset     _perSongOffset;
+    int               _audioOffsetMs;   // 譜面の音源再生シフト (audioSampleTime = chartTime - this)。判定クロックには影響しない。
 
     /// <summary>現在の再生速度倍率(0.1〜4.0)。</summary>
     public double PlaybackSpeed => _playbackSpeed;
@@ -100,14 +101,35 @@ public sealed class AudioConductor : MonoBehaviour
 
     // ── Playback API ──────────────────────────────────────────────────────────
 
-    /// <summary>曲を開始する。<paramref name="prerollSec"/> の間は SongTimeMs が負となり、視覚初期化の猶予になる。</summary>
-    public void StartSong(AudioClip clip, double prerollSec = 1.0)
+    /// <summary>
+    /// 曲を開始する。<paramref name="prerollSec"/> の間は SongTimeMs が負となり、視覚初期化の猶予になる。
+    /// <paramref name="audioOffsetMs"/> は譜面の音源再生シフト: 音源サンプル時刻 = chart 時刻 - audioOffsetMs。
+    /// 正値=音源が遅れて始まる(冒頭が無音)、負値=イントロをスキップして再生。チャート/判定クロックは不変。
+    /// </summary>
+    public void StartSong(AudioClip clip, double prerollSec = 1.0, int audioOffsetMs = 0)
     {
         if (clip == null) { Debug.LogWarning("[AudioConductor] StartSong: clip is null"); return; }
         Stop();
         double scheduled    = AudioSettings.dspTime + prerollSec;
         _audioSource.clip   = clip;
-        _audioSource.PlayScheduled(scheduled);
+        _audioOffsetMs      = audioOffsetMs;
+
+        // 音源だけを chart クロックに対してシフトする (audioSampleTime = chartTime - audioOffsetMs)。
+        // _dspStartTime (= 判定/スコア/リプレイの基準クロック) は動かさないので決定性に影響しない。
+        double offsetSec = audioOffsetMs / 1000.0;
+        if (audioOffsetMs >= 0)
+        {
+            // chart 時刻 offset に到達するのは real 時間 offsetSec/speed 後 (SongTimeMs は speed 倍)。
+            _audioSource.timeSamples = 0;
+            _audioSource.PlayScheduled(scheduled + offsetSec / _playbackSpeed);   // 冒頭 offset ms は無音
+        }
+        else
+        {
+            _audioSource.timeSamples = Mathf.Clamp(
+                (int)(-offsetSec * clip.frequency), 0, Mathf.Max(0, clip.samples - 1));
+            _audioSource.PlayScheduled(scheduled);               // イントロをスキップして即再生
+        }
+
         _dspStartTime       = scheduled;
         _isPlaying          = true;
         _isPaused           = false;
@@ -128,15 +150,14 @@ public sealed class AudioConductor : MonoBehaviour
     public void Resume(double prerollSec = 0.5)
     {
         if (_isPlaying || !_isPaused || _audioSource.clip == null) return;
-        // Convert scaled game-time back to actual audio position in seconds
+        // Convert scaled game-time back to actual audio position in seconds.
+        // Subtract the chart's AudioOffsetMs: clip position = chartPos - offset.
         double audioPosSec = _pausedSongTimeMs / 1000.0 / _playbackSpeed;
+        double clipPosSec  = audioPosSec - (_audioOffsetMs / 1000.0);
         double scheduled   = AudioSettings.dspTime + prerollSec;
-        if (audioPosSec > 0.0)
-        {
-            _audioSource.timeSamples = Mathf.Clamp(
-                (int)(audioPosSec * _audioSource.clip.frequency),
-                0, _audioSource.clip.samples - 1);
-        }
+        _audioSource.timeSamples = clipPosSec > 0.0
+            ? Mathf.Clamp((int)(clipPosSec * _audioSource.clip.frequency), 0, _audioSource.clip.samples - 1)
+            : 0;
         _audioSource.PlayScheduled(scheduled);
         _dspStartTime = scheduled - audioPosSec;
         _isPlaying    = true;

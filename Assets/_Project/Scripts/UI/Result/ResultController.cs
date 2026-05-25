@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.IO;
 using System.Threading.Tasks;
 using RhythmGame.Network;
 using TMPro;
@@ -106,6 +107,7 @@ public class ResultController : MonoBehaviour
 
         ApplyView(view);
         KickoffServerStatus(view.Record);
+        if (IsTestPlayMode) WriteTestPlayResult(view.Record);
     }
 
     void OnSubmitKey(InputAction.CallbackContext _) => OnRetry();
@@ -278,6 +280,69 @@ public class ResultController : MonoBehaviour
             padding   = new RectOffset(10, 10, 4, 4),
         };
         GUI.Box(new Rect(16f, Screen.height - h - 16f, w, h), _serverStatusFallback, style);
+    }
+
+    // ── TestPlay result hand-off (ChartEditor round-trip) ───────────────────────
+    // When launched from the ChartEditor with --testplay-result <path>, write the play
+    // result there so the editor can read it on PVP exit and surface it to the charter.
+
+    [Serializable]
+    class TestPlayResultDto
+    {
+        public string songId;
+        public string difficulty;
+        public int    score;
+        public int    rawScore;
+        public string rank;
+        public int    perfectPlus;
+        public int    perfect;
+        public int    great;
+        public int    good;
+        public int    miss;
+        public int    maxCombo;
+        public int    fastCount;
+        public int    lateCount;
+        public int    totalNotes;
+        public bool   fullCombo;
+        public bool   allPerfect;
+        public bool   allPerfectPlus;
+        public long   playedAtUnixMs;
+    }
+
+    static void WriteTestPlayResult(PlayRecord r)
+    {
+        string path = CommandLineArgs.Get("testplay-result");
+        if (string.IsNullOrEmpty(path) || r == null) return;
+        try
+        {
+            var dto = new TestPlayResultDto
+            {
+                songId         = r.SongId,
+                difficulty     = r.Difficulty,
+                score          = r.EffectiveScore,
+                rawScore       = r.RawScore,
+                rank           = r.Rank ?? "",
+                perfectPlus    = r.PerfectPlusCount,
+                perfect        = r.PerfectCount,
+                great          = r.GreatCount,
+                good           = r.GoodCount,
+                miss           = r.MissCount,
+                maxCombo       = r.MaxCombo,
+                fastCount      = r.FastCount,
+                lateCount      = r.LateCount,
+                totalNotes     = r.TotalNotes,
+                fullCombo      = r.IsFullCombo,
+                allPerfect     = r.IsAllPerfect,
+                allPerfectPlus = r.IsAllPerfectPlus,
+                playedAtUnixMs = r.PlayedAtUnixMs,
+            };
+            File.WriteAllText(path, JsonUtility.ToJson(dto, true), new System.Text.UTF8Encoding(false));
+            Debug.Log("[Result] TestPlay result written: " + path);
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[Result] TestPlay result write failed: " + e.Message);
+        }
     }
 
     // ── Animations ────────────────────────────────────────────────────────────

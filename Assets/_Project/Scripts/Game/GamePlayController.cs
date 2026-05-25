@@ -100,7 +100,7 @@ public class GamePlayController : MonoBehaviour
 
             StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud);
             if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameTabController.GetSavedComboBorder());
-            _conductor.StartSong(clip, prerollSec: 2.0);
+            _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: _meta?.AudioOffsetMs ?? 0);
 
             Debug.Log(string.Format("[GamePlay] Started — song={0}  difficulty={1}  notes={2}",
                 SongId, Difficulty, _chart.Notes.Count));

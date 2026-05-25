@@ -99,7 +99,7 @@ public class ReplayPlaybackController : MonoBehaviour
             // ── Apply playback speed ─────────────────────────────────────────
             double speed = prm.InitialPlaybackSpeed > 0.0 ? prm.InitialPlaybackSpeed : 1.0;
             _conductor.SetPlaybackSpeed(speed);
-            _conductor.StartSong(clip, prerollSec: 2.0);
+            _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: _meta?.AudioOffsetMs ?? 0);
             _isPlaying = true;
 
             Debug.Log(string.Format("[Replay] Started — song={0}  diff={1}  events={2}  speed={3}x",
@@ -165,7 +165,7 @@ public class ReplayPlaybackController : MonoBehaviour
 
         _conductor.SetPlaybackSpeed(PlaybackSpeed);
         AudioClip clip = _conductor.GetComponent<AudioSource>()?.clip;
-        if (clip != null) _conductor.StartSong(clip, prerollSec: 1.0);
+        if (clip != null) _conductor.StartSong(clip, prerollSec: 1.0, audioOffsetMs: _meta?.AudioOffsetMs ?? 0);
         _isPlaying = true;
     }
 
