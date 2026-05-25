@@ -22,6 +22,10 @@ public class PlayProgressAggregator
     readonly int[]           _counts          = new int[5];
     readonly int[]           _sectorScores    = new int[5];
     readonly int[]           _sectorMaxScores = new int[5];
+    // Per-sector theoretical full max (all events Perfect+), precomputed at construction
+    // from the chart's per-sector event counts. Denominator for the live "fill toward max"
+    // sector % display. Purely additive — never feeds Counts/SectorScores/CurrentScore/Snapshot.
+    readonly int[]           _sectorFullMaxScores = new int[5];
 
     int _currentCombo;
     int _maxCombo;
@@ -37,6 +41,12 @@ public class PlayProgressAggregator
     public IReadOnlyList<int> SectorScores  => _sectorScores;
     /// <summary>セクション別の理論満点(全 PerfectPlus 時のスコアデルタ)。達成率の分母。</summary>
     public IReadOnlyList<int> SectorMaxScores => _sectorMaxScores;
+    /// <summary>セクション別の確定理論満点(そのセクションの全ノーツを Perfect+ で取った最終満点)。進行中セクターを 0% から満タンへ積み上げ表示する際の分母。</summary>
+    public IReadOnlyList<int> SectorFullMaxScores => _sectorFullMaxScores;
+    /// <summary>進行中セクションの確定理論満点(全ノーツ通過後の満点)。進行中の「満タンゲージ」表示の分母。</summary>
+    public int CurrentSectorFullMaxScore =>
+        _currentSectorIdx >= 0 && _currentSectorIdx < _sectorFullMaxScores.Length
+            ? _sectorFullMaxScores[_currentSectorIdx] : 0;
     /// <summary>現在までに通過したノーツの理論満点(全 PerfectPlus 時の表示スコア)。総合達成率の分母。</summary>
     public int CurrentMaxScore   => _maxScore.CurrentScore;
     /// <summary>進行中セクションの暫定スコア(直前セクション確定以降の増分)。</summary>
@@ -56,13 +66,35 @@ public class PlayProgressAggregator
     /// <summary>現在処理中のセクションインデックス(0〜5)。</summary>
     public int CurrentSectorIdx => _currentSectorIdx;
 
-    /// <summary>総ノーツ数・セクション終了時刻・コンボ継続境界判定を指定して集計器を初期化する。</summary>
-    public PlayProgressAggregator(int totalNotes, int[] sectorEndsMs, Judgment comboBorder)
+    /// <summary>総ノーツ数・セクション終了時刻・コンボ継続境界判定を指定して集計器を初期化する。
+    /// <paramref name="sectorEventCounts"/>(セクション別スコアイベント数)を渡すと各セクションの確定満点を事前計算する(省略可)。</summary>
+    public PlayProgressAggregator(int totalNotes, int[] sectorEndsMs, Judgment comboBorder,
+                                  int[] sectorEventCounts = null)
     {
         _score        = new ScoreCalculator(totalNotes);
         _maxScore     = new ScoreCalculator(totalNotes);
         _sectorEndsMs = sectorEndsMs ?? new int[0];
         _comboBorder  = comboBorder;
+        ComputeSectorFullMax(totalNotes, sectorEventCounts);
+    }
+
+    // Replays each sector's event count as Perfect+ through a throwaway calculator and takes
+    // display-score deltas — identical to how _maxScore accumulates at runtime (order-independent
+    // since every event adds the same micro-points), so the result equals the value
+    // SectorMaxScores[i] reaches once sector i completes.
+    void ComputeSectorFullMax(int totalNotes, int[] sectorEventCounts)
+    {
+        if (sectorEventCounts == null || totalNotes <= 0) return;
+        var probe = new ScoreCalculator(totalNotes);
+        int prev = 0;
+        for (int i = 0; i < _sectorFullMaxScores.Length; i++)
+        {
+            int n = i < sectorEventCounts.Length ? sectorEventCounts[i] : 0;
+            for (int e = 0; e < n; e++) probe.Add(Judgment.PerfectPlus);
+            int now = probe.CurrentScore;
+            _sectorFullMaxScores[i] = now - prev;
+            prev = now;
+        }
     }
 
     /// <summary>タップ/FxTap/ホールド頭/ホールド尾のヒットを反映する。Miss なら <see cref="ApplyMiss"/> に委譲。</summary>

@@ -40,16 +40,25 @@ public class LaneVisuals : MonoBehaviour
     {
         // 6 lanes: FX (±1.2 wide) flank 4 main lanes (±1.0). Field spans X -3.2..+3.2.
         // 7 boundary lines: outer FX edges at ±3.2, inner boundaries at integer X.
-        SpawnDivider(-3.2f, _outerHeight,  _outerLengthRatio);  // FxL outer edge
+        //
+        // The outermost FX edges sit exactly on the gray background edge (±TotalWidth/2).
+        // Keep the line centered on the edge but trim the floor strip's overhanging outer
+        // half (floorTrimSign points inward, toward the field center) so nothing hangs over
+        // the void; only the inner half of the strip remains.
+        float edge = LaneLayout.TotalWidth * 0.5f;   // ±3.2 background edge
+
+        SpawnDivider(-edge, _outerHeight,  _outerLengthRatio, floorTrimSign: +1);  // FxL outer edge
         SpawnDivider(-2.0f, _outerHeight,  _outerLengthRatio);  // FxL|Lane0
         SpawnDivider(-1.0f, _outerHeight,  _outerLengthRatio);  // Lane0|Lane1
         SpawnDivider( 0.0f, _centerHeight, 1.0f);               // Lane1|Lane2 center
         SpawnDivider( 1.0f, _outerHeight,  _outerLengthRatio);  // Lane2|Lane3
         SpawnDivider( 2.0f, _outerHeight,  _outerLengthRatio);  // Lane3|FxR
-        SpawnDivider( 3.2f, _outerHeight,  _outerLengthRatio);  // FxR outer edge
+        SpawnDivider( edge, _outerHeight,  _outerLengthRatio, floorTrimSign: -1);  // FxR outer edge
     }
 
-    void SpawnDivider(float xPos, float height, float lengthRatio)
+    // floorTrimSign: 0 = full centered floor strip; ±1 = halve the strip and push it that
+    // direction (toward field center) so its outer edge is flush with the line center at xPos.
+    void SpawnDivider(float xPos, float height, float lengthRatio, int floorTrimSign = 0)
     {
         var go = Instantiate(_dividerPrefab, transform);
         go.name = $"Divider_X{xPos:F2}";
@@ -78,8 +87,12 @@ public class LaneVisuals : MonoBehaviour
         var qh = go.transform.Find("QuadHorizontal");
         if (qh != null)
         {
-            qh.localScale    = new Vector3(_floorWidth, length, 1f);
-            qh.localPosition = new Vector3(0f, 0.005f, 0f);
+            // Edge dividers: keep only the inner half so the outer edge is flush with xPos
+            // (no overhang past the background). Inner half center sits floorWidth*0.25 inward.
+            float qhWidth = floorTrimSign != 0 ? _floorWidth * 0.5f : _floorWidth;
+            float qhX     = floorTrimSign != 0 ? floorTrimSign * _floorWidth * 0.25f : 0f;
+            qh.localScale    = new Vector3(qhWidth, length, 1f);
+            qh.localPosition = new Vector3(qhX, 0.005f, 0f);
         }
     }
 }

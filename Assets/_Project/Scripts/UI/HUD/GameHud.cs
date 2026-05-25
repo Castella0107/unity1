@@ -130,9 +130,10 @@ public class GameHud : MonoBehaviour
                 SetDiamond(i, Rate(agg.SectorScores[i], agg.SectorMaxScores[i]), final: true);
         }
 
-        // Live update for the in-progress sector.
-        if (curIdx < 5 && curIdx < sectorCount && agg.CurrentSectorMaxScore > 0)
-            SetDiamond(curIdx, Rate(agg.CurrentSectorScore, agg.CurrentSectorMaxScore), final: false);
+        // Live update for the in-progress sector — climbs 0% → final achievement as its
+        // notes are played, using the sector's full theoretical max (all notes) as 100%.
+        if (curIdx < 5 && curIdx < sectorCount && agg.CurrentSectorFullMaxScore > 0)
+            SetDiamond(curIdx, Rate(agg.CurrentSectorScore, agg.CurrentSectorFullMaxScore), final: false);
     }
 
     void SetDiamond(int i, float ratePct, bool final)

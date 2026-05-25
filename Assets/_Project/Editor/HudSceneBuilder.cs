@@ -16,6 +16,7 @@ public static class HudSceneBuilder
 {
     const string PrefabDir   = "Assets/_Project/Prefabs/UI/HUD";
     const string MatPath     = "Assets/_Project/Prefabs/UI/HUD/LaneHighlight.mat";
+    const string GradTexPath = "Assets/_Project/Prefabs/UI/HUD/LaneHighlightGradient.asset";
     const string ScenePath   = "Assets/_Project/Scenes/GamePlay.unity";
 
     // Judgment count label colors (P+, P, Gr, Gd, M)
@@ -253,6 +254,8 @@ public static class HudSceneBuilder
         var soKG = new SerializedObject(keyGuide);
         WireArray(soKG, "_keyChips", chips);
         WireArray(soKG, "_laneHighlights", highlights);
+        soKG.FindProperty("_highlightColor").colorValue   = Color.white;   // white lit lanes
+        soKG.FindProperty("_highlightOnAlpha").floatValue = 0.22f;          // peak alpha (near edge); fades to 0 toward the back
         soKG.ApplyModifiedProperties();
 
         // ── 10. Wire GamePlayController / ReplayPlaybackController._hud ─────────────
@@ -326,13 +329,48 @@ public static class HudSceneBuilder
         mat.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
         mat.DisableKeyword("_SURFACE_TYPE_OPAQUE");
         mat.renderQueue = (int)RenderQueue.Transparent;
-        var baseCol = new Color(0.30f, 0.85f, 1.00f, 0f);   // cyan, fully transparent at rest
+        var baseCol = new Color(1f, 1f, 1f, 0f);   // white, fully transparent at rest
         mat.SetColor("_BaseColor", baseCol);
         mat.color = baseCol;
+
+        // Depth alpha-gradient: opaque at the judgment line (near, UV.v=0) → fully
+        // transparent at the back (far, UV.v=1). Multiplies _BaseColor so the lit lane
+        // fades out toward the distance and vanishes completely at the far edge.
+        var grad = CreateGradientTexture();
+        if (mat.HasProperty("_BaseMap")) mat.SetTexture("_BaseMap", grad);
+        if (mat.HasProperty("_MainTex")) mat.SetTexture("_MainTex", grad);
+
         if (AssetDatabase.LoadAssetAtPath<Material>(MatPath) != null)
             AssetDatabase.DeleteAsset(MatPath);
         AssetDatabase.CreateAsset(mat, MatPath);
         return mat;
+    }
+
+    // 1×64 vertical alpha ramp: white throughout, alpha 1 at the near edge (UV.v=0,
+    // judgment line) easing to 0 at the far edge (UV.v=1, 奥). Saved as a native
+    // .asset so no PNG import settings are needed; idempotent (deletes any prior asset).
+    static Texture2D CreateGradientTexture()
+    {
+        const int h = 64;
+        var tex = new Texture2D(1, h, TextureFormat.RGBA32, false)
+        {
+            name       = "LaneHighlightGradient",
+            wrapMode   = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+        var px = new Color[h];
+        for (int row = 0; row < h; row++)
+        {
+            float v = row / (float)(h - 1);   // 0 = near (judgment line), 1 = far (奥)
+            px[row] = new Color(1f, 1f, 1f, 1f - v);   // linear fade to fully transparent
+        }
+        tex.SetPixels(px);
+        tex.Apply(false, false);
+
+        if (AssetDatabase.LoadAssetAtPath<Texture2D>(GradTexPath) != null)
+            AssetDatabase.DeleteAsset(GradTexPath);
+        AssetDatabase.CreateAsset(tex, GradTexPath);
+        return tex;
     }
 
     // ── Stage fit (camera / judgment line / ground) ────────────────────────────────
@@ -359,14 +397,16 @@ public static class HudSceneBuilder
             ground.transform.localScale = new Vector3(LaneLayout.TotalWidth * 0.1f, s.y, s.z);
         }
 
-        // Raise + pull the camera back along its view axis so the wider 6-lane field
-        // frames a little smaller than the old 4-lane field. Absolute values keep the
-        // builder idempotent.
+        // Camera: dollied back from (0,3.0,-1.4) to ~0.7× apparent size and pitched down to
+        // 40°, then panned up along the view-up axis so the judgment line (world Z=-0.5)
+        // sits at ~1/7 up from the bottom of the screen, leaving the full note runway above
+        // it. The up-axis pan keeps the depth (apparent size) unchanged. FOV 70°.
+        // Absolute values keep the builder idempotent.
         var cam = GameObject.Find("Main Camera");
         if (cam != null)
         {
-            cam.transform.position    = new Vector3(0f, 3.0f, -1.4f);
-            cam.transform.eulerAngles = new Vector3(50f, 0f, 0f);
+            cam.transform.position    = new Vector3(0f, 4.41f, -2.41f);
+            cam.transform.eulerAngles = new Vector3(40f, 0f, 0f);
             var c = cam.GetComponent<Camera>();
             if (c != null) c.fieldOfView = 70f;
         }

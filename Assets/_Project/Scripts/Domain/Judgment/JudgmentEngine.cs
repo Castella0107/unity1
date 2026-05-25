@@ -34,7 +34,9 @@ public sealed class JudgmentEngine
         Judgment    comboBorder  = Judgment.Good)
     {
         _notes    = notes;
-        _progress = new PlayProgressAggregator(chart.TotalNotes, sectorEndsMs ?? new int[0], comboBorder);
+        var ends         = sectorEndsMs ?? new int[0];
+        var sectorEvents = ScoringEventCounter.CountPerSector(notes.AllNotes, bpm, ends);
+        _progress = new PlayProgressAggregator(chart.TotalNotes, ends, comboBorder, sectorEvents);
 
         foreach (var n in notes.AllNotes)
             if (n.Type == NoteType.Hold || n.Type == NoteType.FxHold)

@@ -20,11 +20,11 @@ public class LaneKeyGuide : MonoBehaviour
     [SerializeField] Color _chipIdleFx    = new Color(0.14f, 0.10f, 0.16f, 0.80f);
     [SerializeField] Color _chipPressMain = new Color(0.30f, 0.85f, 1.00f, 0.95f);
     [SerializeField] Color _chipPressFx   = new Color(0.80f, 0.35f, 1.00f, 0.95f);
-    [SerializeField] float _highlightOnAlpha = 0.40f;
+    [SerializeField] Color _highlightColor   = Color.white;   // lit-lane tint (RGB only; alpha from _highlightOnAlpha)
+    [SerializeField] float _highlightOnAlpha = 0.22f;         // peak alpha at the near edge; fades to 0 toward the back via the gradient texture
 
     IInputSource _input;
     readonly int[] _columnRefs = new int[6];   // ref-count per lane column
-    Color[] _highlightBase;
     bool    _subscribed;
 
     // Each lane lights its own dedicated column (6 independent lanes).
@@ -36,14 +36,8 @@ public class LaneKeyGuide : MonoBehaviour
 
     void Awake()
     {
-        _highlightBase = new Color[_laneHighlights.Length];
         for (int c = 0; c < _laneHighlights.Length; c++)
-        {
-            if (_laneHighlights[c] == null) continue;
-            var mat = _laneHighlights[c].sharedMaterial;
-            _highlightBase[c] = mat != null ? mat.color : Color.white;
-            SetColumnAlpha(c, 0f);
-        }
+            SetColumnAlpha(c, 0f);   // start fully transparent
         ResetChips();
     }
 
@@ -100,8 +94,7 @@ public class LaneKeyGuide : MonoBehaviour
     void SetColumnAlpha(int c, float a)
     {
         if (c < 0 || c >= _laneHighlights.Length || _laneHighlights[c] == null) return;
-        if (_highlightBase == null) return;
-        var col = _highlightBase[c];
+        var col = _highlightColor;
         col.a = a;
         _laneHighlights[c].material.color = col;
     }
