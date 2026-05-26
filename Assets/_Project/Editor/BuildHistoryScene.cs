@@ -110,6 +110,9 @@ public static class BuildHistoryScene
         var scaler = canvasGO.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
+        // Match HEIGHT so the (tall) detail panel always has the full 1080 vertical budget
+        // regardless of the play window's aspect ratio (wide/ultrawide would otherwise shrink it).
+        scaler.matchWidthOrHeight = 1f;
         canvasGO.AddComponent<GraphicRaycaster>();
 
         // Background
@@ -243,37 +246,38 @@ public static class BuildHistoryScene
         var dvGO = detailContent.gameObject;
         var detailView = dvGO.AddComponent<HistoryDetailView>();
 
-        float y = -30;
+        float y = -24;
         void Row(string name, string val, int size = 20) {
             var t = MakeTMP(name, dvGO, size, val);
             var rt = t.GetComponent<RectTransform>();
             rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1);
             rt.pivot = new Vector2(0.5f, 1f);
-            rt.offsetMin = new Vector2(20, y - 30); rt.offsetMax = new Vector2(-20, y);
-            y -= 34;
+            int h = size + 6;                               // row height tracks font size (no clipping of large scores)
+            rt.offsetMin = new Vector2(20, y - h); rt.offsetMax = new Vector2(-20, y);
+            y -= h + 2;                                     // compact step so the detail fits the panel height
         }
 
         Row("TitleText",     "Song Title", 28);
         Row("DifficultyText","EXTRA", 20);
         Row("DateText",      "2026/05/09 14:32", 16);
-        y -= 10;
+        y -= 6;
         Row("EffectiveScoreText", "1,000,000", 40);
         Row("RawScoreText",       "Raw: 1,000,000", 16);
         Row("RankText",           "S+", 30);
-        y -= 10;
+        y -= 6;
 
         // Badges row
         var badgesRow = MakeRT("BadgesRow", dvGO);
         var badgesRT = badgesRow.GetComponent<RectTransform>();
         badgesRT.anchorMin = new Vector2(0,1); badgesRT.anchorMax = new Vector2(1,1);
         badgesRT.pivot = new Vector2(0.5f,1f);
-        badgesRT.offsetMin = new Vector2(20, y-40); badgesRT.offsetMax = new Vector2(-20, y);
-        y -= 50;
+        badgesRT.offsetMin = new Vector2(20, y-36); badgesRT.offsetMax = new Vector2(-20, y);
+        y -= 44;
         var fcBadge  = MakeBadge("FullComboBadge",      badgesRow.gameObject, "FC",  new Color(0.3f,0.9f,0.4f));
         var apBadge  = MakeBadge("AllPerfectBadge",     badgesRow.gameObject, "AP",  new Color(0.3f,0.6f,1.0f));
         var appBadge = MakeBadge("AllPerfectPlusBadge", badgesRow.gameObject, "AP+", new Color(1.0f,0.85f,0.3f));
 
-        y -= 10;
+        y -= 6;
         Row("PerfectPlusCountText", "PP: 0", 18);
         Row("PerfectCountText",     "P: 0",  18);
         Row("GreatCountText",       "Gr: 0", 18);
@@ -282,9 +286,53 @@ public static class BuildHistoryScene
         Row("MaxComboText",         "MaxCombo: 0", 18);
         Row("FastCountText",        "Fast: 0", 16);
         Row("LateCountText",        "Late: 0", 16);
-        y -= 10;
+        y -= 6;
         Row("ModifiersText", "Modifiers: none", 16);
         Row("ReplayInfoText","Replay: not saved", 14);
+
+        y -= 8;
+        // Sectors header + horizontal list (HistoryDetailView instantiates SectorScoreItem.prefab here).
+        // Horizontal keeps all 5 sectors on one compact 64px row so the detail fits the panel height.
+        Row("SectorsHeader", "SECTORS", 18);
+        var sectorListGO = MakeRT("SectorList", dvGO);
+        var sectorListRT = sectorListGO.GetComponent<RectTransform>();
+        sectorListRT.anchorMin = new Vector2(0, 1); sectorListRT.anchorMax = new Vector2(1, 1);
+        sectorListRT.pivot = new Vector2(0.5f, 1f);
+        sectorListRT.offsetMin = new Vector2(20, y - 64); sectorListRT.offsetMax = new Vector2(-20, y);
+        var sectorHlg = sectorListGO.AddComponent<HorizontalLayoutGroup>();
+        sectorHlg.spacing = 6;
+        sectorHlg.childControlWidth  = true;  sectorHlg.childForceExpandWidth  = true;
+        sectorHlg.childControlHeight = true;  sectorHlg.childForceExpandHeight = true;
+
+        // Bottom action buttons (anchored to the detail panel bottom, independent of the row cursor)
+        var replayBtnGO = MakeRT("ReplayButton", dvGO);
+        var replayBtnRT = replayBtnGO.GetComponent<RectTransform>();
+        replayBtnRT.anchorMin = new Vector2(0, 0); replayBtnRT.anchorMax = new Vector2(0, 0);
+        replayBtnRT.pivot = new Vector2(0, 0);
+        replayBtnRT.anchoredPosition = new Vector2(20, 20); replayBtnRT.sizeDelta = new Vector2(220, 52);
+        replayBtnGO.AddComponent<Image>().color = new Color(0.3f, 0.55f, 0.9f, 0.55f);
+        var replayBtn = replayBtnGO.AddComponent<Button>();
+        var replayLbl = MakeTMP("Label", replayBtnGO.gameObject, 20, "> REPLAY");
+        replayLbl.alignment = TextAlignmentOptions.Center;
+        FullStretch(replayLbl.GetComponent<RectTransform>());
+
+        var validateBtnGO = MakeRT("ValidateButton", dvGO);
+        var validateBtnRT = validateBtnGO.GetComponent<RectTransform>();
+        validateBtnRT.anchorMin = new Vector2(0, 0); validateBtnRT.anchorMax = new Vector2(0, 0);
+        validateBtnRT.pivot = new Vector2(0, 0);
+        validateBtnRT.anchoredPosition = new Vector2(260, 20); validateBtnRT.sizeDelta = new Vector2(240, 52);
+        validateBtnGO.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
+        var validateBtn = validateBtnGO.AddComponent<Button>();
+        var validateLbl = MakeTMP("Label", validateBtnGO.gameObject, 18, "VALIDATE ON SERVER");
+        validateLbl.alignment = TextAlignmentOptions.Center;
+        FullStretch(validateLbl.GetComponent<RectTransform>());
+
+        var validateResult = MakeTMP("ValidateResultText", dvGO, 14, "");
+        var validateResultRT = validateResult.GetComponent<RectTransform>();
+        validateResultRT.anchorMin = new Vector2(0, 0); validateResultRT.anchorMax = new Vector2(1, 0);
+        validateResultRT.pivot = new Vector2(0.5f, 0f);
+        validateResultRT.offsetMin = new Vector2(20, 80); validateResultRT.offsetMax = new Vector2(-20, 110);
+        validateResult.color = new Color(1f, 1f, 1f, 0.7f);
 
         // HistoryDetailView field binding via SerializedObject
         var so = new SerializedObject(detailView);
@@ -307,6 +355,12 @@ public static class BuildHistoryScene
         so.FindProperty("_lateCountText")      .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "LateCountText");
         so.FindProperty("_modifiersText")      .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "ModifiersText");
         so.FindProperty("_replayInfoText")     .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "ReplayInfoText");
+        so.FindProperty("_sectorListContent")  .objectReferenceValue = sectorListRT;
+        so.FindProperty("_sectorItemPrefab")   .objectReferenceValue =
+            AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/UI/Result/SectorScoreItem.prefab");
+        so.FindProperty("_replayButton")       .objectReferenceValue = replayBtn;
+        so.FindProperty("_validateButton")     .objectReferenceValue = validateBtn;
+        so.FindProperty("_validateResultText") .objectReferenceValue = validateResult;
         so.ApplyModifiedPropertiesWithoutUndo();
 
         detailContent.gameObject.SetActive(false);  // start hidden
@@ -344,7 +398,17 @@ public static class BuildHistoryScene
         soCtrl.FindProperty("_detailEmptyState")    .objectReferenceValue = detailEmpty.gameObject;
         soCtrl.FindProperty("_detailContent")       .objectReferenceValue = detailContent.gameObject;
         soCtrl.FindProperty("_detailView")          .objectReferenceValue = detailView;
-        // _inputAsset: must be set manually in Inspector (same asset used by other controllers)
+        // _inputAsset: auto-wire the project's InputActionAsset (HistoryController.Awake NREs if null).
+        foreach (var guid in AssetDatabase.FindAssets("InputActions t:InputActionAsset"))
+        {
+            var iaPath = AssetDatabase.GUIDToAssetPath(guid);
+            if (iaPath.Contains("_Project"))
+            {
+                soCtrl.FindProperty("_inputAsset").objectReferenceValue =
+                    AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>(iaPath);
+                break;
+            }
+        }
         soCtrl.ApplyModifiedPropertiesWithoutUndo();
 
         // ── Save scene ────────────────────────────────────────────────────────
