@@ -76,6 +76,21 @@ public sealed class PvpMatchEndParameters : ISceneParameters
     public double RatingBAfter   { get; set; }
     /// <summary>エラー時のフォールバックメッセージ(試合 abandoned 等)。</summary>
     public string ErrorMessage   { get; set; }
+    /// <summary>曲別の難易度・獲得ポイント内訳(3曲)。難易度倍率の効きを試合終了画面に見せるために使う。</summary>
+    public System.Collections.Generic.List<PvpSongLine> Songs { get; set; }
+}
+
+/// <summary>PVP 試合終了画面の曲別内訳1行。ポイントは難易度倍率適用済み (MatchScoring.Score 由来)。</summary>
+public sealed class PvpSongLine
+{
+    /// <summary>楽曲ID。</summary>
+    public string SongId     { get; set; }
+    /// <summary>難易度("easy"/"normal"/"hard"/"extra")。</summary>
+    public string Difficulty { get; set; }
+    /// <summary>この曲での Player A の獲得ポイント(難易度倍率適用済み)。</summary>
+    public double PointsA     { get; set; }
+    /// <summary>この曲での Player B の獲得ポイント(難易度倍率適用済み)。</summary>
+    public double PointsB     { get; set; }
 }
 
 /// <summary>

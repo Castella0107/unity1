@@ -81,12 +81,19 @@ public static class BuildPvpScenes
 
         // Score line
         var scoreTMP = MakeTMP("ScoreText", canvasGO, 40, "0  -  0");
-        SetAnchored(scoreTMP, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 80), new Vector2(1200, 70));
+        SetAnchored(scoreTMP, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 140), new Vector2(1200, 70));
         scoreTMP.alignment = TextAlignmentOptions.Center;
+
+        // Per-song breakdown (difficulty + multiplier + per-song points). Shows how the
+        // difficulty multiplier weighted each song's contribution to the weighted total above.
+        var breakdownTMP = MakeTMP("BreakdownText", canvasGO, 26, "");
+        SetAnchored(breakdownTMP, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, 0), new Vector2(1200, 140));
+        breakdownTMP.alignment = TextAlignmentOptions.Center;
+        breakdownTMP.color = new Color(1, 1, 1, 0.9f);
 
         // Rating block
         var ratingTMP = MakeTMP("RatingText", canvasGO, 24, "");
-        SetAnchored(ratingTMP, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -50), new Vector2(1000, 120));
+        SetAnchored(ratingTMP, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0, -180), new Vector2(1000, 120));
         ratingTMP.alignment = TextAlignmentOptions.Center;
         ratingTMP.color = new Color(1, 1, 1, 0.85f);
 
@@ -104,6 +111,7 @@ public static class BuildPvpScenes
         var so = new SerializedObject(ctrl);
         so.FindProperty("_resultHeaderText") .objectReferenceValue = headerTMP;
         so.FindProperty("_scoreText")        .objectReferenceValue = scoreTMP;
+        so.FindProperty("_breakdownText")    .objectReferenceValue = breakdownTMP;
         so.FindProperty("_ratingText")       .objectReferenceValue = ratingTMP;
         so.FindProperty("_backToTitleButton").objectReferenceValue = backBtn;
         so.ApplyModifiedPropertiesWithoutUndo();

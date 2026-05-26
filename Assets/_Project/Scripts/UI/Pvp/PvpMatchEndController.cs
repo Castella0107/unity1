@@ -14,13 +14,15 @@ namespace RhythmGame.UI.Pvp
         [Header("Optional UI (auto fallback to OnGUI if null)")]
         [SerializeField] TextMeshProUGUI _resultHeaderText;
         [SerializeField] TextMeshProUGUI _scoreText;
+        [SerializeField] TextMeshProUGUI _breakdownText;
         [SerializeField] TextMeshProUGUI _ratingText;
         [SerializeField] Button          _backToTitleButton;
 
         PvpMatchEndParameters _params;
-        string _header  = "";
-        string _scores  = "";
-        string _ratings = "";
+        string _header    = "";
+        string _scores    = "";
+        string _breakdown = "";
+        string _ratings   = "";
 
         void Start()
         {
@@ -74,6 +76,23 @@ namespace RhythmGame.UI.Pvp
 
             _header  = $"{verdict}  vs {opponentId}";
             _scores  = $"You {selfPts:F1}  -  {oppPts:F1} Opponent";
+
+            // 曲別内訳: 難易度と倍率を見せ、重み付き合計の内訳を示す (sum は _scores と一致)。
+            if (_params.Songs != null && _params.Songs.Count > 0)
+            {
+                var sb = new System.Text.StringBuilder();
+                for (int i = 0; i < _params.Songs.Count; i++)
+                {
+                    var s = _params.Songs[i];
+                    double sp   = selfIsA ? s.PointsA : s.PointsB;
+                    double op   = selfIsA ? s.PointsB : s.PointsA;
+                    double mult = Domain.Pvp.MatchScoring.DifficultyMultiplier(s.Difficulty);
+                    sb.AppendLine($"{i + 1}. {s.SongId}  [{(s.Difficulty ?? "").ToUpper()} x{mult:0.00}]   {sp:F2} - {op:F2}");
+                }
+                _breakdown = sb.ToString().TrimEnd();
+            }
+            else _breakdown = "";
+
             _ratings = string.Format(
                 "Your rating: {0:F1} → {1:F1} ({2:+0.0;-0.0})\nOpponent:   {3:F1} → {4:F1} ({5:+0.0;-0.0})",
                 selfBefore, selfAfter, selfAfter - selfBefore,
@@ -84,6 +103,7 @@ namespace RhythmGame.UI.Pvp
         {
             if (_resultHeaderText != null) _resultHeaderText.text = _header;
             if (_scoreText        != null) _scoreText.text        = _scores;
+            if (_breakdownText    != null) _breakdownText.text    = _breakdown;
             if (_ratingText       != null) _ratingText.text       = _ratings;
         }
 
@@ -92,14 +112,19 @@ namespace RhythmGame.UI.Pvp
         {
             if (_resultHeaderText != null) return;
 
-            const float w = 520f;
-            const float h = 280f;
+            const float w = 560f;
+            const float h = 380f;   // taller to fit the per-song difficulty/multiplier breakdown
             var rect = new Rect((Screen.width - w) / 2, (Screen.height - h) / 2, w, h);
             GUI.Box(rect, "PVP Match End");
             GUILayout.BeginArea(new Rect(rect.x + 16, rect.y + 28, rect.width - 32, rect.height - 36));
             GUILayout.Label(_header);
             GUILayout.Space(8);
             GUILayout.Label(_scores);
+            if (!string.IsNullOrEmpty(_breakdown))
+            {
+                GUILayout.Space(8);
+                GUILayout.Label(_breakdown);
+            }
             GUILayout.Space(8);
             GUILayout.Label(_ratings);
             GUILayout.Space(16);

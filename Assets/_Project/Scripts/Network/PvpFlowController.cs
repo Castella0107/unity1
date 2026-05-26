@@ -249,10 +249,40 @@ namespace RhythmGame.Network
                 RatingAAfter  = r.ratingAAfter,
                 RatingBBefore = r.ratingBBefore,
                 RatingBAfter  = r.ratingBAfter,
+                Songs         = BuildSongLines(r),
             };
             ResetState();
             if (SceneRouter.Instance != null)
                 SceneRouter.Instance.GoTo(SceneId.PVPMatchEnd, p, TransitionStyle.FadeWhite);
+        }
+
+        // 曲別ポイント内訳を共有 Domain (MatchScoring) で再構成する。サーバーの集計と同一ロジック
+        // (難易度倍率適用)を使うので合計は totalPointsA/B と一致する。難易度倍率の効きを曲ごとに表示するため。
+        static System.Collections.Generic.List<PvpSongLine> BuildSongLines(MatchResultDto r)
+        {
+            var lines = new System.Collections.Generic.List<PvpSongLine>();
+            if (r?.songs == null) return lines;
+            for (int i = 0; i < r.songs.Count; i++)
+            {
+                string diff = string.IsNullOrEmpty(r.songs[i].difficulty) ? "extra" : r.songs[i].difficulty;
+                var pairs = new System.Collections.Generic.List<Domain.Pvp.SectorPair>(5);
+                for (int sec = 0; sec < 5; sec++)
+                {
+                    int idx = i * 5 + sec;   // sectorScores は 3曲×5セクター=15 のフラット列
+                    int a = (r.sectorScoresA != null && idx < r.sectorScoresA.Count) ? r.sectorScoresA[idx] : 0;
+                    int b = (r.sectorScoresB != null && idx < r.sectorScoresB.Count) ? r.sectorScoresB[idx] : 0;
+                    pairs.Add(new Domain.Pvp.SectorPair(r.songs[i].songId, sec, a, b, diff));
+                }
+                var outcome = Domain.Pvp.MatchScoring.Score(pairs);
+                lines.Add(new PvpSongLine
+                {
+                    SongId     = r.songs[i].songId,
+                    Difficulty = diff,
+                    PointsA    = outcome.TotalPointsA,
+                    PointsB    = outcome.TotalPointsB,
+                });
+            }
+            return lines;
         }
 
         void ResetState()
