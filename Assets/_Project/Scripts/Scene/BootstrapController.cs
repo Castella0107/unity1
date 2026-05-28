@@ -114,7 +114,7 @@ public class BootstrapController : MonoBehaviour
         {
             SongId       = songId,
             Difficulty   = difficulty,
-            HiSpeed      = 1.0f,
+            HiSpeed      = PlayerPrefs.GetFloat("HiSpeed", 4.5f),
             JudgeOffset  = 0,
             VisualOffset = 0,
             Modifier     = "None",

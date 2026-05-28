@@ -11,8 +11,9 @@ using System.Threading.Tasks;
 /// </summary>
 public class InMemoryPlayRecordRepository : IPlayRecordRepository
 {
-    readonly Dictionary<string, PlayRecord>   _records = new Dictionary<string, PlayRecord>();
-    readonly Dictionary<string, PersonalBest> _bests   = new Dictionary<string, PersonalBest>();
+    readonly Dictionary<string, PlayRecord>     _records = new Dictionary<string, PlayRecord>();
+    readonly Dictionary<string, PersonalBest>   _bests   = new Dictionary<string, PersonalBest>();
+    readonly Dictionary<string, PvpMatchRecord> _pvp     = new Dictionary<string, PvpMatchRecord>();
 
     /// <inheritdoc/>
     public Task InitializeAsync(string dbPath) => Task.CompletedTask;
@@ -103,10 +104,46 @@ public class InMemoryPlayRecordRepository : IPlayRecordRepository
     public Task<int> GetTotalPlaysAsync() => Task.FromResult(_records.Count);
 
     /// <inheritdoc/>
+    public Task ClearReplayPathAsync(string playId)
+    {
+        if (_records.TryGetValue(playId, out var r)) r.ReplayPath = null;
+        return Task.CompletedTask;
+    }
+
+    // ── PVP ローカル履歴 ──────────────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public Task SavePvpMatchAsync(PvpMatchRecord match)
+    {
+        if (match != null && !string.IsNullOrEmpty(match.MatchId)) _pvp[match.MatchId] = match;
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
+    public Task<List<PvpMatchRecord>> GetRecentPvpMatchesAsync(int limit = 10) =>
+        Task.FromResult(_pvp.Values
+            .OrderByDescending(m => m.CompletedAtUnixMs)
+            .Take(limit).ToList());
+
+    /// <inheritdoc/>
+    public Task<List<PvpMatchRecord>> GetStalePvpMatchesAsync(int keep) =>
+        Task.FromResult(_pvp.Values
+            .OrderByDescending(m => m.CompletedAtUnixMs)
+            .Skip(keep).ToList());
+
+    /// <inheritdoc/>
+    public Task DeletePvpMatchAsync(string matchId)
+    {
+        _pvp.Remove(matchId);
+        return Task.CompletedTask;
+    }
+
+    /// <inheritdoc/>
     public Task<bool> DeleteAllAsync()
     {
         _records.Clear();
         _bests.Clear();
+        _pvp.Clear();
         return Task.FromResult(true);
     }
 }

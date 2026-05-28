@@ -102,7 +102,100 @@ public class InMemoryPlayRecordRepositoryTests
         Assert.AreEqual(3, await _repo.GetTotalPlaysAsync());
     }
 
+    // ── ClearReplayPath ─────────────────────────────────────────────────────
+
+    [Test]
+    public async Task ClearReplayPath_NullsTheStoredPath()
+    {
+        var rec = MakeRecord("song1", "extra", 950_000);
+        rec.ReplayPath = "/replays/2026/05/abc.replay";
+        await _repo.SaveAsync(rec);
+
+        await _repo.ClearReplayPathAsync(rec.PlayId);
+
+        var got = await _repo.GetByIdAsync(rec.PlayId);
+        Assert.IsNull(got.ReplayPath);
+    }
+
+    // ── PVP local history ───────────────────────────────────────────────────
+
+    [Test]
+    public async Task GetRecentPvpMatches_OrderedByCompletedDesc_AndLimited()
+    {
+        for (int i = 0; i < 12; i++)
+            await _repo.SavePvpMatchAsync(MakePvpMatch("m" + i, completedAt: 1000 + i));
+
+        var recent = await _repo.GetRecentPvpMatchesAsync(limit: 10);
+        Assert.AreEqual(10, recent.Count);
+        Assert.AreEqual("m11", recent[0].MatchId);   // newest first
+        Assert.AreEqual("m2",  recent[9].MatchId);
+    }
+
+    [Test]
+    public async Task GetStalePvpMatches_ReturnsEverythingBeyondKeep()
+    {
+        for (int i = 0; i < 12; i++)
+            await _repo.SavePvpMatchAsync(MakePvpMatch("m" + i, completedAt: 1000 + i));
+
+        var stale = await _repo.GetStalePvpMatchesAsync(keep: 10);
+        Assert.AreEqual(2, stale.Count);
+        // oldest two (m0, m1) are beyond the newest-10 window
+        CollectionAssert.AreEquivalent(new[] { "m0", "m1" }, stale.ConvertAll(m => m.MatchId));
+    }
+
+    [Test]
+    public async Task SavePvpMatch_SameIdOverwrites()
+    {
+        await _repo.SavePvpMatchAsync(MakePvpMatch("m1", completedAt: 1000, selfPoints: 5));
+        await _repo.SavePvpMatchAsync(MakePvpMatch("m1", completedAt: 1000, selfPoints: 9));
+
+        var recent = await _repo.GetRecentPvpMatchesAsync();
+        Assert.AreEqual(1, recent.Count);
+        Assert.AreEqual(9, recent[0].SelfPoints);
+    }
+
+    [Test]
+    public async Task DeletePvpMatch_RemovesOne()
+    {
+        await _repo.SavePvpMatchAsync(MakePvpMatch("m1", completedAt: 1000));
+        await _repo.SavePvpMatchAsync(MakePvpMatch("m2", completedAt: 2000));
+
+        await _repo.DeletePvpMatchAsync("m1");
+
+        var recent = await _repo.GetRecentPvpMatchesAsync();
+        Assert.AreEqual(1, recent.Count);
+        Assert.AreEqual("m2", recent[0].MatchId);
+    }
+
+    [Test]
+    public async Task DeleteAll_ClearsPvpMatchesToo()
+    {
+        await _repo.SavePvpMatchAsync(MakePvpMatch("m1", completedAt: 1000));
+        await _repo.DeleteAllAsync();
+
+        Assert.AreEqual(0, (await _repo.GetRecentPvpMatchesAsync()).Count);
+    }
+
     // ── Helper ────────────────────────────────────────────────────────────────
+
+    static PvpMatchRecord MakePvpMatch(string matchId, long completedAt, double selfPoints = 8)
+    {
+        return new PvpMatchRecord
+        {
+            MatchId              = matchId,
+            SelfUserId           = "me",
+            OpponentId           = "opp",
+            ResultKind           = 1,
+            SelfPoints           = selfPoints,
+            OpponentPoints       = 7,
+            SongIds              = new[] { "song1", "song2", "song3" },
+            Difficulties         = new[] { "extra", "hard", "normal" },
+            SelfSectorScores     = new int[15],
+            OpponentSectorScores = new int[15],
+            SelfReplayPaths      = new[] { "/r/0.replay", "/r/1.replay", "/r/2.replay" },
+            CompletedAtUnixMs    = completedAt,
+        };
+    }
 
     static PlayRecord MakeRecord(
         string songId, string diff, int effectiveScore,

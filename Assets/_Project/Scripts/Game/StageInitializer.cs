@@ -14,12 +14,14 @@ using UnityEngine;
 public static class StageInitializer
 {
     /// <summary>チャート/メタ読み込み後にステージビジュアル(ノートスクローラー・HUD)を初期化する。</summary>
+    /// <param name="hiSpeed">スクロール速度(HiSpeed)。0以下なら PlayerPrefs "HiSpeed"(既定4.5)を使う。</param>
     public static void BindStageVisuals(
         AudioConductor conductor,
         ChartData      chart,
         SongMetadata   meta,
         NoteScroller   scroller,
-        GameHud        hud)
+        GameHud        hud,
+        float          hiSpeed = 0f)
     {
         // Hide the persistent jacket-background canvas so it does not occlude
         // the 3D camera output. Must be the first call here.
@@ -28,8 +30,13 @@ public static class StageInitializer
         // Pulsing beat grid intentionally disabled — static gray background only.
 
         scroller?.Initialize(chart);
+        scroller?.SetScrollSpeed(ResolveHiSpeed(hiSpeed));
         hud?.Initialize(meta, chart, isPvP: false);
     }
+
+    /// <summary>HiSpeed を解決する。未指定(0以下)なら PlayerPrefs の保存値(既定4.5)。</summary>
+    public static float ResolveHiSpeed(float hiSpeed)
+        => hiSpeed > 0.01f ? hiSpeed : PlayerPrefs.GetFloat("HiSpeed", 4.5f);
 
     /// <summary>セッション終了時にステージビジュアルのバインドを解除する。</summary>
     public static void UnbindStageVisuals()

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using TMPro;
@@ -8,58 +9,74 @@ using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 /// <summary>
-/// プレイ履歴画面を管理するコントローラー。
-/// 全プレイ記録またはパーソナルベストのリスト表示、難易度・ランク・ソート順によるフィルタリング、
-/// キーボードナビゲーション、および選択レコードの詳細表示を担当する。
+/// プレイ履歴画面。2モード構成:
+///   - Free play (ソロ): 各楽曲×難易度のベスト記録を、検索/難易度/ソートで絞り、行内アコーディオン展開。
+///                       選択行を再クリック or Enter でそのベストリプレイを再生。
+///   - Ladder match (PVP): 直近10戦のローカル記録。行クリックで展開し、各曲ジャケットでリプレイ再生。
+/// 行のサマリ/詳細はシーンビルダーで baked-in 済みプレハブを使う(ランタイム生成しない)。
 /// </summary>
 public class HistoryController : MonoBehaviour
 {
     [Header("Header")]
-    [SerializeField] Button          _backButton;
-    [SerializeField] TextMeshProUGUI _totalPlaysText;
+    [SerializeField] Button _backButton;
 
-    [Header("Filter")]
-    [SerializeField] Toggle      _listModeToggle;
-    [SerializeField] Toggle      _bestModeToggle;
-    [SerializeField] TMP_Dropdown _difficultyDropdown;
-    [SerializeField] TMP_Dropdown _rankDropdown;
-    [SerializeField] TMP_Dropdown _sortDropdown;
+    [Header("Mode Tabs")]
+    [SerializeField] Button _ladderTab;
+    [SerializeField] Image  _ladderTabBg;
+    [SerializeField] Button _freeTab;
+    [SerializeField] Image  _freeTabBg;
+
+    [Header("Free play - Filters")]
+    [SerializeField] GameObject     _freeFilterBar;   // 検索/ソート/難易度の行 (Free モードのみ表示)
+    [SerializeField] TMP_InputField _searchField;
+    [SerializeField] TMP_Dropdown   _sortDropdown;
+    [SerializeField] Button[]       _diffButtons;     // 4: easy/normal/hard/extra
+    [SerializeField] Image[]        _diffButtonBgs;   // 4: 選択ハイライト
 
     [Header("List")]
     [SerializeField] RectTransform _listContent;
     [SerializeField] ScrollRect    _scrollRect;
-    [SerializeField] GameObject    _historyItemPrefab;
+    [SerializeField] GameObject    _soloItemPrefab;
+    [SerializeField] GameObject    _pvpItemPrefab;
     [SerializeField] GameObject    _emptyState;
-
-    [Header("Detail")]
-    [SerializeField] GameObject        _detailEmptyState;
-    [SerializeField] GameObject        _detailContent;
-    [SerializeField] HistoryDetailView _detailView;
+    [SerializeField] TextMeshProUGUI _emptyStateText;
 
     [Header("Input")]
     [SerializeField] InputActionAsset _inputAsset;
 
-    enum ViewMode { AllPlays, PersonalBests }
-    ViewMode _mode = ViewMode.AllPlays;
+    enum Mode { Ladder, Free }
+    Mode _mode = Mode.Free;
 
-    string _diffFilter = "all";
-    string _rankFilter = "all";
-    string _sortBy     = "recent";
+    static readonly string[] DiffOrder = { "easy", "normal", "hard", "extra" };
+    string _diffFilter = "extra";
+    string _searchText = "";
+    int    _sortIndex  = 0;            // 0=曲名 1=日付 2=スコア 3=コンボ
 
-    readonly List<PlayRecord>    _allRecords = new List<PlayRecord>();
-    readonly List<PersonalBest>  _allBests   = new List<PersonalBest>();
-    readonly List<HistoryItemView> _items     = new List<HistoryItemView>();
+    // Solo data: 各 (曲×難易度) のベスト記録 (全難易度ぶん読み込み、表示時に難易度で絞る)
+    readonly List<PlayRecord>          _soloBests = new List<PlayRecord>();
+    readonly Dictionary<string,string> _titles    = new Dictionary<string,string>();
+    readonly List<HistorySoloRowView>  _soloViews = new List<HistorySoloRowView>();
+
+    // PVP data: 直近10戦
+    readonly List<PvpMatchRecord>      _pvpMatches = new List<PvpMatchRecord>();
+    readonly List<HistoryPvpRowView>   _pvpViews   = new List<HistoryPvpRowView>();
+
+    readonly JacketLoader _jackets = new JacketLoader();
+
     int _selectedIndex = -1;
+    int _pvpSongCursor = 0;
 
     InputAction _navigateAction;
     InputAction _submitAction;
     InputAction _cancelAction;
 
+    int RowCount => _mode == Mode.Free ? _soloViews.Count : _pvpViews.Count;
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Awake()
     {
-        var map        = _inputAsset.FindActionMap("UI", throwIfNotFound: true);
+        var map         = _inputAsset.FindActionMap("UI", throwIfNotFound: true);
         _navigateAction = map.FindAction("Navigate", throwIfNotFound: true);
         _submitAction   = map.FindAction("Submit",   throwIfNotFound: true);
         _cancelAction   = map.FindAction("Cancel",   throwIfNotFound: true);
@@ -68,6 +85,7 @@ public class HistoryController : MonoBehaviour
     void OnEnable()
     {
         _navigateAction.performed += OnNavigate;
+        _submitAction.performed   += OnSubmit;
         _cancelAction.performed   += OnCancel;
         _navigateAction.Enable();
         _submitAction.Enable();
@@ -79,320 +97,330 @@ public class HistoryController : MonoBehaviour
     void OnDisable()
     {
         _navigateAction.performed -= OnNavigate;
+        _submitAction.performed   -= OnSubmit;
         _cancelAction.performed   -= OnCancel;
     }
 
     async void Start()
     {
         SetupUI();
-        await LoadData();
-        ApplyFilters();
+        await LoadAllData();
+        SwitchMode(Mode.Free);
     }
 
     // ── Setup ─────────────────────────────────────────────────────────────────
 
     void SetupUI()
     {
-        _backButton.onClick.AddListener(() => SceneRouter.Instance.GoTo(SceneId.Title));
+        if (_backButton != null)
+            _backButton.onClick.AddListener(() => SceneRouter.Instance.GoTo(SceneId.Title));
 
-        _listModeToggle.onValueChanged.AddListener(on =>
-        {
-            if (on) { _mode = ViewMode.AllPlays;      ApplyFilters(); }
-        });
-        _bestModeToggle.onValueChanged.AddListener(on =>
-        {
-            if (on) { _mode = ViewMode.PersonalBests; ApplyFilters(); }
-        });
-        _listModeToggle.SetIsOnWithoutNotify(true);
+        if (_ladderTab != null) _ladderTab.onClick.AddListener(() => SwitchMode(Mode.Ladder));
+        if (_freeTab   != null) _freeTab.onClick.AddListener(()   => SwitchMode(Mode.Free));
 
-        _difficultyDropdown.ClearOptions();
-        _difficultyDropdown.AddOptions(new List<string> { "All", "Easy", "Normal", "Hard", "Extra" });
-        _difficultyDropdown.onValueChanged.AddListener(idx =>
+        if (_searchField != null)
+            _searchField.onValueChanged.AddListener(t => { _searchText = t ?? ""; RebuildFreeList(); });
+
+        if (_sortDropdown != null)
         {
-            switch (idx)
+            _sortDropdown.ClearOptions();
+            _sortDropdown.AddOptions(new List<string> { "ソート：曲名", "ソート：日付", "ソート：スコア", "ソート：コンボ" });
+            _sortDropdown.onValueChanged.AddListener(i => { _sortIndex = i; RebuildFreeList(); });
+        }
+
+        if (_diffButtons != null)
+        {
+            for (int i = 0; i < _diffButtons.Length && i < DiffOrder.Length; i++)
             {
-                case 1:  _diffFilter = "easy";   break;
-                case 2:  _diffFilter = "normal"; break;
-                case 3:  _diffFilter = "hard";   break;
-                case 4:  _diffFilter = "extra";  break;
-                default: _diffFilter = "all";    break;
+                int idx = i;
+                if (_diffButtons[i] != null)
+                    _diffButtons[i].onClick.AddListener(() => SelectDifficulty(DiffOrder[idx]));
             }
-            ApplyFilters();
-        });
-
-        _rankDropdown.ClearOptions();
-        _rankDropdown.AddOptions(new List<string>
-            { "All Ranks", "S+ Only", "S or Better", "A or Better", "B or Better" });
-        _rankDropdown.onValueChanged.AddListener(idx =>
-        {
-            switch (idx)
-            {
-                case 1:  _rankFilter = "sp";           break;
-                case 2:  _rankFilter = "s_or_better";  break;
-                case 3:  _rankFilter = "a_or_better";  break;
-                case 4:  _rankFilter = "b_or_better";  break;
-                default: _rankFilter = "all";          break;
-            }
-            ApplyFilters();
-        });
-
-        _sortDropdown.ClearOptions();
-        _sortDropdown.AddOptions(new List<string>
-            { "Recent First", "Score: High→Low", "Score: Low→High", "Combo: High" });
-        _sortDropdown.onValueChanged.AddListener(idx =>
-        {
-            switch (idx)
-            {
-                case 1:  _sortBy = "score_desc"; break;
-                case 2:  _sortBy = "score_asc";  break;
-                case 3:  _sortBy = "combo_desc"; break;
-                default: _sortBy = "recent";     break;
-            }
-            ApplyFilters();
-        });
+        }
+        UpdateDifficultyHighlight();
     }
 
     // ── Data ──────────────────────────────────────────────────────────────────
 
-    async Task LoadData()
+    async Task LoadAllData()
     {
         var repo = RepositoryService.Instance?.PlayRecords;
-        if (repo == null)
+        if (repo == null) return;
+
+        // Solo: 全難易度のベスト記録を読み込む
+        _soloBests.Clear();
+        var bests = await repo.GetAllBestsAsync();
+        foreach (var b in bests)
         {
-            if (_totalPlaysText != null) _totalPlaysText.text = "No database";
+            if (string.IsNullOrEmpty(b.BestPlayId)) continue;
+            var rec = await repo.GetByIdAsync(b.BestPlayId);
+            if (rec != null) _soloBests.Add(rec);
+        }
+
+        // PVP: 直近10戦
+        _pvpMatches.Clear();
+        _pvpMatches.AddRange(await repo.GetRecentPvpMatchesAsync(10));
+
+        // 曲名の事前解決 (検索/ソートを同期処理にするため)
+        var ids = new HashSet<string>();
+        foreach (var r in _soloBests) ids.Add(r.SongId);
+        foreach (var m in _pvpMatches) if (m.SongIds != null) foreach (var s in m.SongIds) ids.Add(s);
+        foreach (var id in ids)
+        {
+            if (string.IsNullOrEmpty(id) || _titles.ContainsKey(id)) continue;
+            try
+            {
+                var meta = await ChartLoader.LoadMetaAsync(id);
+                _titles[id] = !string.IsNullOrEmpty(meta?.Title) ? meta.Title : id;
+            }
+            catch { _titles[id] = id; }
+        }
+    }
+
+    string TitleOf(string songId) =>
+        songId != null && _titles.TryGetValue(songId, out var t) ? t : songId;
+
+    // ── Mode switching ──────────────────────────────────────────────────────────
+
+    void SwitchMode(Mode mode)
+    {
+        _mode = mode;
+        if (_freeFilterBar != null) _freeFilterBar.SetActive(mode == Mode.Free);
+        if (_ladderTabBg != null) _ladderTabBg.color = TabColor(mode == Mode.Ladder);
+        if (_freeTabBg   != null) _freeTabBg.color   = TabColor(mode == Mode.Free);
+
+        if (mode == Mode.Free) RebuildFreeList();
+        else                   RebuildPvpList();
+    }
+
+    static Color TabColor(bool selected) =>
+        selected ? new Color(1f, 1f, 1f, 0.22f) : new Color(1f, 1f, 1f, 0.06f);
+
+    void SelectDifficulty(string diff)
+    {
+        _diffFilter = diff;
+        UpdateDifficultyHighlight();
+        RebuildFreeList();
+    }
+
+    void UpdateDifficultyHighlight()
+    {
+        if (_diffButtonBgs == null) return;
+        for (int i = 0; i < _diffButtonBgs.Length && i < DiffOrder.Length; i++)
+            if (_diffButtonBgs[i] != null)
+                _diffButtonBgs[i].color = DiffOrder[i] == _diffFilter
+                    ? new Color(1f, 1f, 1f, 0.25f) : new Color(1f, 1f, 1f, 0f);
+    }
+
+    // ── Free play list ──────────────────────────────────────────────────────────
+
+    void RebuildFreeList()
+    {
+        if (_mode != Mode.Free) return;
+        ClearRows();
+
+        if (_soloItemPrefab == null)
+        {
+            Debug.LogError("[History] _soloItemPrefab is not wired — run menu 'Tools/Build History Scene + Prefab' to regenerate the scene.");
+            ShowEmpty(true, "Scene not rebuilt");
             return;
         }
 
-        var records = await repo.GetAllHistoryAsync(limit: 1000, offset: 0);
-        _allRecords.Clear();
-        _allRecords.AddRange(records);
+        IEnumerable<PlayRecord> q = _soloBests.Where(r => r.Difficulty == _diffFilter);
 
-        var bests = await repo.GetAllBestsAsync();
-        _allBests.Clear();
-        _allBests.AddRange(bests);
-
-        int total = await repo.GetTotalPlaysAsync();
-        if (_totalPlaysText != null)
-            _totalPlaysText.text = string.Format("Total: {0} plays", total);
-    }
-
-    // ── Filtering & sorting ───────────────────────────────────────────────────
-
-    void ApplyFilters()
-    {
-        IEnumerable<PlayRecord> filtered = _allRecords;
-
-        if (_mode == ViewMode.PersonalBests)
+        if (!string.IsNullOrWhiteSpace(_searchText))
         {
-            var bestIds = new HashSet<string>(_allBests.Select(b => b.BestPlayId));
-            filtered = filtered.Where(r => bestIds.Contains(r.PlayId));
+            string needle = _searchText.Trim().ToLowerInvariant();
+            q = q.Where(r => (TitleOf(r.SongId) ?? "").ToLowerInvariant().Contains(needle));
         }
 
-        if (_diffFilter != "all")
-            filtered = filtered.Where(r => r.Difficulty == _diffFilter);
-
-        filtered = FilterByRank(filtered, _rankFilter);
-        filtered = SortRecords(filtered, _sortBy);
-
-        BuildList(filtered.ToList());
-    }
-
-    static IEnumerable<PlayRecord> FilterByRank(IEnumerable<PlayRecord> src, string filter)
-    {
-        switch (filter)
+        switch (_sortIndex)
         {
-            case "sp":
-                return src.Where(r => r.Rank == "S+");
-            case "s_or_better":
-                return src.Where(r => r.Rank == "S+" || r.Rank == "S");
-            case "a_or_better":
-                return src.Where(r => r.Rank == "S+" || r.Rank == "S"
-                                   || r.Rank == "A+" || r.Rank == "A");
-            case "b_or_better":
-                return src.Where(r => r.Rank == "S+" || r.Rank == "S"
-                                   || r.Rank == "A+" || r.Rank == "A"
-                                   || r.Rank == "B");
-            default:
-                return src;
-        }
-    }
-
-    static IEnumerable<PlayRecord> SortRecords(IEnumerable<PlayRecord> src, string sortBy)
-    {
-        switch (sortBy)
-        {
-            case "score_desc": return src.OrderByDescending(r => r.EffectiveScore);
-            case "score_asc":  return src.OrderBy(r => r.EffectiveScore);
-            case "combo_desc": return src.OrderByDescending(r => r.MaxCombo);
-            default:           return src.OrderByDescending(r => r.PlayedAtUnixMs);
-        }
-    }
-
-    // ── List building ─────────────────────────────────────────────────────────
-
-    void BuildList(List<PlayRecord> records)
-    {
-        foreach (var v in _items) if (v.Root != null) Destroy(v.Root);
-        _items.Clear();
-        _selectedIndex = -1;
-
-        bool empty = records.Count == 0;
-        if (_emptyState != null) _emptyState.SetActive(empty);
-
-        if (empty) { ShowDetail(null); return; }
-
-        for (int i = 0; i < records.Count; i++)
-        {
-            var go   = Instantiate(_historyItemPrefab, _listContent);
-            var view = new HistoryItemView(go, records[i]);
-            int idx  = i;
-            view.Button.onClick.AddListener(() => SelectIndex(idx));
-            _items.Add(view);
+            case 1:  q = q.OrderByDescending(r => r.PlayedAtUnixMs);                 break; // 日付
+            case 2:  q = q.OrderByDescending(r => r.EffectiveScore);                 break; // スコア
+            case 3:  q = q.OrderByDescending(r => r.MaxCombo);                       break; // コンボ
+            default: q = q.OrderBy(r => TitleOf(r.SongId), StringComparer.Ordinal);  break; // 曲名
         }
 
-        SelectIndex(0);
+        var list = q.ToList();
+        ShowEmpty(list.Count == 0, "No plays yet");
+
+        foreach (var rec in list)
+        {
+            var go   = Instantiate(_soloItemPrefab, _listContent);
+            var view = new HistorySoloRowView(go, rec, _jackets);
+            view.SetTitle(TitleOf(rec.SongId));
+            int idx = _soloViews.Count;
+            view.Button.onClick.AddListener(() => OnSoloRowClicked(idx));
+            _soloViews.Add(view);
+        }
+
+        SelectIndex(list.Count > 0 ? 0 : -1);
+    }
+
+    // ── Ladder (PVP) list ─────────────────────────────────────────────────────
+
+    void RebuildPvpList()
+    {
+        if (_mode != Mode.Ladder) return;
+        ClearRows();
+
+        if (_pvpItemPrefab == null)
+        {
+            Debug.LogError("[History] _pvpItemPrefab is not wired — run menu 'Tools/Build History Scene + Prefab' to regenerate the scene.");
+            ShowEmpty(true, "Scene not rebuilt");
+            return;
+        }
+
+        ShowEmpty(_pvpMatches.Count == 0, "No matches yet");
+
+        foreach (var m in _pvpMatches)
+        {
+            var go   = Instantiate(_pvpItemPrefab, _listContent);
+            var view = new HistoryPvpRowView(go, m, _jackets, TitleOf);
+            int idx = _pvpViews.Count;
+            view.Button.onClick.AddListener(() => OnPvpRowClicked(idx));
+            view.OnSongReplayRequested += songIndex => LaunchPvpReplay(m, songIndex);
+            _pvpViews.Add(view);
+        }
+
+        SelectIndex(_pvpMatches.Count > 0 ? 0 : -1);
+    }
+
+    // ── Row interaction ─────────────────────────────────────────────────────────
+
+    void OnSoloRowClicked(int index)
+    {
+        if (index == _selectedIndex) PlaySelectedSolo();   // 既選択を再クリック → 再生
+        else                         SelectIndex(index);
+    }
+
+    void OnPvpRowClicked(int index)
+    {
+        if (index == _selectedIndex) return;               // 展開済みは維持 (ジャケットで再生)
+        SelectIndex(index);
     }
 
     void SelectIndex(int index)
     {
-        if (index < 0 || index >= _items.Count) return;
-        for (int i = 0; i < _items.Count; i++) _items[i].SetSelected(i == index);
         _selectedIndex = index;
-        ShowDetail(_items[index].Record);
+        _pvpSongCursor = 0;
+
+        if (_mode == Mode.Free)
+        {
+            for (int i = 0; i < _soloViews.Count; i++)
+            {
+                bool sel = i == index;
+                _soloViews[i].SetSelected(sel);
+                _soloViews[i].SetExpanded(sel);
+            }
+        }
+        else
+        {
+            for (int i = 0; i < _pvpViews.Count; i++)
+            {
+                bool sel = i == index;
+                _pvpViews[i].SetSelected(sel);
+                _pvpViews[i].SetExpanded(sel);
+                _pvpViews[i].SetSongCursor(sel ? 0 : -1);
+            }
+        }
+
+        if (_listContent != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(_listContent);
+        ScrollToSelected();
     }
 
-    void ShowDetail(PlayRecord record)
+    void PlaySelectedSolo()
     {
-        bool hasRecord = record != null;
-        if (_detailEmptyState != null) _detailEmptyState.SetActive(!hasRecord);
-        if (_detailContent    != null) _detailContent.SetActive(hasRecord);
-        if (hasRecord && _detailView != null) _detailView.Show(record);
+        if (_selectedIndex < 0 || _selectedIndex >= _soloViews.Count) return;
+        var rec = _soloViews[_selectedIndex].Record;
+        LaunchReplay(rec.SongId, rec.Difficulty, rec.ReplayPath);
+    }
+
+    void LaunchPvpReplay(PvpMatchRecord m, int songIndex)
+    {
+        if (m.SelfReplayPaths == null || songIndex < 0 || songIndex >= m.SelfReplayPaths.Length) return;
+        string songId = (m.SongIds      != null && songIndex < m.SongIds.Length)      ? m.SongIds[songIndex]      : null;
+        string diff   = (m.Difficulties != null && songIndex < m.Difficulties.Length) ? m.Difficulties[songIndex] : "extra";
+        LaunchReplay(songId, diff, m.SelfReplayPaths[songIndex]);
+    }
+
+    void LaunchReplay(string songId, string difficulty, string replayPath)
+    {
+        if (string.IsNullOrEmpty(replayPath) || !File.Exists(replayPath))
+        {
+            Debug.LogWarning("[History] Replay file not available: " + (replayPath ?? "null"));
+            return;
+        }
+        var prm = new GamePlayParameters
+        {
+            SongId               = songId,
+            Difficulty           = string.IsNullOrEmpty(difficulty) ? "extra" : difficulty,
+            IsReplay             = true,
+            ReplayPath           = replayPath,
+            InitialPlaybackSpeed = 1.0,
+        };
+        if (SceneRouter.Instance != null) SceneRouter.Instance.GoTo(SceneId.GamePlay, prm);
+        else UnityEngine.SceneManagement.SceneManager.LoadScene("GamePlay");
+    }
+
+    // ── List helpers ──────────────────────────────────────────────────────────
+
+    void ClearRows()
+    {
+        foreach (var v in _soloViews) if (v.Root != null) Destroy(v.Root);
+        foreach (var v in _pvpViews)  if (v.Root != null) Destroy(v.Root);
+        _soloViews.Clear();
+        _pvpViews.Clear();
+        _selectedIndex = -1;
+    }
+
+    void ShowEmpty(bool empty, string message)
+    {
+        if (_emptyState != null) _emptyState.SetActive(empty);
+        if (empty && _emptyStateText != null) _emptyStateText.text = message;
+    }
+
+    void ScrollToSelected()
+    {
+        if (_scrollRect == null || _selectedIndex < 0 || RowCount == 0) return;
+        var root = _mode == Mode.Free ? _soloViews[_selectedIndex].Root : _pvpViews[_selectedIndex].Root;
+        var itemRT   = root.GetComponent<RectTransform>();
+        float itemY  = Mathf.Abs(itemRT.anchoredPosition.y);
+        float contentH = _listContent.rect.height;
+        float viewH    = _scrollRect.viewport.rect.height;
+        if (contentH <= viewH) return;
+        _scrollRect.verticalNormalizedPosition = 1f - Mathf.Clamp01(itemY / (contentH - viewH));
     }
 
     // ── Input ─────────────────────────────────────────────────────────────────
 
     void OnNavigate(InputAction.CallbackContext ctx)
     {
-        if (_items.Count == 0) return;
-        float y = ctx.ReadValue<Vector2>().y;
-        if      (y >  0.5f) SelectAndScroll((_selectedIndex - 1 + _items.Count) % _items.Count);
-        else if (y < -0.5f) SelectAndScroll((_selectedIndex + 1) % _items.Count);
+        if (RowCount == 0) return;
+        Vector2 v = ctx.ReadValue<Vector2>();
+        if      (v.y >  0.5f) SelectIndex((_selectedIndex - 1 + RowCount) % RowCount);
+        else if (v.y < -0.5f) SelectIndex((_selectedIndex + 1) % RowCount);
+        else if (_mode == Mode.Ladder && _selectedIndex >= 0)
+        {
+            if      (v.x >  0.5f) MoveSongCursor(+1);
+            else if (v.x < -0.5f) MoveSongCursor(-1);
+        }
+    }
+
+    void MoveSongCursor(int delta)
+    {
+        _pvpSongCursor = Mathf.Clamp(_pvpSongCursor + delta, 0, 2);
+        _pvpViews[_selectedIndex].SetSongCursor(_pvpSongCursor);
+    }
+
+    void OnSubmit(InputAction.CallbackContext ctx)
+    {
+        if (_selectedIndex < 0) return;
+        if (_mode == Mode.Free) PlaySelectedSolo();
+        else                    LaunchPvpReplay(_pvpViews[_selectedIndex].Match, _pvpSongCursor);
     }
 
     void OnCancel(InputAction.CallbackContext ctx) => SceneRouter.Instance.GoTo(SceneId.Title);
-
-    void SelectAndScroll(int index)
-    {
-        SelectIndex(index);
-        if (_scrollRect == null || _selectedIndex < 0 || _selectedIndex >= _items.Count) return;
-
-        var itemRT    = _items[_selectedIndex].Root.GetComponent<RectTransform>();
-        float itemY   = Mathf.Abs(itemRT.anchoredPosition.y);
-        float contentH = _listContent.rect.height;
-        float viewH    = _scrollRect.viewport.rect.height;
-        if (contentH <= viewH) return;
-        _scrollRect.verticalNormalizedPosition = 1f - Mathf.Clamp01(itemY / (contentH - viewH));
-    }
-}
-
-// ── HistoryItemView (non-MonoBehaviour view helper) ───────────────────────────
-
-/// <summary>
-/// 履歴リストの1アイテム（日付・楽曲名・難易度・スコア・ランク・バッジ）の表示と選択状態を管理するビューヘルパークラス。
-/// </summary>
-public class HistoryItemView
-{
-    /// <summary>このアイテムのルート GameObject。</summary>
-    public GameObject  Root   { get; }
-    /// <summary>アイテムのクリック用ボタン。</summary>
-    public Button      Button { get; }
-    /// <summary>このアイテムが表すプレイ記録。</summary>
-    public PlayRecord  Record { get; }
-
-    Image _bg;
-    static readonly Color IdleColor     = new Color(1f, 1f, 1f, 0.04f);
-    static readonly Color SelectedColor = new Color(0.17f, 0.35f, 0.63f, 0.5f);
-
-    /// <summary>GameObject とプレイ記録から履歴アイテムの表示を構築する。</summary>
-    public HistoryItemView(GameObject go, PlayRecord rec)
-    {
-        Root   = go;
-        Record = rec;
-        Button = go.GetComponent<Button>();
-        _bg    = FindComponent<Image>(go, "Background");
-
-        var dt = DateTimeOffset.FromUnixTimeMilliseconds(rec.PlayedAtUnixMs).LocalDateTime;
-        SetText(go, "Layout/DateBlock/DateText", dt.ToString("yyyy/MM/dd"));
-        SetText(go, "Layout/DateBlock/TimeText", dt.ToString("HH:mm"));
-        SetText(go, "Layout/SongBlock/TitleText", rec.SongId);
-        SetText(go, "Layout/SongBlock/DiffText",  rec.Difficulty.ToUpper());
-        SetColor(go, "Layout/SongBlock/DiffText",  DiffColor(rec.Difficulty));
-        SetText(go, "Layout/ScoreBlock/ScoreText", rec.EffectiveScore.ToString("N0"));
-        SetText(go, "Layout/ScoreBlock/RankText",  rec.Rank);
-        SetColor(go, "Layout/ScoreBlock/RankText", RankColor(rec.Rank));
-
-        SetActive(go, "Layout/BadgeBlock/FullComboBadge",      rec.IsFullCombo);
-        SetActive(go, "Layout/BadgeBlock/AllPerfectBadge",     rec.IsAllPerfect && !rec.IsAllPerfectPlus);
-        SetActive(go, "Layout/BadgeBlock/AllPerfectPlusBadge", rec.IsAllPerfectPlus);
-
-        SetSelected(false);
-    }
-
-    /// <summary>選択状態に応じて背景色を切り替える。</summary>
-    public void SetSelected(bool on)
-    {
-        if (_bg != null) _bg.color = on ? SelectedColor : IdleColor;
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    static T FindComponent<T>(GameObject root, string path) where T : Component
-    {
-        var t = root.transform.Find(path);
-        return t != null ? t.GetComponent<T>() : null;
-    }
-
-    static void SetText(GameObject root, string path, string text)
-    {
-        var tmp = FindComponent<TMPro.TextMeshProUGUI>(root, path);
-        if (tmp != null) tmp.text = text;
-    }
-
-    static void SetColor(GameObject root, string path, Color color)
-    {
-        var tmp = FindComponent<TMPro.TextMeshProUGUI>(root, path);
-        if (tmp != null) tmp.color = color;
-    }
-
-    static void SetActive(GameObject root, string path, bool active)
-    {
-        var t = root.transform.Find(path);
-        if (t != null) t.gameObject.SetActive(active);
-    }
-
-    static Color DiffColor(string diff)
-    {
-        switch (diff)
-        {
-            case "easy":   return new Color(0.4f, 0.95f, 0.4f);
-            case "normal": return new Color(0.4f, 0.7f,  1.0f);
-            case "hard":   return new Color(1.0f, 0.7f,  0.3f);
-            case "extra":  return new Color(1.0f, 0.3f,  0.3f);
-            default:       return Color.white;
-        }
-    }
-
-    static Color RankColor(string rank)
-    {
-        switch (rank)
-        {
-            case "S+": return new Color(1.0f, 0.85f, 0.3f);
-            case "S":  return new Color(1.0f, 0.7f,  0.3f);
-            case "A+": return new Color(0.4f, 0.95f, 0.5f);
-            case "A":  return new Color(0.4f, 0.85f, 0.5f);
-            case "B":  return new Color(0.4f, 0.7f,  1.0f);
-            case "C":  return new Color(0.7f, 0.7f,  0.7f);
-            default:   return new Color(0.5f, 0.5f,  0.5f);
-        }
-    }
 }

@@ -90,7 +90,7 @@ public class ReplayPlaybackController : MonoBehaviour
                 Debug.LogWarning("[Replay] ChartHash mismatch. Judgment may differ from original play.");
 
             // ── Initialize stage visuals (lane / beatgrid / jacket / hud) ────
-            StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud);
+            StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud, prm.HiSpeed);
 
             // ── Set up replay input and judgment ─────────────────────────────
             _replayInput = new ReplayInputSource(_replay);

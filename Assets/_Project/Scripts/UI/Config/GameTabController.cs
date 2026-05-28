@@ -35,7 +35,7 @@ public class GameTabController : MonoBehaviour
     void SetupAll()
     {
         _hiSpeedSlider.minValue = 0.5f;
-        _hiSpeedSlider.maxValue = 10.0f;
+        _hiSpeedSlider.maxValue = 20.0f;
         _hiSpeedSlider.onValueChanged.AddListener(v =>
         {
             _hiSpeedValue.text = v.ToString("F1");

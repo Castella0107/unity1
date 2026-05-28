@@ -98,7 +98,8 @@ public class GamePlayController : MonoBehaviour
                 clip = AudioClip.Create("silent_fallback", 44100 * 30, 1, 44100, false);
             }
 
-            StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud);
+            StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud,
+                                              _params?.HiSpeed ?? 0f);
             if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameTabController.GetSavedComboBorder());
             _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: _meta?.AudioOffsetMs ?? 0);
 
@@ -223,8 +224,9 @@ public class GamePlayController : MonoBehaviour
         }
 
         // ── Best score + SQLite save ─────────────────────────────────────────
-        int  bestBefore = 0;
-        bool isNewBest  = false;
+        int    bestBefore         = 0;
+        bool   isNewBest          = false;
+        string previousBestPlayId = null;
 
         var playRepo = repoSvc?.PlayRecords;
         if (playRepo != null)
@@ -232,6 +234,7 @@ public class GamePlayController : MonoBehaviour
             var best   = await playRepo.GetBestAsync(record.SongId, record.Difficulty);
             bestBefore = best?.BestEffectiveScore ?? 0;
             isNewBest  = record.EffectiveScore > bestBefore;
+            previousBestPlayId = best?.BestPlayId;
             await playRepo.SaveAsync(record);
         }
         else
@@ -248,6 +251,14 @@ public class GamePlayController : MonoBehaviour
         // PVP モードでは matchId バンドルで submit するので個別送信はスキップ。
         if (_params == null || !_params.IsPvp)
             SubmitToServerFireAndForget(record);
+
+        // ── ソロのリプレイ刈り込み ───────────────────────────────────────────
+        // 各楽曲×難易度の最高スコアのリプレイだけローカルに残す。
+        // SubmitToServerFireAndForget は最初の await 前にファイルを同期読込するため、
+        // ここで非ベストのリプレイを消してもサーバー送信とは競合しない。
+        // PVP リプレイはサーバー送信 + PVP 履歴のリングバッファが管理するので触らない。
+        if ((_params == null || !_params.IsPvp) && playRepo != null && repoSvc?.Replays != null)
+            await PruneSoloReplaysAsync(playRepo, repoSvc.Replays, record, isNewBest, previousBestPlayId);
 
         var view = new PlayResultView
         {
@@ -291,6 +302,41 @@ public class GamePlayController : MonoBehaviour
 
         Debug.Log("[GamePlay] TriggerResultAsync completed — score=" + record.EffectiveScore
                   + "  replayPath=" + (record.ReplayPath ?? "not saved"));
+    }
+
+    // ソロは「各楽曲×難易度の最高スコア」のリプレイだけを残す。
+    //  - 新ベスト  → 旧ベストのリプレイを削除し、その行の ReplayPath を null 化
+    //  - 非ベスト  → 今保存したリプレイを破棄し、自分の行の ReplayPath を null 化
+    // PVP 記録(IsPvP)のリプレイは PVP 履歴側が所有するため、ここでは絶対に削除しない。
+    static async System.Threading.Tasks.Task PruneSoloReplaysAsync(
+        IPlayRecordRepository repo, ReplayStorage replays,
+        PlayRecord justSaved, bool isNewBest, string previousBestPlayId)
+    {
+        try
+        {
+            if (isNewBest)
+            {
+                if (!string.IsNullOrEmpty(previousBestPlayId) && previousBestPlayId != justSaved.PlayId)
+                {
+                    var old = await repo.GetByIdAsync(previousBestPlayId);
+                    if (old != null && !old.IsPvP && !string.IsNullOrEmpty(old.ReplayPath))
+                    {
+                        replays.Delete(old.ReplayPath);
+                        await repo.ClearReplayPathAsync(previousBestPlayId);
+                    }
+                }
+            }
+            else if (!string.IsNullOrEmpty(justSaved.ReplayPath))
+            {
+                replays.Delete(justSaved.ReplayPath);
+                await repo.ClearReplayPathAsync(justSaved.PlayId);
+                justSaved.ReplayPath = null;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[GamePlay] Solo replay prune failed: " + e.Message);
+        }
     }
 
     // ── サーバー自動送信 ──────────────────────────────────────────────────

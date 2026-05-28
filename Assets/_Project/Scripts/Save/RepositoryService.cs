@@ -87,6 +87,9 @@ public class RepositoryService : MonoBehaviour
 
             Debug.Log("[RepositoryService] ReplayStorage initialized. Count=" + Replays.GetReplayCount());
 
+            // 一度だけ: 旧仕様で溜まったソロの非ベストリプレイを刈り込む
+            await ReplayRetentionMigrator.MigrateIfNeeded(PlayRecords, Replays);
+
             // Restore active profile
             string activeId = await Offsets.GetActiveProfileIdAsync();
             ActiveProfile   = await Offsets.GetProfileByIdAsync(activeId)

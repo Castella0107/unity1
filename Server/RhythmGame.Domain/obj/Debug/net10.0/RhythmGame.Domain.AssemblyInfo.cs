@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RhythmGame.Domain")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+5e63087efab0992a2b7f3d05596a11aa94c1b302")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+aebfa12c30f5ccb421875a5278691d692bd31c48")]
 [assembly: System.Reflection.AssemblyProductAttribute("RhythmGame.Domain")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RhythmGame.Domain")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

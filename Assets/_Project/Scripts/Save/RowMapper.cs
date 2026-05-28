@@ -85,6 +85,76 @@ public static class RowMapper
         };
     }
 
+    /// <summary>PVP マッチ記録を SQLite 行オブジェクトに変換する。</summary>
+    public static PvpMatchRow ToPvpRow(PvpMatchRecord m)
+    {
+        return new PvpMatchRow
+        {
+            MatchId                 = m.MatchId,
+            SelfUserId              = m.SelfUserId,
+            OpponentId              = m.OpponentId,
+            ResultKind              = m.ResultKind,
+            SelfPoints              = m.SelfPoints,
+            OpponentPoints          = m.OpponentPoints,
+            SelfRatingBefore        = m.SelfRatingBefore,
+            SelfRatingAfter         = m.SelfRatingAfter,
+            OpponentRatingBefore    = m.OpponentRatingBefore,
+            OpponentRatingAfter     = m.OpponentRatingAfter,
+            SongIdsCsv              = JoinCsv(m.SongIds),
+            DifficultiesCsv         = JoinCsv(m.Difficulties),
+            SelfSectorScoresCsv     = JoinInts(m.SelfSectorScores),
+            OpponentSectorScoresCsv = JoinInts(m.OpponentSectorScores),
+            SelfReplayPathsBar      = m.SelfReplayPaths != null ? string.Join("|", m.SelfReplayPaths) : "",
+            CompletedAtUnixMs       = m.CompletedAtUnixMs,
+        };
+    }
+
+    /// <summary>SQLite 行オブジェクトを PVP マッチ記録に変換する(null は null)。</summary>
+    public static PvpMatchRecord ToPvpRecord(PvpMatchRow row)
+    {
+        if (row == null) return null;
+        return new PvpMatchRecord
+        {
+            MatchId               = row.MatchId,
+            SelfUserId            = row.SelfUserId,
+            OpponentId            = row.OpponentId,
+            ResultKind            = row.ResultKind,
+            SelfPoints            = row.SelfPoints,
+            OpponentPoints        = row.OpponentPoints,
+            SelfRatingBefore      = row.SelfRatingBefore,
+            SelfRatingAfter       = row.SelfRatingAfter,
+            OpponentRatingBefore  = row.OpponentRatingBefore,
+            OpponentRatingAfter   = row.OpponentRatingAfter,
+            SongIds               = SplitCsv(row.SongIdsCsv),
+            Difficulties          = SplitCsv(row.DifficultiesCsv),
+            SelfSectorScores      = SplitInts(row.SelfSectorScoresCsv),
+            OpponentSectorScores  = SplitInts(row.OpponentSectorScoresCsv),
+            SelfReplayPaths       = string.IsNullOrEmpty(row.SelfReplayPathsBar)
+                ? new string[0] : row.SelfReplayPathsBar.Split('|'),
+            CompletedAtUnixMs     = row.CompletedAtUnixMs,
+        };
+    }
+
+    static string JoinCsv(string[] a)  => a != null ? string.Join(",", a) : "";
+    static string[] SplitCsv(string s) => string.IsNullOrEmpty(s) ? new string[0] : s.Split(',');
+
+    static string JoinInts(int[] a)
+    {
+        if (a == null || a.Length == 0) return "";
+        var sb = new System.Text.StringBuilder();
+        for (int i = 0; i < a.Length; i++) { if (i > 0) sb.Append(','); sb.Append(a[i]); }
+        return sb.ToString();
+    }
+
+    static int[] SplitInts(string s)
+    {
+        if (string.IsNullOrEmpty(s)) return new int[0];
+        var parts  = s.Split(',');
+        var result = new int[parts.Length];
+        for (int i = 0; i < parts.Length; i++) int.TryParse(parts[i], out result[i]);
+        return result;
+    }
+
     /// <summary>SQLite 行オブジェクトをパーソナルベストに変換する(null は null)。</summary>
     public static PersonalBest ToBest(PersonalBestRow row)
     {

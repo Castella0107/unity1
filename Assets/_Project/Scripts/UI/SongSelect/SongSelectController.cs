@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
+using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -11,8 +12,9 @@ using UnityEngine.UI;
 
 /// <summary>
 /// 楽曲選択画面を管理するコントローラー。
-/// 楽曲リストの読み込み・選択、難易度切り替え、ハイスピード・曲別オフセット設定、
-/// パーソナルベスト表示、およびゲームプレイへのシーン遷移を担当する。
+/// 楽曲リストの読み込み・並び替え・選択、難易度切り替え、★難易度表記、
+/// パーソナルベスト(スコア/達成率/コンボ/セクター)表示、ハイスピード・曲別オフセット設定、
+/// プロフィール表示、およびゲームプレイへのシーン遷移を担当する。
 /// </summary>
 public class SongSelectController : MonoBehaviour
 {
@@ -21,13 +23,20 @@ public class SongSelectController : MonoBehaviour
     [SerializeField] GameObject         _songItemPrefab;
     [SerializeField] ScrollRect         _scrollRect;
 
-    [Header("Right Pane")]
+    [Header("Sort / Filter")]
+    [SerializeField] Button             _sortButton;
+    [SerializeField] TextMeshProUGUI    _sortLabel;
+
+    [Header("Right Pane — Song Info")]
     [SerializeField] RawImage           _jacketImage;
     [SerializeField] TextMeshProUGUI    _titleText;
     [SerializeField] TextMeshProUGUI    _artistText;
     [SerializeField] TextMeshProUGUI    _bpmDurationText;
-    [SerializeField] TextMeshProUGUI    _bestScoreText;
+
+    [Header("Best Stats")]
+    [SerializeField] TextMeshProUGUI    _statsText;     // SCORE / RATE / COMBO を1行で
     [SerializeField] TextMeshProUGUI    _bestRankText;
+    [SerializeField] Image[]            _sectorIcons;   // 5 セクター
 
     [Header("Difficulty Buttons")]
     [SerializeField] Button             _btnEasy;
@@ -49,8 +58,11 @@ public class SongSelectController : MonoBehaviour
     [Header("Settings — Modifier")]
     [SerializeField] TMP_Dropdown       _modifierDropdown;
 
+    [Header("Profile")]
+    [SerializeField] TextMeshProUGUI    _profileName;
+    [SerializeField] TextMeshProUGUI    _profileSub;
+
     [Header("Navigation")]
-    [SerializeField] Button             _playButton;
     [SerializeField] Button             _backButton;
 
     [Header("Input")]
@@ -61,11 +73,18 @@ public class SongSelectController : MonoBehaviour
     /// <summary>楽曲選択画面で使用する難易度種別を表す列挙型。</summary>
     enum Difficulty { Easy = 0, Normal = 1, Hard = 2, Extra = 3 }
     static readonly string[] DiffNames = { "easy", "normal", "hard", "extra" };
+    static readonly string[] DiffShort = { "EZ", "NM", "HD", "EX" };
+
+    /// <summary>リスト並び替えモード。</summary>
+    enum SortMode { TitleAsc = 0, TitleDesc = 1, BpmAsc = 2, BpmDesc = 3 }
+    static readonly string[] SortLabels =
+        { "TITLE (A to Z)", "TITLE (Z to A)", "BPM (LOW)", "BPM (HIGH)" };
 
     readonly List<SongMetadata> _songs     = new List<SongMetadata>();
     readonly List<GameObject>   _itemViews = new List<GameObject>();
     int        _selectedIndex;
     Difficulty _selectedDiff = Difficulty.Extra;
+    SortMode   _sortMode     = SortMode.TitleAsc;
 
     PerSongOffset _currentPerSongOffset;
     bool          _perSongOffsetDirty;
@@ -102,16 +121,25 @@ public class SongSelectController : MonoBehaviour
         _cancelAction.performed   -= OnCancel;
     }
 
+    void Update()
+    {
+        // F4: 並び替え切替 (Input System)
+        var kb = Keyboard.current;
+        if (kb != null && kb.f4Key.wasPressedThisFrame) CycleSort();
+    }
+
     async void Start()
     {
         _btnEasy.onClick.AddListener(()   => SetDifficulty(Difficulty.Easy));
         _btnNormal.onClick.AddListener(() => SetDifficulty(Difficulty.Normal));
         _btnHard.onClick.AddListener(()   => SetDifficulty(Difficulty.Hard));
         _btnExtra.onClick.AddListener(()  => SetDifficulty(Difficulty.Extra));
-        _playButton.onClick.AddListener(OnPlay);
         _backButton.onClick.AddListener(OnBack);
+        if (_sortButton != null) _sortButton.onClick.AddListener(CycleSort);
 
-        // HiSpeed
+        // HiSpeed (0.5〜20: 低速は縛りプレイ用に残す)
+        _hiSpeedSlider.minValue = 0.5f;
+        _hiSpeedSlider.maxValue = 20f;
         _hiSpeedSlider.onValueChanged.AddListener(v => _hiSpeedValue.text = v.ToString("F1"));
         _hiSpeedSlider.value = PlayerPrefs.GetFloat("HiSpeed", 4.5f);
 
@@ -128,6 +156,9 @@ public class SongSelectController : MonoBehaviour
         _modifierDropdown.AddOptions(new List<string> { "None", "Mirror", "Random" });
         _modifierDropdown.value = 0;
 
+        UpdateProfile();
+        UpdateSortLabel();
+
         await LoadSongList();
 
         if (_songs.Count > 0)
@@ -137,6 +168,14 @@ public class SongSelectController : MonoBehaviour
         }
     }
 
+    // ── Profile ──────────────────────────────────────────────────────────────
+
+    void UpdateProfile()
+    {
+        if (_profileName != null) _profileName.text = LocalIdentity.UserId;
+        if (_profileSub  != null) _profileSub.text  = "FREE PLAY";
+    }
+
     // ── Song List ────────────────────────────────────────────────────────────
 
     async Task LoadSongList()
@@ -144,10 +183,7 @@ public class SongSelectController : MonoBehaviour
         var songsRoot = Path.Combine(Application.streamingAssetsPath, "Songs");
         if (!Directory.Exists(songsRoot)) return;
 
-        foreach (var item in _itemViews) Destroy(item);
-        _itemViews.Clear();
         _songs.Clear();
-
         foreach (var dir in Directory.GetDirectories(songsRoot))
         {
             var songId = Path.GetFileName(dir);
@@ -156,6 +192,15 @@ public class SongSelectController : MonoBehaviour
                   { Debug.LogWarning($"[SongSelect] Skip {songId}: {e.Message}"); }
         }
 
+        ApplySort();
+        RebuildSongViews();
+    }
+
+    void RebuildSongViews()
+    {
+        foreach (var item in _itemViews) Destroy(item);
+        _itemViews.Clear();
+
         for (int i = 0; i < _songs.Count; i++)
         {
             var view = Instantiate(_songItemPrefab, _listContent);
@@ -163,14 +208,45 @@ public class SongSelectController : MonoBehaviour
             view.GetComponentInChildren<Button>().onClick.AddListener(() => SelectSong(idx));
 
             var texts = view.GetComponentsInChildren<TextMeshProUGUI>(true);
-            if (texts.Length >= 3)
+            if (texts.Length >= 2)
             {
                 texts[0].text = _songs[i].Title;
                 texts[1].text = _songs[i].Artist;
-                texts[2].text = "Lv.--";
             }
             _itemViews.Add(view);
         }
+    }
+
+    // ── Sorting ──────────────────────────────────────────────────────────────
+
+    void CycleSort()
+    {
+        _sortMode = (SortMode)(((int)_sortMode + 1) % SortLabels.Length);
+        UpdateSortLabel();
+
+        if (_songs.Count == 0) return;
+        var keepId = _songs[_selectedIndex].SongId;
+        ApplySort();
+        RebuildSongViews();
+
+        int restore = _songs.FindIndex(s => s.SongId == keepId);
+        SelectSong(restore < 0 ? 0 : restore);
+    }
+
+    void ApplySort()
+    {
+        switch (_sortMode)
+        {
+            case SortMode.TitleAsc:  _songs.Sort((a, b) => string.Compare(a.Title, b.Title, System.StringComparison.OrdinalIgnoreCase)); break;
+            case SortMode.TitleDesc: _songs.Sort((a, b) => string.Compare(b.Title, a.Title, System.StringComparison.OrdinalIgnoreCase)); break;
+            case SortMode.BpmAsc:    _songs.Sort((a, b) => a.Bpm.CompareTo(b.Bpm)); break;
+            case SortMode.BpmDesc:   _songs.Sort((a, b) => b.Bpm.CompareTo(a.Bpm)); break;
+        }
+    }
+
+    void UpdateSortLabel()
+    {
+        if (_sortLabel != null) _sortLabel.text = SortLabels[(int)_sortMode];
     }
 
     // ── Input ────────────────────────────────────────────────────────────────
@@ -211,28 +287,68 @@ public class SongSelectController : MonoBehaviour
         _artistText.text      = m.Artist;
         int totalSec          = m.DurationMs / 1000;
         _bpmDurationText.text = $"BPM {m.Bpm:F0}   Length {totalSec / 60}:{totalSec % 60:D2}";
-        _bestScoreText.text   = "---";
-        _bestRankText.text    = "-";
+
+        ResetBestStats();
 
         JacketBackgroundController.Instance?.SetJacket(m.SongId);
         StartCoroutine(LoadJacket(m.SongId, m.JacketFile));
-        StartCoroutine(LoadDifficultyLevels(m.SongId));
+        StartCoroutine(LoadDifficultyLevels(m.SongId, captured));
 
-        // Async: personal best
-        if (RepositoryService.Instance?.IsReady == true)
-        {
-            var diffStr = DiffNames[(int)_selectedDiff];
-            var best    = await RepositoryService.Instance.PlayRecords.GetBestAsync(m.SongId, diffStr);
-            if (_selectedIndex != captured) return;
-            if (best != null)
-            {
-                _bestScoreText.text = $"BEST: {best.BestEffectiveScore:N0}";
-                _bestRankText.text  = best.BestRank;
-            }
-        }
+        await LoadBestAsync(m.SongId, captured);
 
         // Async: per-song offset
         await LoadPerSongOffsetAsync(m.SongId, captured);
+    }
+
+    void ResetBestStats()
+    {
+        if (_statsText    != null) _statsText.text    = "SCORE 0     RATE 0.00%     COMBO 0";
+        if (_bestRankText != null) _bestRankText.text = "-";
+        SetSectorFill(null);
+    }
+
+    async Task LoadBestAsync(string songId, int captured)
+    {
+        if (RepositoryService.Instance?.IsReady != true) return;
+
+        var diffStr = DiffNames[(int)_selectedDiff];
+        var best    = await RepositoryService.Instance.PlayRecords.GetBestAsync(songId, diffStr);
+        if (_selectedIndex != captured) return;
+        if (best == null) return;
+
+        // 達成率とセクターは本体記録(RawScore/SectorScores)から
+        double rate = -1;
+        if (!string.IsNullOrEmpty(best.BestPlayId))
+        {
+            var rec = await RepositoryService.Instance.PlayRecords.GetByIdAsync(best.BestPlayId);
+            if (_selectedIndex != captured) return;
+            if (rec != null)
+            {
+                rate = rec.RawScore / 10000.0;
+                SetSectorFill(rec.SectorScores);
+            }
+        }
+
+        if (_bestRankText != null) _bestRankText.text = best.BestRank;
+        if (_statsText != null)
+        {
+            string rateStr = rate >= 0 ? rate.ToString("F2") : "--";
+            _statsText.text =
+                $"SCORE {best.BestEffectiveScore:N0}     RATE {rateStr}%     COMBO {best.BestMaxCombo:N0}";
+        }
+    }
+
+    void SetSectorFill(int[] sectorScores)
+    {
+        if (_sectorIcons == null) return;
+        for (int i = 0; i < _sectorIcons.Length; i++)
+        {
+            if (_sectorIcons[i] == null) continue;
+            bool filled = sectorScores != null && i < sectorScores.Length && sectorScores[i] > 0;
+            _sectorIcons[i].color = filled
+                ? new Color(0.31f, 0.76f, 0.97f, 1f)   // cyan
+                : new Color(1f, 1f, 1f, 0.12f);
+        }
     }
 
     void ScrollToItem(int index)
@@ -351,15 +467,19 @@ public class SongSelectController : MonoBehaviour
             : null;
     }
 
-    IEnumerator LoadDifficultyLevels(string songId)
+    IEnumerator LoadDifficultyLevels(string songId, int captured)
     {
         for (int i = 0; i < 4; i++)
         {
-            if (_diffLevelTexts == null || i >= _diffLevelTexts.Length) yield break;
             var task = ChartLoader.LoadChartAsync(songId, DiffNames[i]);
             while (!task.IsCompleted) yield return null;
-            _diffLevelTexts[i].text = (task.IsCompleted && !task.IsFaulted && task.Result != null)
-                ? task.Result.Level.ToString() : "-";
+            if (_selectedIndex != captured) yield break;
+
+            int lvl = (task.IsCompleted && !task.IsFaulted && task.Result != null)
+                ? task.Result.Level : -1;
+
+            if (_diffLevelTexts != null && i < _diffLevelTexts.Length)
+                _diffLevelTexts[i].text = $"{DiffShort[i]} {(lvl >= 0 ? lvl.ToString() : "-")}";
         }
     }
 

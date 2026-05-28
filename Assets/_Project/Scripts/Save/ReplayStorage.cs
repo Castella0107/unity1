@@ -49,6 +49,25 @@ public class ReplayStorage
     public bool Exists(string replayPath)
         => !string.IsNullOrEmpty(replayPath) && File.Exists(replayPath);
 
+    /// <summary>
+    /// リプレイファイルを削除する。空パス・既に存在しない場合も true(冪等)。
+    /// ソロのベスト以外の刈り込みと PVP 履歴のリングバッファ削除から呼ばれる。
+    /// </summary>
+    public bool Delete(string replayPath)
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(replayPath)) return true;
+            if (File.Exists(replayPath)) File.Delete(replayPath);
+            return true;
+        }
+        catch (Exception e)
+        {
+            Debug.LogWarning("[ReplayStorage] Delete failed for " + replayPath + ": " + e.Message);
+            return false;
+        }
+    }
+
     /// <summary>リプレイファイルのバイト列を非同期で読み込む(存在しなければ null)。</summary>
     public async Task<byte[]> ReadAsync(string replayPath)
     {

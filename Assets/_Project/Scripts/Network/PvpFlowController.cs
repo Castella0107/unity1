@@ -124,7 +124,7 @@ namespace RhythmGame.Network
             {
                 SongId        = s.songId,
                 Difficulty    = string.IsNullOrEmpty(s.difficulty) ? "extra" : s.difficulty,
-                HiSpeed       = 1.0f,
+                HiSpeed       = PlayerPrefs.GetFloat("HiSpeed", 4.5f),
                 JudgeOffset   = 0,
                 VisualOffset  = 0,
                 Modifier      = "None",
@@ -236,6 +236,9 @@ namespace RhythmGame.Network
 
         void FinishToMatchEndScene(MatchResultDto r)
         {
+            // ローカル履歴用の記録を ResetState の前に組み立てる(_replayPaths がまだ生きている)。
+            var localRecord = BuildPvpMatchRecord(r, _replayPaths);
+
             var p = new PvpMatchEndParameters
             {
                 MatchId       = r.matchId,
@@ -252,8 +255,93 @@ namespace RhythmGame.Network
                 Songs         = BuildSongLines(r),
             };
             ResetState();
+
+            // 直近10戦の記録+自分の3曲リプレイを保持。シーン遷移はブロックしない。
+            _ = PersistPvpHistoryAsync(localRecord);
+
             if (SceneRouter.Instance != null)
                 SceneRouter.Instance.GoTo(SceneId.PVPMatchEnd, p, TransitionStyle.FadeWhite);
+        }
+
+        // MatchResultDto(A/B 視点)を自分(Self)視点の PvpMatchRecord に正規化する。
+        PvpMatchRecord BuildPvpMatchRecord(MatchResultDto r, List<string> myReplayPaths)
+        {
+            bool selfIsA = SelfUserId == r.userIdA;
+
+            int n = r.songs?.Count ?? 0;
+            var songIds = new string[n];
+            var diffs   = new string[n];
+            for (int i = 0; i < n; i++)
+            {
+                songIds[i] = r.songs[i].songId;
+                diffs[i]   = string.IsNullOrEmpty(r.songs[i].difficulty) ? "extra" : r.songs[i].difficulty;
+            }
+
+            return new PvpMatchRecord
+            {
+                MatchId               = r.matchId,
+                SelfUserId            = SelfUserId,
+                OpponentId            = selfIsA ? r.userIdB : r.userIdA,
+                ResultKind            = ResolveResultKind(r.outcomeKind, selfIsA),
+                SelfPoints            = selfIsA ? r.totalPointsA : r.totalPointsB,
+                OpponentPoints        = selfIsA ? r.totalPointsB : r.totalPointsA,
+                SelfRatingBefore      = selfIsA ? r.ratingABefore : r.ratingBBefore,
+                SelfRatingAfter       = selfIsA ? r.ratingAAfter  : r.ratingBAfter,
+                OpponentRatingBefore  = selfIsA ? r.ratingBBefore : r.ratingABefore,
+                OpponentRatingAfter   = selfIsA ? r.ratingBAfter  : r.ratingAAfter,
+                SongIds               = songIds,
+                Difficulties          = diffs,
+                SelfSectorScores      = ToIntArray(selfIsA ? r.sectorScoresA : r.sectorScoresB),
+                OpponentSectorScores  = ToIntArray(selfIsA ? r.sectorScoresB : r.sectorScoresA),
+                SelfReplayPaths       = myReplayPaths != null ? myReplayPaths.ToArray() : new string[0],
+                CompletedAtUnixMs     = r.completedAtUnixMs > 0
+                    ? r.completedAtUnixMs
+                    : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+            };
+        }
+
+        // outcomeKind: 0=Draw, 1=AWins, 2=BWins → 自分視点 0=Draw, 1=Win, 2=Loss
+        static int ResolveResultKind(int outcomeKind, bool selfIsA)
+        {
+            if (outcomeKind == 0) return 0;
+            bool selfWon = selfIsA ? (outcomeKind == 1) : (outcomeKind == 2);
+            return selfWon ? 1 : 2;
+        }
+
+        static int[] ToIntArray(List<int> src)
+        {
+            if (src == null) return new int[0];
+            var a = new int[src.Count];
+            for (int i = 0; i < src.Count; i++) a[i] = src[i];
+            return a;
+        }
+
+        // ローカル PVP 履歴へ保存し、直近10戦を超える古い試合(行+自分のリプレイ)を削除する。
+        static async Task PersistPvpHistoryAsync(PvpMatchRecord record)
+        {
+            try
+            {
+                var svc  = RepositoryService.Instance;
+                var repo = svc?.PlayRecords;
+                if (repo == null || record == null) return;
+
+                await repo.SavePvpMatchAsync(record);
+
+                var stale = await repo.GetStalePvpMatchesAsync(keep: 10);
+                foreach (var m in stale)
+                {
+                    if (svc.Replays != null && m.SelfReplayPaths != null)
+                        foreach (var path in m.SelfReplayPaths) svc.Replays.Delete(path);
+                    await repo.DeletePvpMatchAsync(m.MatchId);
+                }
+
+                Debug.Log($"[PvpFlow] Saved PVP match {record.MatchId?.Substring(0, 8)} to local history "
+                          + $"(pruned {stale.Count} stale)");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[PvpFlow] PersistPvpHistory failed: " + e.Message);
+            }
         }
 
         // 曲別ポイント内訳を共有 Domain (MatchScoring) で再構成する。サーバーの集計と同一ロジック

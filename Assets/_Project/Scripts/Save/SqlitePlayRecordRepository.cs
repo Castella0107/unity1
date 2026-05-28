@@ -21,6 +21,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         _db = new SQLiteAsyncConnection(dbPath);
         await _db.CreateTableAsync<PlayRow>();
         await _db.CreateTableAsync<PersonalBestRow>();
+        await _db.CreateTableAsync<PvpMatchRow>();
         Debug.Log("[Repo] SQLite initialized at " + dbPath);
     }
 
@@ -139,11 +140,55 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
     }
 
     /// <inheritdoc/>
+    public async Task ClearReplayPathAsync(string playId)
+    {
+        if (_db == null) return;
+        var row = await _db.FindAsync<PlayRow>(playId);
+        if (row != null) { row.ReplayPath = null; await _db.UpdateAsync(row); }
+    }
+
+    // ── PVP ローカル履歴 ──────────────────────────────────────────────────────
+
+    /// <inheritdoc/>
+    public async Task SavePvpMatchAsync(PvpMatchRecord match)
+    {
+        if (_db == null || match == null) return;
+        await _db.InsertOrReplaceAsync(RowMapper.ToPvpRow(match));
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<PvpMatchRecord>> GetRecentPvpMatchesAsync(int limit = 10)
+    {
+        if (_db == null) return new List<PvpMatchRecord>();
+        var rows = await _db.QueryAsync<PvpMatchRow>(
+            "SELECT * FROM pvp_matches ORDER BY CompletedAtUnixMs DESC LIMIT ?", limit);
+        return rows.Select(RowMapper.ToPvpRecord).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task<List<PvpMatchRecord>> GetStalePvpMatchesAsync(int keep)
+    {
+        if (_db == null) return new List<PvpMatchRecord>();
+        // LIMIT -1 = 無制限。新しい順に keep 件をスキップした残りが刈り取り対象。
+        var rows = await _db.QueryAsync<PvpMatchRow>(
+            "SELECT * FROM pvp_matches ORDER BY CompletedAtUnixMs DESC LIMIT -1 OFFSET ?", keep);
+        return rows.Select(RowMapper.ToPvpRecord).ToList();
+    }
+
+    /// <inheritdoc/>
+    public async Task DeletePvpMatchAsync(string matchId)
+    {
+        if (_db == null) return;
+        await _db.DeleteAsync<PvpMatchRow>(matchId);
+    }
+
+    /// <inheritdoc/>
     public async Task<bool> DeleteAllAsync()
     {
         if (_db == null) return false;
         await _db.DeleteAllAsync<PlayRow>();
         await _db.DeleteAllAsync<PersonalBestRow>();
+        await _db.DeleteAllAsync<PvpMatchRow>();
         return true;
     }
 

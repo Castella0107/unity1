@@ -5,91 +5,244 @@ using UnityEngine.EventSystems;
 using UnityEngine.InputSystem.UI;
 using UnityEngine.UI;
 using TMPro;
-using System.IO;
 
 /// <summary>
-/// History シーンおよび HistoryItem プレハブをスクラッチから構築し、HistoryController のフィールドを配線するエディターオンリーのヘルパークラス。
+/// History シーンと2種のアイテムプレハブ(ソロ=HistoryItem / PVP=PvpMatchItem)を
+/// スクラッチで構築し、HistoryController のフィールドを配線するエディター専用ヘルパー。
+/// 行の詳細(アコーディオン展開部)はプレハブに baked-in する(ランタイム生成しない)。
 /// </summary>
 public static class BuildHistoryScene
 {
-    /// <summary>History シーンと HistoryItem プレハブを構築し HistoryController を配線する。</summary>
+    const string SoloPrefabPath = "Assets/_Project/Prefabs/UI/History/HistoryItem.prefab";
+    const string PvpPrefabPath  = "Assets/_Project/Prefabs/UI/History/PvpMatchItem.prefab";
+
+    static readonly Color CyanWin = new Color(0.30f, 0.80f, 0.95f, 1f);
+    static readonly Color RedLoss = new Color(0.92f, 0.30f, 0.30f, 1f);
+
     [MenuItem("Tools/Build History Scene + Prefab")]
     public static void Build()
     {
-        BuildItemPrefab();
-        BuildScene();
+        EnsureFolder();
+        var soloPrefab = BuildSoloPrefab();
+        var pvpPrefab  = BuildPvpPrefab();
+        BuildScene(soloPrefab, pvpPrefab);
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
         Debug.Log("[BuildHistoryScene] Done.");
     }
 
-    // ── HistoryItem.prefab ────────────────────────────────────────────────────
-
-    static void BuildItemPrefab()
+    static void EnsureFolder()
     {
-        string dir = "Assets/_Project/Prefabs/UI/History";
         if (!AssetDatabase.IsValidFolder("Assets/_Project/Prefabs/UI/History"))
             AssetDatabase.CreateFolder("Assets/_Project/Prefabs/UI", "History");
+    }
 
+    // ── Solo item prefab (HistoryItem.prefab) ───────────────────────────────────
+
+    static GameObject BuildSoloPrefab()
+    {
         var root = new GameObject("HistoryItem");
         root.AddComponent<RectTransform>();
         var btn = root.AddComponent<Button>();
+        var rootVlg = root.AddComponent<VerticalLayoutGroup>();
+        rootVlg.childControlWidth  = true;  rootVlg.childForceExpandWidth  = true;
+        rootVlg.childControlHeight = true;  rootVlg.childForceExpandHeight = false;
+        rootVlg.spacing = 0;
+        root.GetComponent<RectTransform>().sizeDelta = new Vector2(1400, 84);
 
-        // Background
+        // Background (layout-ignored full stretch; doubles as Button target + selection tint)
         var bg = MakeRT("Background", root);
         var bgImg = bg.AddComponent<Image>();
-        bgImg.color = new Color(1,1,1, 0.04f);
+        bgImg.color = new Color(1, 1, 1, 0.04f);
         FullStretch(bg.GetComponent<RectTransform>());
+        Ignore(bg);
+        btn.targetGraphic = bgImg;
 
-        // Horizontal Layout
-        var layout = MakeRT("Layout", root);
-        var hLayout = layout.AddComponent<HorizontalLayoutGroup>();
-        hLayout.spacing = 12;
-        hLayout.childAlignment = TextAnchor.MiddleLeft;
-        hLayout.childControlWidth = false;
-        hLayout.childControlHeight = false;
-        FullStretch(layout.GetComponent<RectTransform>());
+        // Summary
+        var summary = MakeRT("Summary", root);
+        LE(summary, 84);
+        var jacket = MakeRawImage("Jacket", summary, 64, 64);
+        Anchor(jacket, 0, 0.5f, 0, 0.5f, new Vector2(16, 0), new Vector2(0, 0.5f));
+        var title = MakeTMP("TitleText", summary, 22, "Song Title");
+        AnchorBox(title, 0, 0.5f, 0, 0.5f, new Vector2(92, 0), new Vector2(0, 0.5f), new Vector2(760, 44));
+        var score = MakeTMP("ScoreText", summary, 24, "100,000");
+        AnchorBox(score, 1, 0.5f, 1, 0.5f, new Vector2(-360, 0), new Vector2(1, 0.5f), new Vector2(220, 44));
+        score.alignment = TextAlignmentOptions.Right;
+        var fc = MakeBadge("FCBadge", summary, "FC", new Color(0.3f, 0.8f, 0.95f));
+        AnchorBox(fc, 1, 0.5f, 1, 0.5f, new Vector2(-300, 0), new Vector2(1, 0.5f), new Vector2(54, 32));
+        var ap = MakeBadge("APBadge", summary, "AP", new Color(1.0f, 0.85f, 0.3f));
+        AnchorBox(ap, 1, 0.5f, 1, 0.5f, new Vector2(-240, 0), new Vector2(1, 0.5f), new Vector2(54, 32));
+        var date = MakeTMP("DateText", summary, 18, "2026/05/17");
+        AnchorBox(date, 1, 0.5f, 1, 0.5f, new Vector2(-16, 0), new Vector2(1, 0.5f), new Vector2(180, 40));
+        date.alignment = TextAlignmentOptions.Right;
 
-        // Root RectTransform size
-        var rootRT = root.GetComponent<RectTransform>();
-        rootRT.sizeDelta = new Vector2(760, 80);
+        // Detail (starts inactive)
+        var detail = MakeRT("Detail", root);
+        LE(detail, 150);
+        // Judgment breakdown (left, stacked)
+        string[] jnames = { "PpText", "PText", "GrText", "GdText", "MText" };
+        string[] jinit  = { "perfect+   0", "perfect    0", "great      0", "good       0", "miss       0" };
+        float jy = -10;
+        for (int i = 0; i < 5; i++)
+        {
+            var t = MakeTMP(jnames[i], detail, 16, jinit[i]);
+            AnchorBox(t, 0, 1, 0, 1, new Vector2(24, jy), new Vector2(0, 1), new Vector2(240, 22));
+            jy -= 24;
+        }
+        // Sectors (center) S1..S5
+        var sectors = MakeRT("Sectors", detail);
+        AnchorStretchTop(sectors, new Vector2(300, -120), new Vector2(-220, -10));
+        for (int i = 0; i < 5; i++)
+        {
+            var cell = MakeRT($"S{i + 1}", sectors);
+            Anchor(cell, 0, 0.5f, 0, 0.5f, new Vector2(60 + i * 130, 0), new Vector2(0.5f, 0.5f));
+            cell.GetComponent<RectTransform>().sizeDelta = new Vector2(110, 100);
+            var lbl = MakeTMP("Label", cell, 16, $"S{i + 1}");
+            AnchorBox(lbl, 0.5f, 1, 0.5f, 1, new Vector2(0, -2), new Vector2(0.5f, 1), new Vector2(100, 22));
+            lbl.alignment = TextAlignmentOptions.Center;
+            var dia = MakeDiamond("Diamond", cell, 26);
+            Anchor(dia, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(0, 4), new Vector2(0.5f, 0.5f));
+            var sc = MakeTMP("Score", cell, 13, "0");
+            AnchorBox(sc, 0.5f, 0, 0.5f, 0, new Vector2(0, 2), new Vector2(0.5f, 0), new Vector2(100, 20));
+            sc.alignment = TextAlignmentOptions.Center;
+        }
+        // Accuracy (right)
+        var acc = MakeTMP("AccuracyText", detail, 20, "0.00%");
+        AnchorBox(acc, 1, 1, 1, 1, new Vector2(-20, -50), new Vector2(1, 1), new Vector2(190, 30));
+        acc.alignment = TextAlignmentOptions.Right;
 
-        // DateBlock
-        var dateBlock = MakeVLayout("DateBlock", layout.gameObject, 100);
-        MakeTMP("DateText",  dateBlock, 14, "2026/05/09");
-        MakeTMP("TimeText",  dateBlock, 12, "14:32",      new Color(1,1,1,0.6f));
+        detail.SetActive(false);
 
-        // SongBlock
-        var songBlock = MakeVLayout("SongBlock", layout.gameObject, 360);
-        MakeTMP("TitleText", songBlock, 18, "Song Title");
-        MakeTMP("DiffText",  songBlock, 14, "EXTRA");
+        return SaveAndDestroy(root, SoloPrefabPath);
+    }
 
-        // ScoreBlock
-        var scoreBlock = MakeVLayout("ScoreBlock", layout.gameObject, 160);
-        var scoreT = MakeTMP("ScoreText", scoreBlock, 20, "985,432");
-        scoreT.alignment = TextAlignmentOptions.Right;
-        var rankT = MakeTMP("RankText", scoreBlock, 16, "S");
-        rankT.alignment = TextAlignmentOptions.Right;
+    // ── PVP item prefab (PvpMatchItem.prefab) ───────────────────────────────────
 
-        // BadgeBlock
-        var badgeBlock = MakeHLayout("BadgeBlock", layout.gameObject, 120);
-        MakeBadge("FullComboBadge",      badgeBlock, "FC",  new Color(0.3f, 0.9f, 0.4f));
-        MakeBadge("AllPerfectBadge",     badgeBlock, "AP",  new Color(0.3f, 0.6f, 1.0f));
-        MakeBadge("AllPerfectPlusBadge", badgeBlock, "AP+", new Color(1.0f, 0.85f, 0.3f));
+    static GameObject BuildPvpPrefab()
+    {
+        var root = new GameObject("PvpMatchItem");
+        root.AddComponent<RectTransform>();
+        var btn = root.AddComponent<Button>();
+        var rootVlg = root.AddComponent<VerticalLayoutGroup>();
+        rootVlg.childControlWidth  = true;  rootVlg.childForceExpandWidth  = true;
+        rootVlg.childControlHeight = true;  rootVlg.childForceExpandHeight = false;
+        rootVlg.spacing = 0;
+        root.GetComponent<RectTransform>().sizeDelta = new Vector2(1400, 96);
 
-        string prefabPath = dir + "/HistoryItem.prefab";
-        bool success;
-        PrefabUtility.SaveAsPrefabAsset(root, prefabPath, out success);
+        var bg = MakeRT("Background", root);
+        var bgImg = bg.AddComponent<Image>();
+        bgImg.color = new Color(1, 1, 1, 0.04f);
+        FullStretch(bg.GetComponent<RectTransform>());
+        Ignore(bg);
+        btn.targetGraphic = bgImg;
+
+        // Summary: 3 jackets + selfName + result/score + oppName
+        var summary = MakeRT("Summary", root);
+        LE(summary, 96);
+        for (int j = 0; j < 3; j++)
+        {
+            var jk = MakeRawImage($"Jacket{j}", summary, 64, 64);
+            Anchor(jk, 0, 0.5f, 0, 0.5f, new Vector2(16 + j * 72, 0), new Vector2(0, 0.5f));
+        }
+        var selfName = MakeTMP("SelfName", summary, 22, "you");
+        AnchorBox(selfName, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(-160, 0), new Vector2(0.5f, 0.5f), new Vector2(220, 40));
+        selfName.alignment = TextAlignmentOptions.Center;
+        var resultT = MakeTMP("ResultText", summary, 16, "win");
+        AnchorBox(resultT, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(0, 18), new Vector2(0.5f, 0.5f), new Vector2(160, 24));
+        resultT.alignment = TextAlignmentOptions.Center;
+        var scoreT = MakeTMP("ScoreText", summary, 26, "8-7");
+        AnchorBox(scoreT, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(0, -12), new Vector2(0.5f, 0.5f), new Vector2(160, 34));
+        scoreT.alignment = TextAlignmentOptions.Center;
+        var oppName = MakeTMP("OppName", summary, 22, "opp");
+        AnchorBox(oppName, 0.5f, 0.5f, 0.5f, 0.5f, new Vector2(180, 0), new Vector2(0.5f, 0.5f), new Vector2(220, 40));
+        oppName.alignment = TextAlignmentOptions.Center;
+
+        // Detail: header + 3 song rows (jacket + 5 diamonds + accuracy + cursor) + rating
+        var detail = MakeRT("Detail", root);
+        LE(detail, 250);
+
+        var hSelf = MakeTMP("HeaderSelf", detail, 22, "you");
+        AnchorBox(hSelf, 0.5f, 1, 0.5f, 1, new Vector2(-160, -8), new Vector2(0.5f, 1), new Vector2(220, 34));
+        hSelf.alignment = TextAlignmentOptions.Center;
+        var hRes = MakeTMP("HeaderResult", detail, 16, "win");
+        AnchorBox(hRes, 0.5f, 1, 0.5f, 1, new Vector2(0, -4), new Vector2(0.5f, 1), new Vector2(160, 22));
+        hRes.alignment = TextAlignmentOptions.Center;
+        var hScore = MakeTMP("HeaderScore", detail, 26, "8-7");
+        AnchorBox(hScore, 0.5f, 1, 0.5f, 1, new Vector2(0, -26), new Vector2(0.5f, 1), new Vector2(160, 32));
+        hScore.alignment = TextAlignmentOptions.Center;
+        var hOpp = MakeTMP("HeaderOpp", detail, 22, "opp");
+        AnchorBox(hOpp, 0.5f, 1, 0.5f, 1, new Vector2(180, -8), new Vector2(0.5f, 1), new Vector2(220, 34));
+        hOpp.alignment = TextAlignmentOptions.Center;
+
+        // Sector header labels S1..S5 (aligned with the diamond columns below)
+        float diaX0 = 240, diaStep = 90;
+        for (int s = 0; s < 5; s++)
+        {
+            var sl = MakeTMP($"SecHead{s + 1}", detail, 14, $"S{s + 1}");
+            AnchorBox(sl, 0, 1, 0, 1, new Vector2(diaX0 + s * diaStep, -64), new Vector2(0.5f, 1), new Vector2(60, 20));
+            sl.alignment = TextAlignmentOptions.Center;
+        }
+
+        // 3 song rows
+        for (int j = 0; j < 3; j++)
+        {
+            var songRow = MakeRT($"Song{j}", detail);
+            AnchorStretchTop(songRow, new Vector2(0, -(90 + j * 50) - 50), new Vector2(0, -(90 + j * 50)));
+            // jacket (button → replay)
+            var jk = MakeRawImage("Jacket", songRow, 40, 40);
+            Anchor(jk, 0, 0.5f, 0, 0.5f, new Vector2(70, 0), new Vector2(0.5f, 0.5f));
+            jk.gameObject.AddComponent<Button>().targetGraphic = jk.GetComponent<RawImage>();
+            // cursor marker (▷) left of jacket
+            var cursor = MakeTMP("Cursor", songRow, 22, "▶");
+            AnchorBox(cursor, 0, 0.5f, 0, 0.5f, new Vector2(28, 0), new Vector2(0.5f, 0.5f), new Vector2(28, 28));
+            cursor.alignment = TextAlignmentOptions.Center;
+            cursor.gameObject.SetActive(false);
+            // hidden title (optional)
+            var stitle = MakeTMP("Title", songRow, 1, "");
+            AnchorBox(stitle, 0, 0.5f, 0, 0.5f, new Vector2(110, 0), new Vector2(0, 0.5f), new Vector2(10, 10));
+            stitle.gameObject.SetActive(false);
+            // 5 diamonds
+            for (int s = 0; s < 5; s++)
+            {
+                var cell = MakeRT($"S{s + 1}", songRow);
+                Anchor(cell, 0, 0.5f, 0, 0.5f, new Vector2(diaX0 + s * diaStep, 0), new Vector2(0.5f, 0.5f));
+                cell.GetComponent<RectTransform>().sizeDelta = new Vector2(40, 40);
+                var dia = MakeDiamond("Diamond", cell, 24);
+                Anchor(dia, 0.5f, 0.5f, 0.5f, 0.5f, Vector2.zero, new Vector2(0.5f, 0.5f));
+                dia.color = s % 2 == 0 ? CyanWin : RedLoss;
+            }
+            var sacc = MakeTMP("Accuracy", songRow, 18, "0.00%");
+            AnchorBox(sacc, 1, 0.5f, 1, 0.5f, new Vector2(-20, 0), new Vector2(1, 0.5f), new Vector2(150, 28));
+            sacc.alignment = TextAlignmentOptions.Right;
+        }
+
+        var rating = MakeTMP("RatingText", detail, 18, "R 1500 → 1500 (+0)");
+        AnchorBox(rating, 0, 0, 0, 0, new Vector2(24, 14), new Vector2(0, 0), new Vector2(420, 28));
+
+        detail.SetActive(false);
+
+        return SaveAndDestroy(root, PvpPrefabPath);
+    }
+
+    static GameObject SaveAndDestroy(GameObject root, string path)
+    {
+        var prefab = PrefabUtility.SaveAsPrefabAsset(root, path, out bool ok);
         Object.DestroyImmediate(root);
-        Debug.Log("[BuildHistoryScene] Prefab saved: " + prefabPath + " success=" + success);
+        Debug.Log($"[BuildHistoryScene] Prefab saved: {path} success={ok}");
+        return prefab;
     }
 
     // ── History.unity scene ───────────────────────────────────────────────────
 
-    static void BuildScene()
+    static void BuildScene(GameObject soloPrefab, GameObject pvpPrefab)
     {
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Additive);
+        // untitled な未保存シーンが開いていると Additive 生成は例外を出すため、
+        // 対話時は保存可否を確認し常に Single で作り直す(中身と配線は本メソッドで再生成)。
+        if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            return;
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
         EditorSceneManager.SetActiveScene(scene);
 
-        // Camera
         var camGO = new GameObject("Main Camera");
         var cam = camGO.AddComponent<Camera>();
         cam.clearFlags = CameraClearFlags.SolidColor;
@@ -98,117 +251,116 @@ public static class BuildHistoryScene
         camGO.AddComponent<AudioListener>();
         camGO.tag = "MainCamera";
 
-        // EventSystem
         var esGO = new GameObject("EventSystem");
         esGO.AddComponent<EventSystem>();
         esGO.AddComponent<InputSystemUIInputModule>();
 
-        // Canvas
         var canvasGO = new GameObject("Canvas");
         var canvas = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         var scaler = canvasGO.AddComponent<CanvasScaler>();
         scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
-        // Match HEIGHT so the (tall) detail panel always has the full 1080 vertical budget
-        // regardless of the play window's aspect ratio (wide/ultrawide would otherwise shrink it).
         scaler.matchWidthOrHeight = 1f;
         canvasGO.AddComponent<GraphicRaycaster>();
 
-        // Background
         var bgGO = MakeRT("Background", canvasGO);
-        var bgImg = bgGO.AddComponent<Image>();
-        bgImg.color = new Color(0.02f, 0.03f, 0.06f, 1f);
+        bgGO.AddComponent<Image>().color = new Color(0.02f, 0.03f, 0.06f, 1f);
         FullStretch(bgGO.GetComponent<RectTransform>());
 
-        // ── Header ────────────────────────────────────────────────────────────
-        var header = MakeRT("Header", canvasGO);
-        var headerRT = header.GetComponent<RectTransform>();
-        headerRT.anchorMin = new Vector2(0, 1); headerRT.anchorMax = new Vector2(1, 1);
-        headerRT.pivot     = new Vector2(0.5f, 1f);
-        headerRT.offsetMin = new Vector2(0, -80); headerRT.offsetMax = Vector2.zero;
+        // Back button (top-left)
+        var backBtnGO = MakeRT("BackButton", canvasGO);
+        Anchor(backBtnGO, 0, 1, 0, 1, new Vector2(110, -50), new Vector2(0.5f, 0.5f));
+        backBtnGO.GetComponent<RectTransform>().sizeDelta = new Vector2(160, 50);
+        var backImg = backBtnGO.AddComponent<Image>();
+        backImg.color = new Color(1, 1, 1, 0.1f);
+        var backBtn = backBtnGO.AddComponent<Button>();
+        backBtn.targetGraphic = backImg;
+        var backTMP = MakeTMP("Label", backBtnGO, 22, "< Back");
+        FullStretch(backTMP.GetComponent<RectTransform>());
+        backTMP.alignment = TextAlignmentOptions.Center;
 
-        var backBtn = MakeRT("BackButton", header.gameObject);
-        var backBtnRT = backBtn.GetComponent<RectTransform>();
-        backBtnRT.anchorMin = new Vector2(0, 0.5f); backBtnRT.anchorMax = new Vector2(0, 0.5f);
-        backBtnRT.anchoredPosition = new Vector2(100, 0); backBtnRT.sizeDelta = new Vector2(160, 50);
-        backBtn.AddComponent<Image>().color = new Color(1,1,1,0.1f);
-        var backBtnComp = backBtn.AddComponent<Button>();
-        var backTMP = MakeTMP("Label", backBtn.gameObject, 22, "< BACK");
-        backTMP.GetComponent<RectTransform>().anchorMin = Vector2.zero;
-        backTMP.GetComponent<RectTransform>().anchorMax = Vector2.one;
+        // Left rail: mode tabs
+        var ladderTabGO = MakeRT("LadderTab", canvasGO);
+        Anchor(ladderTabGO, 0, 0.5f, 0, 0.5f, new Vector2(210, 80), new Vector2(0.5f, 0.5f));
+        ladderTabGO.GetComponent<RectTransform>().sizeDelta = new Vector2(220, 60);
+        var ladderImg = ladderTabGO.AddComponent<Image>();
+        var ladderBtn = ladderTabGO.AddComponent<Button>();
+        ladderBtn.targetGraphic = ladderImg;
+        var ladderLbl = MakeTMP("Label", ladderTabGO, 22, "Ladder match");
+        FullStretch(ladderLbl.GetComponent<RectTransform>());
+        ladderLbl.alignment = TextAlignmentOptions.Center;
 
-        var titleTMP = MakeTMP("Title", header.gameObject, 36, "PLAY HISTORY");
-        var titleRT = titleTMP.GetComponent<RectTransform>();
-        titleRT.anchorMin = new Vector2(0.5f, 0.5f); titleRT.anchorMax = new Vector2(0.5f, 0.5f);
-        titleRT.anchoredPosition = Vector2.zero; titleRT.sizeDelta = new Vector2(600, 60);
-        titleTMP.alignment = TextAlignmentOptions.Center;
+        var freeTabGO = MakeRT("FreeTab", canvasGO);
+        Anchor(freeTabGO, 0, 0.5f, 0, 0.5f, new Vector2(210, -80), new Vector2(0.5f, 0.5f));
+        freeTabGO.GetComponent<RectTransform>().sizeDelta = new Vector2(220, 60);
+        var freeImg = freeTabGO.AddComponent<Image>();
+        var freeBtn = freeTabGO.AddComponent<Button>();
+        freeBtn.targetGraphic = freeImg;
+        var freeLbl = MakeTMP("Label", freeTabGO, 22, "Free play");
+        FullStretch(freeLbl.GetComponent<RectTransform>());
+        freeLbl.alignment = TextAlignmentOptions.Center;
 
-        var totalTMP = MakeTMP("TotalPlaysText", header.gameObject, 18, "Total: 0 plays");
-        var totalRT = totalTMP.GetComponent<RectTransform>();
-        totalRT.anchorMin = new Vector2(1, 0.5f); totalRT.anchorMax = new Vector2(1, 0.5f);
-        totalRT.pivot = new Vector2(1f, 0.5f);
-        totalRT.anchoredPosition = new Vector2(-40, 0); totalRT.sizeDelta = new Vector2(300, 40);
-        totalTMP.alignment = TextAlignmentOptions.Right;
+        // Main panel (right area)
+        var panel = MakeRT("MainPanel", canvasGO);
+        var panelRT = panel.GetComponent<RectTransform>();
+        panelRT.anchorMin = new Vector2(0, 0); panelRT.anchorMax = new Vector2(1, 1);
+        panelRT.offsetMin = new Vector2(440, 40); panelRT.offsetMax = new Vector2(-40, -120);
+        panel.AddComponent<Image>().color = new Color(1, 1, 1, 0.03f);
 
-        // ── FilterBar ─────────────────────────────────────────────────────────
-        var filterBar = MakeRT("FilterBar", canvasGO);
+        // Free filter bar (top of panel): search + sort + difficulty
+        var filterBar = MakeRT("FreeFilterBar", panel);
         var filterRT = filterBar.GetComponent<RectTransform>();
         filterRT.anchorMin = new Vector2(0, 1); filterRT.anchorMax = new Vector2(1, 1);
         filterRT.pivot = new Vector2(0.5f, 1f);
-        filterRT.offsetMin = new Vector2(0, -160); filterRT.offsetMax = new Vector2(0, -80);
-        filterBar.AddComponent<Image>().color = new Color(1,1,1, 0.03f);
+        filterRT.offsetMin = new Vector2(16, -68); filterRT.offsetMax = new Vector2(-16, -8);
 
-        var filterLayout = filterBar.AddComponent<HorizontalLayoutGroup>();
-        filterLayout.spacing = 16;
-        filterLayout.padding = new RectOffset(20, 20, 8, 8);
-        filterLayout.childAlignment = TextAnchor.MiddleLeft;
-        filterLayout.childControlWidth = false;
-        filterLayout.childControlHeight = false;
+        var searchField = MakeInputField("SearchField", filterBar, 360, "search...");
+        Anchor(searchField.gameObject, 0, 0.5f, 0, 0.5f, new Vector2(190, 0), new Vector2(0.5f, 0.5f));
 
-        // Mode Toggles
-        var toggleGroup = filterBar.AddComponent<ToggleGroup>();
-        var listToggle  = MakeToggle("ListModeToggle",  filterBar.gameObject, "All Plays",       toggleGroup, true);
-        var bestToggle  = MakeToggle("BestModeToggle",  filterBar.gameObject, "Personal Bests",  toggleGroup, false);
+        var sortDD = MakeDropdown("SortDropdown", filterBar, 220);
+        Anchor(sortDD.gameObject, 0, 0.5f, 0, 0.5f, new Vector2(500, 0), new Vector2(0.5f, 0.5f));
 
-        var diffDD   = MakeDropdown("DifficultyFilter", filterBar.gameObject, 180);
-        var rankDD   = MakeDropdown("RankFilter",       filterBar.gameObject, 170);
-        var sortDD   = MakeDropdown("SortOrder",        filterBar.gameObject, 220);
+        // Difficulty buttons (right): easy / normal / hard / extra
+        string[] diffLabels = { "easy", "normal", "hard", "extra" };
+        var diffBtns = new Button[4];
+        var diffBgs  = new Image[4];
+        for (int i = 0; i < 4; i++)
+        {
+            var d = MakeRT($"Diff_{diffLabels[i]}", filterBar);
+            Anchor(d, 1, 0.5f, 1, 0.5f, new Vector2(-16 - (3 - i) * 90, 0), new Vector2(1, 0.5f));
+            d.GetComponent<RectTransform>().sizeDelta = new Vector2(86, 40);
+            var dImg = d.AddComponent<Image>();
+            dImg.color = new Color(1, 1, 1, 0f);
+            var dBtn = d.AddComponent<Button>();
+            dBtn.targetGraphic = dImg;
+            var dLbl = MakeTMP("Label", d, 18, diffLabels[i]);
+            FullStretch(dLbl.GetComponent<RectTransform>());
+            dLbl.alignment = TextAlignmentOptions.Center;
+            diffBtns[i] = dBtn;
+            diffBgs[i]  = dImg;
+        }
 
-        // ── Content Area ──────────────────────────────────────────────────────
-        var content = MakeRT("ContentArea", canvasGO);
-        var contentRT = content.GetComponent<RectTransform>();
-        contentRT.anchorMin = new Vector2(0, 0); contentRT.anchorMax = new Vector2(1, 1);
-        contentRT.offsetMin = new Vector2(40, 60); contentRT.offsetMax = new Vector2(-40, -160);
-
-        // List Panel (left ~half)
-        var listPanel = MakeRT("ListPanel", content.gameObject);
-        var listPanelRT = listPanel.GetComponent<RectTransform>();
-        listPanelRT.anchorMin = new Vector2(0, 0); listPanelRT.anchorMax = new Vector2(0.45f, 1f);
-        listPanelRT.offsetMin = Vector2.zero; listPanelRT.offsetMax = Vector2.zero;
-
-        // ScrollView
-        var svGO = new GameObject("ScrollView");
-        svGO.transform.SetParent(listPanel.gameObject.transform, false);
-        var svRT = svGO.AddComponent<RectTransform>();
-        FullStretch(svRT);
+        // ScrollView (list)
+        var svGO = MakeRT("ScrollView", panel);
+        var svRT = svGO.GetComponent<RectTransform>();
+        svRT.anchorMin = new Vector2(0, 0); svRT.anchorMax = new Vector2(1, 1);
+        svRT.offsetMin = new Vector2(16, 16); svRT.offsetMax = new Vector2(-16, -76);
 
         var viewport = MakeRT("Viewport", svGO);
         FullStretch(viewport.GetComponent<RectTransform>());
-        viewport.AddComponent<Image>().color = new Color(0,0,0,0);
-        viewport.AddComponent<Mask>().showMaskGraphic = false;
+        viewport.AddComponent<Image>().color = new Color(0, 0, 0, 0);
+        viewport.AddComponent<RectMask2D>();
 
-        var listContentGO = MakeRT("Content", viewport.gameObject);
+        var listContentGO = MakeRT("Content", viewport);
         var listContentRT = listContentGO.GetComponent<RectTransform>();
-        listContentRT.anchorMin = new Vector2(0,1); listContentRT.anchorMax = new Vector2(1,1);
+        listContentRT.anchorMin = new Vector2(0, 1); listContentRT.anchorMax = new Vector2(1, 1);
         listContentRT.pivot = new Vector2(0.5f, 1f);
         listContentRT.offsetMin = Vector2.zero; listContentRT.offsetMax = Vector2.zero;
         var vlg = listContentGO.AddComponent<VerticalLayoutGroup>();
-        vlg.spacing = 4;
-        vlg.childControlWidth  = true;
-        vlg.childControlHeight = true;
-        vlg.childForceExpandWidth  = true;
-        vlg.childForceExpandHeight = false;
+        vlg.spacing = 6;
+        vlg.childControlWidth  = true;  vlg.childForceExpandWidth  = true;
+        vlg.childControlHeight = true;  vlg.childForceExpandHeight = false;
         listContentGO.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
         var scrollRect = svGO.AddComponent<ScrollRect>();
@@ -217,218 +369,71 @@ public static class BuildHistoryScene
         scrollRect.horizontal = false;
         scrollRect.vertical   = true;
 
-        var emptyState = MakeTMP("EmptyState", listPanel.gameObject, 24, "No plays yet");
+        // Empty state
+        var emptyState = MakeTMP("EmptyState", panel, 24, "No plays yet");
         var emptyRT = emptyState.GetComponent<RectTransform>();
         emptyRT.anchorMin = new Vector2(0.5f, 0.5f); emptyRT.anchorMax = new Vector2(0.5f, 0.5f);
-        emptyRT.anchoredPosition = Vector2.zero; emptyRT.sizeDelta = new Vector2(400, 60);
+        emptyRT.anchoredPosition = Vector2.zero; emptyRT.sizeDelta = new Vector2(500, 60);
         emptyState.alignment = TextAlignmentOptions.Center;
+        emptyState.color = new Color(1, 1, 1, 0.5f);
         emptyState.gameObject.SetActive(false);
 
-        // Detail Panel (right ~half)
-        var detailPanel = MakeRT("DetailPanel", content.gameObject);
-        var detailPanelRT = detailPanel.GetComponent<RectTransform>();
-        detailPanelRT.anchorMin = new Vector2(0.47f, 0); detailPanelRT.anchorMax = new Vector2(1, 1);
-        detailPanelRT.offsetMin = Vector2.zero; detailPanelRT.offsetMax = Vector2.zero;
-        detailPanel.AddComponent<Image>().color = new Color(1,1,1, 0.02f);
-
-        var detailEmpty = MakeTMP("DetailEmptyState", detailPanel.gameObject, 22, "Select a play to see details");
-        var detailEmptyRT = detailEmpty.GetComponent<RectTransform>();
-        detailEmptyRT.anchorMin = new Vector2(0.5f, 0.5f); detailEmptyRT.anchorMax = new Vector2(0.5f, 0.5f);
-        detailEmptyRT.anchoredPosition = Vector2.zero; detailEmptyRT.sizeDelta = new Vector2(500, 60);
-        detailEmpty.alignment = TextAlignmentOptions.Center;
-        detailEmpty.color = new Color(1,1,1,0.5f);
-
-        var detailContent = MakeRT("DetailContent", detailPanel.gameObject);
-        FullStretch(detailContent.GetComponent<RectTransform>());
-        var detailContentPad = new RectOffset(20, 20, 20, 20);
-
-        // HistoryDetailView sub-elements
-        var dvGO = detailContent.gameObject;
-        var detailView = dvGO.AddComponent<HistoryDetailView>();
-
-        float y = -24;
-        void Row(string name, string val, int size = 20) {
-            var t = MakeTMP(name, dvGO, size, val);
-            var rt = t.GetComponent<RectTransform>();
-            rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1);
-            rt.pivot = new Vector2(0.5f, 1f);
-            int h = size + 6;                               // row height tracks font size (no clipping of large scores)
-            rt.offsetMin = new Vector2(20, y - h); rt.offsetMax = new Vector2(-20, y);
-            y -= h + 2;                                     // compact step so the detail fits the panel height
-        }
-
-        Row("TitleText",     "Song Title", 28);
-        Row("DifficultyText","EXTRA", 20);
-        Row("DateText",      "2026/05/09 14:32", 16);
-        y -= 6;
-        Row("EffectiveScoreText", "1,000,000", 40);
-        Row("RawScoreText",       "Raw: 1,000,000", 16);
-        Row("RankText",           "S+", 30);
-        y -= 6;
-
-        // Badges row
-        var badgesRow = MakeRT("BadgesRow", dvGO);
-        var badgesRT = badgesRow.GetComponent<RectTransform>();
-        badgesRT.anchorMin = new Vector2(0,1); badgesRT.anchorMax = new Vector2(1,1);
-        badgesRT.pivot = new Vector2(0.5f,1f);
-        badgesRT.offsetMin = new Vector2(20, y-36); badgesRT.offsetMax = new Vector2(-20, y);
-        y -= 44;
-        var fcBadge  = MakeBadge("FullComboBadge",      badgesRow.gameObject, "FC",  new Color(0.3f,0.9f,0.4f));
-        var apBadge  = MakeBadge("AllPerfectBadge",     badgesRow.gameObject, "AP",  new Color(0.3f,0.6f,1.0f));
-        var appBadge = MakeBadge("AllPerfectPlusBadge", badgesRow.gameObject, "AP+", new Color(1.0f,0.85f,0.3f));
-
-        y -= 6;
-        Row("PerfectPlusCountText", "PP: 0", 18);
-        Row("PerfectCountText",     "P: 0",  18);
-        Row("GreatCountText",       "Gr: 0", 18);
-        Row("GoodCountText",        "Gd: 0", 18);
-        Row("MissCountText",        "M: 0",  18);
-        Row("MaxComboText",         "MaxCombo: 0", 18);
-        Row("FastCountText",        "Fast: 0", 16);
-        Row("LateCountText",        "Late: 0", 16);
-        y -= 6;
-        Row("ModifiersText", "Modifiers: none", 16);
-        Row("ReplayInfoText","Replay: not saved", 14);
-
-        y -= 8;
-        // Sectors header + horizontal list (HistoryDetailView instantiates SectorScoreItem.prefab here).
-        // Horizontal keeps all 5 sectors on one compact 64px row so the detail fits the panel height.
-        Row("SectorsHeader", "SECTORS", 18);
-        var sectorListGO = MakeRT("SectorList", dvGO);
-        var sectorListRT = sectorListGO.GetComponent<RectTransform>();
-        sectorListRT.anchorMin = new Vector2(0, 1); sectorListRT.anchorMax = new Vector2(1, 1);
-        sectorListRT.pivot = new Vector2(0.5f, 1f);
-        sectorListRT.offsetMin = new Vector2(20, y - 64); sectorListRT.offsetMax = new Vector2(-20, y);
-        var sectorHlg = sectorListGO.AddComponent<HorizontalLayoutGroup>();
-        sectorHlg.spacing = 6;
-        sectorHlg.childControlWidth  = true;  sectorHlg.childForceExpandWidth  = true;
-        sectorHlg.childControlHeight = true;  sectorHlg.childForceExpandHeight = true;
-
-        // Bottom action buttons (anchored to the detail panel bottom, independent of the row cursor)
-        var replayBtnGO = MakeRT("ReplayButton", dvGO);
-        var replayBtnRT = replayBtnGO.GetComponent<RectTransform>();
-        replayBtnRT.anchorMin = new Vector2(0, 0); replayBtnRT.anchorMax = new Vector2(0, 0);
-        replayBtnRT.pivot = new Vector2(0, 0);
-        replayBtnRT.anchoredPosition = new Vector2(20, 20); replayBtnRT.sizeDelta = new Vector2(220, 52);
-        replayBtnGO.AddComponent<Image>().color = new Color(0.3f, 0.55f, 0.9f, 0.55f);
-        var replayBtn = replayBtnGO.AddComponent<Button>();
-        var replayLbl = MakeTMP("Label", replayBtnGO.gameObject, 20, "> REPLAY");
-        replayLbl.alignment = TextAlignmentOptions.Center;
-        FullStretch(replayLbl.GetComponent<RectTransform>());
-
-        var validateBtnGO = MakeRT("ValidateButton", dvGO);
-        var validateBtnRT = validateBtnGO.GetComponent<RectTransform>();
-        validateBtnRT.anchorMin = new Vector2(0, 0); validateBtnRT.anchorMax = new Vector2(0, 0);
-        validateBtnRT.pivot = new Vector2(0, 0);
-        validateBtnRT.anchoredPosition = new Vector2(260, 20); validateBtnRT.sizeDelta = new Vector2(240, 52);
-        validateBtnGO.AddComponent<Image>().color = new Color(1f, 1f, 1f, 0.12f);
-        var validateBtn = validateBtnGO.AddComponent<Button>();
-        var validateLbl = MakeTMP("Label", validateBtnGO.gameObject, 18, "VALIDATE ON SERVER");
-        validateLbl.alignment = TextAlignmentOptions.Center;
-        FullStretch(validateLbl.GetComponent<RectTransform>());
-
-        var validateResult = MakeTMP("ValidateResultText", dvGO, 14, "");
-        var validateResultRT = validateResult.GetComponent<RectTransform>();
-        validateResultRT.anchorMin = new Vector2(0, 0); validateResultRT.anchorMax = new Vector2(1, 0);
-        validateResultRT.pivot = new Vector2(0.5f, 0f);
-        validateResultRT.offsetMin = new Vector2(20, 80); validateResultRT.offsetMax = new Vector2(-20, 110);
-        validateResult.color = new Color(1f, 1f, 1f, 0.7f);
-
-        // HistoryDetailView field binding via SerializedObject
-        var so = new SerializedObject(detailView);
-        so.FindProperty("_titleText")          .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "TitleText");
-        so.FindProperty("_difficultyText")     .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "DifficultyText");
-        so.FindProperty("_dateText")           .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "DateText");
-        so.FindProperty("_effectiveScoreText") .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "EffectiveScoreText");
-        so.FindProperty("_rawScoreText")       .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "RawScoreText");
-        so.FindProperty("_rankText")           .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "RankText");
-        so.FindProperty("_fullComboBadge")     .objectReferenceValue = fcBadge.gameObject;
-        so.FindProperty("_allPerfectBadge")    .objectReferenceValue = apBadge.gameObject;
-        so.FindProperty("_allPerfectPlusBadge").objectReferenceValue = appBadge.gameObject;
-        so.FindProperty("_ppCountText")        .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "PerfectPlusCountText");
-        so.FindProperty("_pCountText")         .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "PerfectCountText");
-        so.FindProperty("_grCountText")        .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "GreatCountText");
-        so.FindProperty("_gdCountText")        .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "GoodCountText");
-        so.FindProperty("_mCountText")         .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "MissCountText");
-        so.FindProperty("_maxComboText")       .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "MaxComboText");
-        so.FindProperty("_fastCountText")      .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "FastCountText");
-        so.FindProperty("_lateCountText")      .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "LateCountText");
-        so.FindProperty("_modifiersText")      .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "ModifiersText");
-        so.FindProperty("_replayInfoText")     .objectReferenceValue = Find<TextMeshProUGUI>(dvGO, "ReplayInfoText");
-        so.FindProperty("_sectorListContent")  .objectReferenceValue = sectorListRT;
-        so.FindProperty("_sectorItemPrefab")   .objectReferenceValue =
-            AssetDatabase.LoadAssetAtPath<GameObject>("Assets/_Project/Prefabs/UI/Result/SectorScoreItem.prefab");
-        so.FindProperty("_replayButton")       .objectReferenceValue = replayBtn;
-        so.FindProperty("_validateButton")     .objectReferenceValue = validateBtn;
-        so.FindProperty("_validateResultText") .objectReferenceValue = validateResult;
-        so.ApplyModifiedPropertiesWithoutUndo();
-
-        detailContent.gameObject.SetActive(false);  // start hidden
-
-        // ── Footer ────────────────────────────────────────────────────────────
-        var footer = MakeRT("Footer", canvasGO);
-        var footerRT = footer.GetComponent<RectTransform>();
-        footerRT.anchorMin = new Vector2(0, 0); footerRT.anchorMax = new Vector2(1, 0);
-        footerRT.pivot = new Vector2(0.5f, 0f);
-        footerRT.offsetMin = Vector2.zero; footerRT.offsetMax = new Vector2(0, 50);
-        footer.AddComponent<Image>().color = new Color(1,1,1, 0.04f);
-        var hintTMP = MakeTMP("KeyHint", footer.gameObject, 16, "↑↓: Select   Esc: Back");
-        FullStretch(hintTMP.GetComponent<RectTransform>());
-        hintTMP.alignment = TextAlignmentOptions.Center;
-        hintTMP.color = new Color(1,1,1,0.4f);
-
-        // ── HistoryController GO ──────────────────────────────────────────────
+        // Controller
         var ctrlGO = new GameObject("HistoryController");
         var ctrl = ctrlGO.AddComponent<HistoryController>();
-        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(
-            "Assets/_Project/Prefabs/UI/History/HistoryItem.prefab");
+        if (soloPrefab == null) soloPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(SoloPrefabPath);
+        if (pvpPrefab  == null) pvpPrefab  = AssetDatabase.LoadAssetAtPath<GameObject>(PvpPrefabPath);
+        if (soloPrefab == null || pvpPrefab == null)
+            Debug.LogError("[BuildHistoryScene] Prefab asset missing — solo=" + (soloPrefab != null) + " pvp=" + (pvpPrefab != null));
 
-        var soCtrl = new SerializedObject(ctrl);
-        soCtrl.FindProperty("_backButton")          .objectReferenceValue = backBtnComp;
-        soCtrl.FindProperty("_totalPlaysText")      .objectReferenceValue = totalTMP;
-        soCtrl.FindProperty("_listModeToggle")      .objectReferenceValue = listToggle;
-        soCtrl.FindProperty("_bestModeToggle")      .objectReferenceValue = bestToggle;
-        soCtrl.FindProperty("_difficultyDropdown")  .objectReferenceValue = diffDD;
-        soCtrl.FindProperty("_rankDropdown")        .objectReferenceValue = rankDD;
-        soCtrl.FindProperty("_sortDropdown")        .objectReferenceValue = sortDD;
-        soCtrl.FindProperty("_listContent")         .objectReferenceValue = listContentRT;
-        soCtrl.FindProperty("_scrollRect")          .objectReferenceValue = scrollRect;
-        soCtrl.FindProperty("_historyItemPrefab")   .objectReferenceValue = prefab;
-        soCtrl.FindProperty("_emptyState")          .objectReferenceValue = emptyState.gameObject;
-        soCtrl.FindProperty("_detailEmptyState")    .objectReferenceValue = detailEmpty.gameObject;
-        soCtrl.FindProperty("_detailContent")       .objectReferenceValue = detailContent.gameObject;
-        soCtrl.FindProperty("_detailView")          .objectReferenceValue = detailView;
-        // _inputAsset: auto-wire the project's InputActionAsset (HistoryController.Awake NREs if null).
+        var so = new SerializedObject(ctrl);
+        so.FindProperty("_backButton").objectReferenceValue   = backBtn;
+        so.FindProperty("_ladderTab").objectReferenceValue    = ladderBtn;
+        so.FindProperty("_ladderTabBg").objectReferenceValue  = ladderImg;
+        so.FindProperty("_freeTab").objectReferenceValue      = freeBtn;
+        so.FindProperty("_freeTabBg").objectReferenceValue    = freeImg;
+        so.FindProperty("_freeFilterBar").objectReferenceValue = filterBar;
+        so.FindProperty("_searchField").objectReferenceValue  = searchField;
+        so.FindProperty("_sortDropdown").objectReferenceValue = sortDD;
+        SetArray(so, "_diffButtons",   diffBtns);
+        SetArray(so, "_diffButtonBgs", diffBgs);
+        so.FindProperty("_listContent").objectReferenceValue   = listContentRT;
+        so.FindProperty("_scrollRect").objectReferenceValue    = scrollRect;
+        so.FindProperty("_soloItemPrefab").objectReferenceValue = soloPrefab;
+        so.FindProperty("_pvpItemPrefab").objectReferenceValue  = pvpPrefab;
+        so.FindProperty("_emptyState").objectReferenceValue     = emptyState.gameObject;
+        so.FindProperty("_emptyStateText").objectReferenceValue = emptyState;
         foreach (var guid in AssetDatabase.FindAssets("InputActions t:InputActionAsset"))
         {
             var iaPath = AssetDatabase.GUIDToAssetPath(guid);
             if (iaPath.Contains("_Project"))
             {
-                soCtrl.FindProperty("_inputAsset").objectReferenceValue =
+                so.FindProperty("_inputAsset").objectReferenceValue =
                     AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>(iaPath);
                 break;
             }
         }
-        soCtrl.ApplyModifiedPropertiesWithoutUndo();
+        so.ApplyModifiedPropertiesWithoutUndo();
 
-        // ── Save scene ────────────────────────────────────────────────────────
         string scenePath = "Assets/_Project/Scenes/History.unity";
         EditorSceneManager.SaveScene(scene, scenePath);
         Debug.Log("[BuildHistoryScene] Scene saved: " + scenePath);
 
-        // ── Build Settings ────────────────────────────────────────────────────
-        var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(
-            EditorBuildSettings.scenes);
-        bool exists = scenes.Exists(s => s.path == scenePath);
-        if (!exists)
+        var scenes = new System.Collections.Generic.List<EditorBuildSettingsScene>(EditorBuildSettings.scenes);
+        if (!scenes.Exists(s => s.path == scenePath))
         {
             scenes.Add(new EditorBuildSettingsScene(scenePath, true));
             EditorBuildSettings.scenes = scenes.ToArray();
             Debug.Log("[BuildHistoryScene] Added to Build Settings");
         }
+    }
 
-        AssetDatabase.SaveAssets();
-        AssetDatabase.Refresh();
+    static void SetArray(SerializedObject so, string prop, Object[] values)
+    {
+        var p = so.FindProperty(prop);
+        p.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            p.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -440,6 +445,7 @@ public static class BuildHistoryScene
         go.AddComponent<RectTransform>();
         return go;
     }
+    static GameObject MakeRT(string name, RectTransform parent) => MakeRT(name, parent.gameObject);
 
     static void FullStretch(RectTransform rt)
     {
@@ -447,81 +453,99 @@ public static class BuildHistoryScene
         rt.offsetMin = Vector2.zero; rt.offsetMax = Vector2.zero;
     }
 
-    static TextMeshProUGUI MakeTMP(string name, GameObject parent, int size, string text,
-                                    Color? color = null)
+    static void Anchor(GameObject go, float aMinX, float aMinY, float aMaxX, float aMaxY,
+                       Vector2 pos, Vector2 pivot)
+    {
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(aMinX, aMinY);
+        rt.anchorMax = new Vector2(aMaxX, aMaxY);
+        rt.pivot = pivot;
+        rt.anchoredPosition = pos;
+    }
+
+    static void Anchor(Component c, float aMinX, float aMinY, float aMaxX, float aMaxY,
+                       Vector2 pos, Vector2 pivot)
+        => Anchor(c.gameObject, aMinX, aMinY, aMaxX, aMaxY, pos, pivot);
+
+    static void AnchorBox(Component c, float aMinX, float aMinY, float aMaxX, float aMaxY,
+                          Vector2 pos, Vector2 pivot, Vector2 size)
+        => AnchorBox(c.gameObject, aMinX, aMinY, aMaxX, aMaxY, pos, pivot, size);
+
+    static void AnchorBox(GameObject go, float aMinX, float aMinY, float aMaxX, float aMaxY,
+                          Vector2 pos, Vector2 pivot, Vector2 size)
+    {
+        Anchor(go, aMinX, aMinY, aMaxX, aMaxY, pos, pivot);
+        go.GetComponent<RectTransform>().sizeDelta = size;
+    }
+
+    static void AnchorStretchTop(GameObject go, Vector2 offMin, Vector2 offMax)
+    {
+        var rt = go.GetComponent<RectTransform>();
+        rt.anchorMin = new Vector2(0, 1); rt.anchorMax = new Vector2(1, 1);
+        rt.pivot = new Vector2(0.5f, 1f);
+        rt.offsetMin = offMin; rt.offsetMax = offMax;
+    }
+
+    static void LE(GameObject go, float preferredHeight)
+    {
+        var le = go.AddComponent<LayoutElement>();
+        le.preferredHeight = preferredHeight;
+        le.minHeight = preferredHeight;
+    }
+
+    static void Ignore(GameObject go) => go.AddComponent<LayoutElement>().ignoreLayout = true;
+
+    static TextMeshProUGUI MakeTMP(string name, GameObject parent, int size, string text, Color? color = null)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent.transform, false);
         var rt = go.AddComponent<RectTransform>();
         var tmp = go.AddComponent<TextMeshProUGUI>();
-        tmp.text     = text;
-        tmp.fontSize = size;
-        tmp.color    = color ?? Color.white;
+        tmp.text = text; tmp.fontSize = size; tmp.color = color ?? Color.white;
         rt.sizeDelta = new Vector2(300, size + 10);
         return tmp;
     }
+    static TextMeshProUGUI MakeTMP(string name, RectTransform parent, int size, string text) =>
+        MakeTMP(name, parent.gameObject, size, text);
 
-    static TextMeshProUGUI MakeBadge(string name, GameObject parent, string text, Color color)
-    {
-        var go = new GameObject(name);
-        go.transform.SetParent(parent.transform, false);
-        go.AddComponent<RectTransform>().sizeDelta = new Vector2(50, 30);
-        var bg = go.AddComponent<Image>();
-        bg.color = new Color(color.r, color.g, color.b, 0.3f);
-        var tmp = new GameObject("Label");
-        tmp.transform.SetParent(go.transform, false);
-        var tmpRT = tmp.AddComponent<RectTransform>();
-        FullStretch(tmpRT);
-        var t = tmp.AddComponent<TextMeshProUGUI>();
-        t.text = text; t.fontSize = 14; t.color = color;
-        t.alignment = TextAlignmentOptions.Center;
-        return t;
-    }
-
-    static GameObject MakeVLayout(string name, GameObject parent, float width)
+    static RawImage MakeRawImage(string name, GameObject parent, float w, float h)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent.transform, false);
         var rt = go.AddComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(width, 70);
-        var vl = go.AddComponent<VerticalLayoutGroup>();
-        vl.childAlignment = TextAnchor.MiddleLeft;
-        vl.childControlWidth = false;
-        vl.childControlHeight = false;
-        return go;
+        rt.sizeDelta = new Vector2(w, h);
+        var ri = go.AddComponent<RawImage>();
+        ri.color = new Color(1, 1, 1, 1);
+        return ri;
     }
 
-    static GameObject MakeHLayout(string name, GameObject parent, float width)
+    static Image MakeDiamond(string name, GameObject parent, float size)
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent.transform, false);
         var rt = go.AddComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(width, 30);
-        var hl = go.AddComponent<HorizontalLayoutGroup>();
-        hl.spacing = 4;
-        hl.childAlignment = TextAnchor.MiddleLeft;
-        hl.childControlWidth = false;
-        hl.childControlHeight = false;
-        return go;
-    }
-
-    static Toggle MakeToggle(string name, GameObject parent, string label,
-                              ToggleGroup group, bool isOn)
-    {
-        var go = new GameObject(name);
-        go.transform.SetParent(parent.transform, false);
-        var rt = go.AddComponent<RectTransform>();
-        rt.sizeDelta = new Vector2(160, 40);
+        rt.sizeDelta = new Vector2(size, size);
+        rt.localEulerAngles = new Vector3(0, 0, 45);   // square → diamond
         var img = go.AddComponent<Image>();
-        img.color = new Color(1,1,1, isOn ? 0.2f : 0.08f);
-        var toggle = go.AddComponent<Toggle>();
-        toggle.group = group;
-        toggle.isOn  = isOn;
-        toggle.targetGraphic = img;
-        var lbl = MakeTMP("Label", go, 16, label);
-        lbl.alignment = TextAlignmentOptions.Center;
-        FullStretch(lbl.GetComponent<RectTransform>());
-        return toggle;
+        img.color = Color.white;
+        return img;
+    }
+
+    static GameObject MakeBadge(string name, GameObject parent, string text, Color color)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent.transform, false);
+        go.AddComponent<RectTransform>().sizeDelta = new Vector2(54, 32);
+        var bg = go.AddComponent<Image>();
+        bg.color = new Color(color.r, color.g, color.b, 0.25f);
+        var lbl = new GameObject("Label");
+        lbl.transform.SetParent(go.transform, false);
+        var lrt = lbl.AddComponent<RectTransform>();
+        FullStretch(lrt);
+        var t = lbl.AddComponent<TextMeshProUGUI>();
+        t.text = text; t.fontSize = 16; t.color = color;
+        t.alignment = TextAlignmentOptions.Center;
+        return go;
     }
 
     static TMP_Dropdown MakeDropdown(string name, GameObject parent, float width)
@@ -530,14 +554,87 @@ public static class BuildHistoryScene
         go.transform.SetParent(parent.transform, false);
         var rt = go.AddComponent<RectTransform>();
         rt.sizeDelta = new Vector2(width, 40);
-        go.AddComponent<Image>().color = new Color(1,1,1,0.1f);
+        go.AddComponent<Image>().color = new Color(1, 1, 1, 0.1f);
         var dd = go.AddComponent<TMP_Dropdown>();
+
+        // Caption label
+        var caption = MakeTMP("Label", go, 18, "ソート：曲名");
+        var capRT = caption.GetComponent<RectTransform>();
+        capRT.anchorMin = new Vector2(0, 0); capRT.anchorMax = new Vector2(1, 1);
+        capRT.offsetMin = new Vector2(10, 2); capRT.offsetMax = new Vector2(-25, -2);
+        caption.alignment = TextAlignmentOptions.Left;
+        dd.captionText = caption;
+
+        // Template (collapsed dropdown list)
+        var template = MakeRT("Template", go);
+        var tRT = template.GetComponent<RectTransform>();
+        tRT.anchorMin = new Vector2(0, 0); tRT.anchorMax = new Vector2(1, 0);
+        tRT.pivot = new Vector2(0.5f, 1f);
+        tRT.anchoredPosition = new Vector2(0, 2); tRT.sizeDelta = new Vector2(0, 150);
+        template.AddComponent<Image>().color = new Color(0.1f, 0.1f, 0.14f, 1f);
+        var tScroll = template.AddComponent<ScrollRect>();
+
+        var tViewport = MakeRT("Viewport", template);
+        FullStretch(tViewport.GetComponent<RectTransform>());
+        tViewport.AddComponent<Image>().color = new Color(0, 0, 0, 0);
+        tViewport.AddComponent<Mask>().showMaskGraphic = false;
+
+        var tContent = MakeRT("Content", tViewport);
+        var tcRT = tContent.GetComponent<RectTransform>();
+        tcRT.anchorMin = new Vector2(0, 1); tcRT.anchorMax = new Vector2(1, 1);
+        tcRT.pivot = new Vector2(0.5f, 1f); tcRT.sizeDelta = new Vector2(0, 32);
+
+        var tItem = MakeRT("Item", tContent);
+        var tiRT = tItem.GetComponent<RectTransform>();
+        tiRT.anchorMin = new Vector2(0, 0.5f); tiRT.anchorMax = new Vector2(1, 0.5f);
+        tiRT.sizeDelta = new Vector2(0, 30);
+        var tItemToggle = tItem.AddComponent<Toggle>();
+
+        var tItemBg = MakeRT("Item Background", tItem);
+        FullStretch(tItemBg.GetComponent<RectTransform>());
+        tItemBg.AddComponent<Image>().color = new Color(1, 1, 1, 0.05f);
+
+        var tItemLabel = MakeTMP("Item Label", tItem, 18, "Option");
+        var tilRT = tItemLabel.GetComponent<RectTransform>();
+        tilRT.anchorMin = new Vector2(0, 0); tilRT.anchorMax = new Vector2(1, 1);
+        tilRT.offsetMin = new Vector2(10, 1); tilRT.offsetMax = new Vector2(-10, -1);
+        tItemLabel.alignment = TextAlignmentOptions.Left;
+
+        tScroll.content  = tcRT;
+        tScroll.viewport = tViewport.GetComponent<RectTransform>();
+        tItemToggle.targetGraphic = tItemBg.GetComponent<Image>();
+
+        dd.template      = tRT;
+        dd.itemText      = tItemLabel;
+        template.SetActive(false);
+
         return dd;
     }
 
-    static T Find<T>(GameObject root, string name) where T : Component
+    static TMP_InputField MakeInputField(string name, GameObject parent, float width, string placeholder)
     {
-        var t = root.transform.Find(name);
-        return t != null ? t.GetComponent<T>() : null;
+        var go = new GameObject(name);
+        go.transform.SetParent(parent.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.sizeDelta = new Vector2(width, 44);
+        go.AddComponent<Image>().color = new Color(1, 1, 1, 0.1f);
+        var field = go.AddComponent<TMP_InputField>();
+
+        var textArea = MakeRT("Text Area", go);
+        var taRT = textArea.GetComponent<RectTransform>();
+        taRT.anchorMin = new Vector2(0, 0); taRT.anchorMax = new Vector2(1, 1);
+        taRT.offsetMin = new Vector2(12, 4); taRT.offsetMax = new Vector2(-12, -4);
+        textArea.AddComponent<RectMask2D>();
+
+        var ph = MakeTMP("Placeholder", textArea, 18, placeholder, new Color(1, 1, 1, 0.4f));
+        FullStretch(ph.GetComponent<RectTransform>());
+        var txt = MakeTMP("Text", textArea, 18, "");
+        FullStretch(txt.GetComponent<RectTransform>());
+
+        field.textViewport  = taRT;
+        field.textComponent = txt;
+        field.placeholder   = ph;
+        field.text          = "";
+        return field;
     }
 }

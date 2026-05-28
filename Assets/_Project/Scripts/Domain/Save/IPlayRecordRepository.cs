@@ -27,6 +27,20 @@ public interface IPlayRecordRepository
     /// <summary>総プレイ回数を取得する。</summary>
     Task<int>              GetTotalPlaysAsync();
 
+    /// <summary>指定プレイの ReplayPath を null に更新する(ソロのベスト以外を刈った後に呼ぶ)。</summary>
+    Task ClearReplayPathAsync(string playId);
+
+    // ── PVP ローカル履歴 (直近 N 戦) ─────────────────────────────────────────
+
+    /// <summary>PVP マッチ記録を保存する(同一 MatchId は上書き)。</summary>
+    Task                       SavePvpMatchAsync(PvpMatchRecord match);
+    /// <summary>直近の PVP マッチ記録を新しい順に取得する。</summary>
+    Task<List<PvpMatchRecord>> GetRecentPvpMatchesAsync(int limit = 10);
+    /// <summary>新しい順で keep 件を超える(=保持対象外の)古い PVP マッチ記録を取得する。</summary>
+    Task<List<PvpMatchRecord>> GetStalePvpMatchesAsync(int keep);
+    /// <summary>指定 PVP マッチ記録を削除する。</summary>
+    Task                       DeletePvpMatchAsync(string matchId);
+
     /// <summary>全プレイ記録を削除する。</summary>
     Task<bool> DeleteAllAsync();
 }

@@ -18,11 +18,17 @@ public class NoteScroller : MonoBehaviour
 {
     [SerializeField] AudioConductor _conductor;
     [SerializeField] NotePool       _pool;
-    [SerializeField] float          _scrollSpeed = 10f;
+    [SerializeField] float          _scrollSpeed = 4.5f;
 
-    // At scrollSpeed=10, SPAWN_LOOKAHEAD_MS=2200 → notes appear at Z≈22 (NoteSpawnZ).
-    private const double SPAWN_LOOKAHEAD_MS = 2200.0;
-    private const double DESPAWN_AFTER_MS   =  500.0;
+    // note Z = JudgmentLineZ + dt/1000 * scrollSpeed.
+    // Spawn/despawn windows are derived from _scrollSpeed so notes always appear at
+    // NoteSpawnZ and disappear at NoteDespawnZ for any HiSpeed (no pop-in at low speed).
+
+    /// <summary>現在のスクロール速度(World Z units / 秒)。</summary>
+    public float ScrollSpeed => _scrollSpeed;
+
+    /// <summary>スクロール速度(HiSpeed)を設定する。プレイ開始前に呼ぶ。</summary>
+    public void SetScrollSpeed(float speed) => _scrollSpeed = Mathf.Clamp(speed, 0.5f, 20f);
 
     private List<NoteData>                  _allNotes;
     private int                             _nextSpawnIdx;
@@ -116,15 +122,20 @@ public class NoteScroller : MonoBehaviour
 
         double visualMs = _conductor.VisualTimeMs;
 
+        // Speed-relative windows: spawn exactly at NoteSpawnZ, despawn at NoteDespawnZ.
+        float  speed            = Mathf.Max(0.1f, _scrollSpeed);
+        double spawnLookaheadMs = (LaneLayout.NoteSpawnZ   - LaneLayout.JudgmentLineZ) / speed * 1000.0;
+        double despawnAfterMs   = (LaneLayout.JudgmentLineZ - LaneLayout.NoteDespawnZ) / speed * 1000.0;
+
         // Spawn notes entering the lookahead window.
         while (_nextSpawnIdx < _allNotes.Count)
         {
             var noteData = _allNotes[_nextSpawnIdx];
             double dt    = noteData.TimeMs - visualMs;
 
-            if (dt > SPAWN_LOOKAHEAD_MS) break;
+            if (dt > spawnLookaheadMs) break;
 
-            if (dt < -DESPAWN_AFTER_MS) { _nextSpawnIdx++; continue; }
+            if (dt < -despawnAfterMs) { _nextSpawnIdx++; continue; }
 
             var ctrl = _pool.Acquire(noteData.Type);
             ctrl.Initialize(noteData);
@@ -150,7 +161,7 @@ public class NoteScroller : MonoBehaviour
             double endMs = isHold ? note.Data.TimeMs + note.Data.DurationMs : note.Data.TimeMs;
             double dtEnd = endMs - visualMs;
 
-            if (dtEnd < -DESPAWN_AFTER_MS)
+            if (dtEnd < -despawnAfterMs)
             {
                 _noteById.Remove(note.Data.Id);
                 _pool.Release(note);

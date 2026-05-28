@@ -6,11 +6,24 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
-/// <summary>Editor-only helper that builds the SongSelect scene from scratch.</summary>
+/// <summary>
+/// Editor-only helper that builds the SongSelect scene (DJMAX-style:
+/// 詳細ペイン=左 / 楽曲リスト=右 / プロフィールカード=右上).
+/// </summary>
 public static class SongSelectSceneBuilder
 {
     const string ScenePath  = "Assets/_Project/Scenes/SongSelect.unity";
     const string PrefabPath = "Assets/_Project/Prefabs/UI/SongListItem.prefab";
+
+    // Layout constants
+    const float TopBarH   = 90f;
+    const float DetailW   = 560f;
+    const float Pad       = 30f;
+
+    static readonly Color Accent  = new Color(0.31f, 0.62f, 0.97f);   // blue
+    static readonly Color Cyan    = new Color(0.31f, 0.76f, 0.97f);
+    static readonly Color Dim     = new Color(.7f, .7f, .7f);
+    static readonly Color Faint   = new Color(1f, 1f, 1f, .12f);
 
     /// <summary>SongSelect シーンをスクラッチから構築する。</summary>
     [MenuItem("Tools/Build SongSelect Scene")]
@@ -40,50 +53,371 @@ public static class SongSelectSceneBuilder
         var canvas   = canvasGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.ScreenSpaceOverlay;
         var scaler = canvasGO.AddComponent<CanvasScaler>();
-        scaler.uiScaleMode        = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        scaler.uiScaleMode         = CanvasScaler.ScaleMode.ScaleWithScreenSize;
         scaler.referenceResolution = new Vector2(1920, 1080);
-        scaler.screenMatchMode    = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
+        scaler.screenMatchMode     = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        scaler.matchWidthOrHeight  = 0.5f;
         canvasGO.AddComponent<GraphicRaycaster>();
 
         var ct = canvasGO.transform;
 
-        // Background (full screen)
+        // Background
         var bgGO = Child("Background", ct);
         SR(bgGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
         bgGO.AddComponent<Image>().color = Hex("050810");
 
-        // ── Header ────────────────────────────────────────────────────────────
-        var headerGO = Child("Header", ct);
-        SR(headerGO, V(0,1), V(1,1), V(.5f,1), V(0,0), V(0,80));
+        // ════════════════════════════════════════════════════════════════════
+        // TOP BAR
+        // ════════════════════════════════════════════════════════════════════
+        var topGO = Child("TopBar", ct);
+        SR(topGO, V(0,1), V(1,1), V(.5f,1), V(0,0), V(0,TopBarH));
 
-        var backBtnGO  = Child("BackButton", headerGO.transform);
-        SR(backBtnGO, V(0,0), V(0,1), V(0,.5f), V(20,0), V(120,-16));
-        var backBtnImg = backBtnGO.AddComponent<Image>(); backBtnImg.color = new Color(1,1,1,.1f);
+        // Mode logo (left)
+        var logoGO = Child("ModeLogo", topGO.transform);
+        SR(logoGO, V(0,0), V(0,1), V(0,.5f), V(Pad,0), V(360,0));
+        T(logoGO, "△▽✕  FREE PLAY", 30, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        // Back button (left, under-ish — small)
+        var backBtnGO  = Child("BackButton", topGO.transform);
+        SR(backBtnGO, V(0,0), V(0,1), V(0,.5f), V(Pad+360,0), V(110,-30));
+        var backBtnImg = backBtnGO.AddComponent<Image>(); backBtnImg.color = Faint;
         var backBtn    = backBtnGO.AddComponent<Button>(); backBtn.targetGraphic = backBtnImg;
         var backLbl    = Child("Label", backBtnGO.transform);
         SR(backLbl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        T(backLbl, "< BACK", 18, Color.white, TextAlignmentOptions.Center);
+        T(backLbl, "< BACK", 16, Color.white, TextAlignmentOptions.Center);
 
-        var hTitleGO = Child("Title", headerGO.transform);
-        SR(hTitleGO, V(.5f,0), V(.5f,1), V(.5f,.5f), V(0,0), V(500,0));
-        T(hTitleGO, "SONG SELECT", 28, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+        // Profile card (right)
+        var (profName, profSub) = BuildProfileCard(topGO.transform);
 
-        // ── MainArea (inset header 80 + footer 30) ────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // MAIN AREA
+        // ════════════════════════════════════════════════════════════════════
         var mainGO = Child("MainArea", ct);
-        SR(mainGO, V(0,0), V(1,1), V(.5f,.5f), V(0,-25), V(0,-110));
+        SR(mainGO, V(0,0), V(1,1), V(.5f,.5f), V(0,-(TopBarH+10)/2f), V(0,-(TopBarH+10)-20));
 
-        // ── LeftPane ──────────────────────────────────────────────────────────
-        var leftGO = Child("LeftPane", mainGO.transform);
-        SR(leftGO, V(0,0), V(0,1), V(0,.5f), V(20,0), V(600,0));
+        // ─────────────────────────────────────────────────────────────────────
+        // DETAIL PANE (left)
+        // ─────────────────────────────────────────────────────────────────────
+        var detailGO = Child("DetailPane", mainGO.transform);
+        SR(detailGO, V(0,0), V(0,1), V(0,.5f), V(Pad,0), V(DetailW,0));
+        detailGO.AddComponent<Image>().color = new Color(0,0,0,.25f);
+        var dt = detailGO.transform;
 
-        var svGO = Child("ScrollView", leftGO.transform);
-        SR(svGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(-14,0));
+        float W = DetailW;       // local content width reference
+        float y = -14f;          // running top offset inside detail pane
+
+        // Category tag
+        var catGO = Child("CategoryTag", dt);
+        SR(catGO, V(0,1), V(0,1), V(0,1), V(14, y), V(220,26));
+        catGO.AddComponent<Image>().color = Accent;
+        var catLbl = Child("Label", catGO.transform);
+        SR(catLbl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        T(catLbl, "FREE PLAY", 14, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+        y -= 34;
+
+        // Jacket
+        var jaGO = Child("JacketArea", dt);
+        SR(jaGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 300));
+        var jiGO = Child("JacketImage", jaGO.transform);
+        SR(jiGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var jacketRaw = jiGO.AddComponent<RawImage>(); jacketRaw.color = new Color(.25f,.25f,.25f);
+        var jfGO = Child("JacketFrame", jaGO.transform);
+        SR(jfGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var jfImg = jfGO.AddComponent<Image>(); jfImg.color = new Color(.6f,.6f,.6f,.25f); jfImg.raycastTarget = false;
+        y -= 308;
+
+        // Title
+        var stGO  = Child("TitleText", dt);
+        SR(stGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 40));
+        var stTMP = T(stGO, "---", 32, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        stTMP.overflowMode = TextOverflowModes.Ellipsis; Indent(stGO, 14);
+        y -= 42;
+
+        // Artist
+        var artGO  = Child("ArtistText", dt);
+        SR(artGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 24));
+        var artTMP = T(artGO, "---", 18, Dim, TextAlignmentOptions.MidlineLeft);
+        artTMP.overflowMode = TextOverflowModes.Ellipsis; Indent(artGO, 14);
+        y -= 26;
+
+        // BPM / Length
+        var bpmGO  = Child("BpmDurationText", dt);
+        SR(bpmGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 22));
+        var bpmTMP = T(bpmGO, "BPM ---   Length 0:00", 15, new Color(.6f,.6f,.6f), TextAlignmentOptions.MidlineLeft);
+        Indent(bpmGO, 14);
+        y -= 30;
+
+        // Difficulty buttons
+        var (diffBtns, diffLvlTexts) = BuildDifficultyRow(dt, ref y, W);
+
+        // Stats — one row (SCORE / RATE / COMBO) + rank
+        var (statsTMP, rankTMP) = BuildStatsRow(dt, ref y, W);
+
+        // Sector diamonds
+        var sectorIcons = BuildSectorRow(dt, ref y, W);
+
+        // Settings
+        var (hiSpdSldr, hiSpdVal, offSldr, offVal, saveBtn, saveLbl, modDD) =
+            BuildSettings(dt, ref y, W);
+
+        // Key hint (Enter plays / Esc back) — replaces the PLAY button
+        var hintGO = Child("KeyHint", dt);
+        SR(hintGO, V(0,0), V(1,0), V(.5f,0), V(0,16), V(-28, 30));
+        T(hintGO, "ENTER ▷ PLAY     ESC ◁ BACK", 16, new Color(.75f,.75f,.75f),
+          TextAlignmentOptions.Center, FontStyles.Bold);
+
+        // ─────────────────────────────────────────────────────────────────────
+        // LIST PANE (right)
+        // ─────────────────────────────────────────────────────────────────────
+        var listGO = Child("ListPane", mainGO.transform);
+        SR(listGO, V(0,0), V(1,1), V(.5f,.5f), V((Pad+DetailW+20)/2f, 0), V(-(Pad+DetailW+20)-Pad, 0));
+        var lt = listGO.transform;
+
+        // Sort header (clickable → cycles sort)
+        var sortGO  = Child("SortHeader", lt);
+        SR(sortGO, V(0,1), V(1,1), V(.5f,1), V(0,0), V(0,52));
+        var sortImg = sortGO.AddComponent<Image>(); sortImg.color = new Color(1,1,1,.06f);
+        var sortBtn = sortGO.AddComponent<Button>(); sortBtn.targetGraphic = sortImg;
+
+        var burgGO = Child("Burger", sortGO.transform);
+        SR(burgGO, V(0,.5f), V(0,.5f), V(0,.5f), V(18,0), V(22,16));
+        T(burgGO, "≡", 26, Color.white, TextAlignmentOptions.Center);
+
+        var sortByGO = Child("SortByLabel", sortGO.transform);
+        SR(sortByGO, V(0,0), V(0,1), V(0,.5f), V(52,0), V(110,0));
+        T(sortByGO, "SORT BY", 18, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var sortValGO = Child("SortLabel", sortGO.transform);
+        SR(sortValGO, V(0,0), V(0,1), V(0,.5f), V(168,0), V(360,0));
+        var sortLabelTMP = T(sortValGO, "TITLE (A to Z)", 18, Hex("FFD23C"), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var f4GO = Child("F4Hint", sortGO.transform);
+        SR(f4GO, V(1,.5f), V(1,.5f), V(1,.5f), V(-18,0), V(44,26));
+        f4GO.AddComponent<Image>().color = Faint;
+        var f4Lbl = Child("Label", f4GO.transform);
+        SR(f4Lbl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        T(f4Lbl, "F4", 14, Color.white, TextAlignmentOptions.Center);
+
+        // Category tab bar (visual; ALL TRACK active)
+        var tabsGO = Child("CategoryTabs", lt);
+        SR(tabsGO, V(0,1), V(1,1), V(.5f,1), V(0,-58), V(0,34));
+        var tHLG = tabsGO.AddComponent<HorizontalLayoutGroup>();
+        tHLG.childControlWidth = false; tHLG.childForceExpandWidth = false;
+        tHLG.childControlHeight = true; tHLG.childForceExpandHeight = true;
+        tHLG.spacing = 26; tHLG.childAlignment = TextAnchor.MiddleLeft;
+        tHLG.padding = new RectOffset(8,8,0,0);
+        string[] tabs = { "ALL TRACK", "PLAYABLE", "FAVORITE", "RECENT", "CLEAR" };
+        for (int i = 0; i < tabs.Length; i++)
+        {
+            var tgGO = Child("Tab_" + tabs[i], tabsGO.transform);
+            LE(tgGO, 110, 30, false);
+            T(tgGO, tabs[i], 16, i == 0 ? Color.white : new Color(.5f,.5f,.5f),
+              TextAlignmentOptions.Center, i == 0 ? FontStyles.Bold : FontStyles.Normal);
+        }
+
+        // ScrollView (below header+tabs)
+        var (scrollRect, contentRT) = BuildScrollView(lt, 100f);
+
+        // ════════════════════════════════════════════════════════════════════
+        // CONTROLLER WIRING
+        // ════════════════════════════════════════════════════════════════════
+        var ctrlGO = new GameObject("SongSelectController");
+        var ctrl   = ctrlGO.AddComponent<SongSelectController>();
+        var so     = new SerializedObject(ctrl);
+
+        SetRef(so, "_listContent", contentRT);
+        SetRef(so, "_scrollRect",  scrollRect);
+        SetRef(so, "_sortButton",  sortBtn);
+        SetRef(so, "_sortLabel",   sortLabelTMP);
+        SetRef(so, "_jacketImage", jacketRaw);
+        SetRef(so, "_titleText",   stTMP);
+        SetRef(so, "_artistText",  artTMP);
+        SetRef(so, "_bpmDurationText", bpmTMP);
+        SetRef(so, "_statsText",   statsTMP);
+        SetRef(so, "_bestRankText",rankTMP);
+        SetRef(so, "_btnEasy",     diffBtns[0]);
+        SetRef(so, "_btnNormal",   diffBtns[1]);
+        SetRef(so, "_btnHard",     diffBtns[2]);
+        SetRef(so, "_btnExtra",    diffBtns[3]);
+        SetArr(so, "_diffLevelTexts", diffLvlTexts);
+        SetArr(so, "_sectorIcons", sectorIcons);
+        SetRef(so, "_hiSpeedSlider", hiSpdSldr);
+        SetRef(so, "_hiSpeedValue",  hiSpdVal);
+        SetRef(so, "_perSongOffsetSlider", offSldr);
+        SetRef(so, "_perSongOffsetValue",  offVal);
+        SetRef(so, "_perSongOffsetSaveButton", saveBtn);
+        SetRef(so, "_saveButtonLabel", saveLbl);
+        SetRef(so, "_modifierDropdown", modDD);
+        SetRef(so, "_profileName", profName);
+        SetRef(so, "_profileSub",  profSub);
+        SetRef(so, "_backButton",  backBtn);
+
+        foreach (var guid in AssetDatabase.FindAssets("InputActions t:InputActionAsset"))
+        {
+            var iaPath = AssetDatabase.GUIDToAssetPath(guid);
+            if (iaPath.Contains("_Project"))
+            {
+                SetRef(so, "_inputAsset",
+                    AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>(iaPath));
+                break;
+            }
+        }
+        so.ApplyModifiedProperties();
+
+        // SongListItem prefab
+        var prefabRoot  = BuildPrefabGO();
+        var savedPrefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, PrefabPath);
+        Object.DestroyImmediate(prefabRoot);
+
+        var so2 = new SerializedObject(ctrl);
+        SetRef(so2, "_songItemPrefab", savedPrefab);
+        so2.ApplyModifiedProperties();
+
+        // Save
+        EditorSceneManager.SaveScene(scene, ScenePath);
+        AssetDatabase.Refresh();
+        Debug.Log("[SongSelectSceneBuilder] Done → " + ScenePath);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // SECTION BUILDERS
+    // ═════════════════════════════════════════════════════════════════════════
+
+    static (TextMeshProUGUI, TextMeshProUGUI) BuildProfileCard(Transform parent)
+    {
+        var cardGO = Child("ProfileCard", parent);
+        SR(cardGO, V(1,.5f), V(1,.5f), V(1,.5f), V(-Pad,0), V(360,62));
+        cardGO.AddComponent<Image>().color = new Color(0,0,0,.4f);
+
+        var avGO = Child("Avatar", cardGO.transform);
+        SR(avGO, V(0,.5f), V(0,.5f), V(0,.5f), V(8,0), V(46,46));
+        avGO.AddComponent<RawImage>().color = new Color(.3f,.3f,.4f);
+
+        var nameGO = Child("Name", cardGO.transform);
+        SR(nameGO, V(0,.5f), V(1,1), V(0,1), V(64,-6), V(-72,26));
+        var nameTMP = T(nameGO, "player", 20, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        nameTMP.overflowMode = TextOverflowModes.Ellipsis;
+
+        var subGO = Child("Sub", cardGO.transform);
+        SR(subGO, V(0,0), V(1,.5f), V(0,0), V(64,6), V(-72,22));
+        var subTMP = T(subGO, "FREE PLAY", 14, Hex("FFD23C"), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        return (nameTMP, subTMP);
+    }
+
+    static (Button[], TextMeshProUGUI[]) BuildDifficultyRow(Transform dt, ref float y, float W)
+    {
+        var diffGO = Child("DifficultyButtons", dt);
+        SR(diffGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 52));
+        var dHLG = diffGO.AddComponent<HorizontalLayoutGroup>();
+        dHLG.childControlWidth  = true; dHLG.childForceExpandWidth  = true;
+        dHLG.childControlHeight = true; dHLG.childForceExpandHeight = true;
+        dHLG.spacing = 8; dHLG.padding = new RectOffset(14,14,0,0);
+
+        string[] dlabels = { "EZ","NM","HD","EX" };
+        Color[] dcolors = {
+            new Color(.2f,.75f,.35f), new Color(.2f,.5f,.9f),
+            new Color(.9f,.5f,.1f),   new Color(.85f,.1f,.5f)
+        };
+        var diffBtns  = new Button[4];
+        var diffTexts = new TextMeshProUGUI[4];
+        for (int i = 0; i < 4; i++)
+        {
+            var bGO  = Child("Btn" + dlabels[i], diffGO.transform);
+            var bImg = bGO.AddComponent<Image>(); bImg.color = Faint;
+            var btn  = bGO.AddComponent<Button>(); btn.targetGraphic = bImg;
+            var tGO = Child("Text", bGO.transform);
+            SR(tGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+            var tTMP = T(tGO, dlabels[i] + " -", 18, dcolors[i], TextAlignmentOptions.Center, FontStyles.Bold);
+            diffBtns[i] = btn; diffTexts[i] = tTMP;
+        }
+        y -= 60;
+        return (diffBtns, diffTexts);
+    }
+
+    static (TextMeshProUGUI, TextMeshProUGUI) BuildStatsRow(Transform dt, ref float y, float W)
+    {
+        var rowGO = Child("StatsRow", dt);
+        SR(rowGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 40));
+        rowGO.AddComponent<Image>().color = new Color(0,0,0,.25f);
+
+        // Rank (right)
+        var rankGO = Child("Rank", rowGO.transform);
+        SR(rankGO, V(1,0), V(1,1), V(1,.5f), V(-8,0), V(70,0));
+        var rankTMP = T(rankGO, "-", 28, Hex("FFD23C"), TextAlignmentOptions.Center, FontStyles.Bold);
+
+        // SCORE / RATE / COMBO を1行に (controller がまとめて文字列を入れる)
+        var stGO = Child("StatsLine", rowGO.transform);
+        var stRT = stGO.GetComponent<RectTransform>();
+        stRT.anchorMin = V(0,0); stRT.anchorMax = V(1,1);
+        stRT.offsetMin = V(14,0); stRT.offsetMax = V(-78,0);
+        var statsTMP = T(stGO, "SCORE 0     RATE 0.00%     COMBO 0", 16, Color.white,
+                         TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        y -= 48;
+        return (statsTMP, rankTMP);
+    }
+
+    static Image[] BuildSectorRow(Transform dt, ref float y, float W)
+    {
+        var rowGO = Child("SectorRow", dt);
+        SR(rowGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 30));
+        var lGO = Child("Label", rowGO.transform);
+        SR(lGO, V(0,0), V(0,1), V(0,.5f), V(14,0), V(90,0));
+        T(lGO, "SECTOR", 13, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var icons = new Image[5];
+        for (int i = 0; i < 5; i++)
+        {
+            var dGO = Child("Sector" + i, rowGO.transform);
+            SR(dGO, V(0,.5f), V(0,.5f), V(.5f,.5f), V(118 + i*38, 0), V(22,22));
+            dGO.transform.localRotation = Quaternion.Euler(0,0,45);   // diamond
+            var img = dGO.AddComponent<Image>(); img.color = Faint; img.raycastTarget = false;
+            icons[i] = img;
+        }
+        y -= 38;
+        return icons;
+    }
+
+    static (Slider, TextMeshProUGUI, Slider, TextMeshProUGUI, Button, TextMeshProUGUI, TMP_Dropdown)
+        BuildSettings(Transform dt, ref float y, float W)
+    {
+        var setGO = Child("SettingsPanel", dt);
+        SR(setGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 180));
+        setGO.AddComponent<Image>().color = new Color(0,0,0,.3f);
+
+        var (hiSpdSldr, hiSpdVal) = SliderRow(setGO.transform, "SPEED", -8,  .5f, 20f, 4.5f, false);
+        var (offSldr,   offVal)   = SliderRow(setGO.transform, "OFFSET", -54, PerSongOffset.MinMs, PerSongOffset.MaxMs, 0f, true, rightInset: 80);
+
+        // SAVE button on the offset row (top-right area)
+        var saveGO  = Child("OffsetSave", setGO.transform);
+        SR(saveGO, V(1,1), V(1,1), V(1,1), V(-12,-50), V(64,30));
+        var saveImg = saveGO.AddComponent<Image>(); saveImg.color = Faint;
+        var saveBtn = saveGO.AddComponent<Button>(); saveBtn.targetGraphic = saveImg;
+        var saveLblGO = Child("Label", saveGO.transform);
+        SR(saveLblGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var saveLbl = T(saveLblGO, "SAVE", 14, new Color(1,1,1,.35f), TextAlignmentOptions.Center, FontStyles.Bold);
+
+        // Modifier row
+        var modRowGO = Child("ModifierRow", setGO.transform);
+        SR(modRowGO, V(0,1), V(1,1), V(.5f,1), V(0,-100), V(-24, 44));
+        var mLblGO = Child("Label", modRowGO.transform);
+        SR(mLblGO, V(0,0), V(0,1), V(0,.5f), V(16,0), V(120,0));
+        T(mLblGO, "MODIFIER", 14, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        var modDD = MakeDropdown(modRowGO.transform);
+
+        return (hiSpdSldr, hiSpdVal, offSldr, offVal, saveBtn, saveLbl, modDD);
+    }
+
+    static (ScrollRect, RectTransform) BuildScrollView(Transform parent, float topInset)
+    {
+        var svGO = Child("ScrollView", parent);
+        SR(svGO, V(0,0), V(1,1), V(.5f,.5f), V(0, -topInset/2f), V(0, -topInset));
         var scrollRect = svGO.AddComponent<ScrollRect>();
         scrollRect.horizontal = false; scrollRect.scrollSensitivity = 30f;
 
         var vpGO  = Child("Viewport", svGO.transform);
-        SR(vpGO, V(0,0), V(1,1), V(0,0), V(0,0), V(0,0));
+        SR(vpGO, V(0,0), V(1,1), V(0,0), V(0,0), V(-14,0));
         var vpImg = vpGO.AddComponent<Image>(); vpImg.color = Color.white;
         vpGO.AddComponent<Mask>().showMaskGraphic = false;
 
@@ -110,227 +444,81 @@ public static class SongSelectSceneBuilder
         scrollRect.verticalScrollbar = sb;
         scrollRect.verticalScrollbarVisibility = ScrollRect.ScrollbarVisibility.AutoHideAndExpandViewport;
 
-        // ── RightPane ─────────────────────────────────────────────────────────
-        var rightGO = Child("RightPane", mainGO.transform);
-        SR(rightGO, V(1,0), V(1,1), V(1,.5f), V(-20,0), V(1260,0));
-        var rt = rightGO.transform;
-
-        // JacketArea
-        var jaGO = Child("JacketArea", rt);
-        SR(jaGO, V(.5f,1), V(.5f,1), V(.5f,1), V(0,-10), V(460,460));
-        var jiGO = Child("JacketImage", jaGO.transform);
-        SR(jiGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        var jacketRaw = jiGO.AddComponent<RawImage>(); jacketRaw.color = new Color(.3f,.3f,.3f);
-        var jfGO = Child("JacketFrame", jaGO.transform);
-        SR(jfGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        jfGO.AddComponent<Image>().color = new Color(.6f,.6f,.6f,.3f);
-
-        // SongInfo
-        var siGO = Child("SongInfo", rt);
-        SR(siGO, V(0,1), V(1,1), V(.5f,1), V(0,-480), V(-40,168));
-        var siVLG = siGO.AddComponent<VerticalLayoutGroup>();
-        siVLG.childControlHeight = false; siVLG.childForceExpandHeight = false;
-        siVLG.spacing = 6; siVLG.padding = new RectOffset(20,20,0,0);
-
-        var stGO  = Child("TitleText", siGO.transform); LE(stGO, 0,44);
-        var stTMP = T(stGO, "---", 34, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-        stTMP.overflowMode = TextOverflowModes.Ellipsis;
-        var artGO  = Child("ArtistText", siGO.transform); LE(artGO, 0,28);
-        var artTMP = T(artGO, "---", 20, new Color(.7f,.7f,.7f));
-        artTMP.overflowMode = TextOverflowModes.Ellipsis;
-        var bpmGO  = Child("BpmDurationText", siGO.transform); LE(bpmGO, 0,24);
-        var bpmTMP = T(bpmGO, "BPM ---   Length 0:00", 16, new Color(.6f,.6f,.6f));
-
-        var pbGO   = Child("PersonalBestRow", siGO.transform); LE(pbGO, 0,46);
-        var pbHLG  = pbGO.AddComponent<HorizontalLayoutGroup>();
-        pbHLG.childControlHeight = false; pbHLG.childForceExpandHeight = false;
-        pbHLG.spacing = 10; pbHLG.childAlignment = TextAnchor.MiddleLeft;
-        var pbLblGO = Child("BestLabel", pbGO.transform); LE(pbLblGO, 70,36, false);
-        T(pbLblGO, "BEST", 15, new Color(.8f,.8f,.6f), TextAlignmentOptions.MidlineLeft);
-        var pbScoGO = Child("BestScoreText", pbGO.transform); LE(pbScoGO, 220,36, false);
-        var pbScoreTMP = T(pbScoGO, "---", 24, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-        var pbRnkGO = Child("BestRankText", pbGO.transform); LE(pbRnkGO, 60,36, false);
-        var pbRankTMP = T(pbRnkGO, "-", 30, new Color(1f,.85f,.2f), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-
-        // DifficultyButtons
-        var diffGO = Child("DifficultyButtons", rt);
-        SR(diffGO, V(0,1), V(1,1), V(.5f,1), V(0,-664), V(-40,70));
-        var dHLG = diffGO.AddComponent<HorizontalLayoutGroup>();
-        dHLG.childControlWidth = true; dHLG.childForceExpandWidth = true;
-        dHLG.childControlHeight = false; dHLG.childForceExpandHeight = false; dHLG.spacing = 8;
-
-        string[] dlabels = { "EZ","NM","HD","EX" };
-        Color[] dcolors = {
-            new Color(.2f,.75f,.35f), new Color(.2f,.5f,.9f),
-            new Color(.9f,.5f,.1f),   new Color(.85f,.1f,.5f)
-        };
-        var diffBtns      = new Button[4];
-        var diffLvlTexts  = new TextMeshProUGUI[4];
-        for (int i = 0; i < 4; i++)
-        {
-            var bGO  = Child("Btn" + dlabels[i], diffGO.transform); LE(bGO, 0,62, false);
-            var bImg = bGO.AddComponent<Image>(); bImg.color = new Color(1,1,1,.15f);
-            var btn  = bGO.AddComponent<Button>(); btn.targetGraphic = bImg;
-            var bVLG = bGO.AddComponent<VerticalLayoutGroup>();
-            bVLG.childControlHeight = false; bVLG.childForceExpandHeight = false;
-            bVLG.childAlignment = TextAnchor.MiddleCenter; bVLG.spacing = 2;
-            bVLG.padding = new RectOffset(4,4,8,8);
-            var lGO = Child("Label", bGO.transform); LE(lGO, 0,24);
-            T(lGO, dlabels[i], 18, dcolors[i], TextAlignmentOptions.Center, FontStyles.Bold);
-            var nGO  = Child("Level", bGO.transform); LE(nGO, 0,24);
-            var nTMP = T(nGO, "-", 20, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-            diffBtns[i] = btn; diffLvlTexts[i] = nTMP;
-        }
-
-        // SettingsPanel
-        var setGO = Child("SettingsPanel", rt);
-        SR(setGO, V(0,1), V(1,1), V(.5f,1), V(0,-748), V(-40,248));
-        setGO.AddComponent<Image>().color = new Color(0,0,0,.3f);
-        var sVLG = setGO.AddComponent<VerticalLayoutGroup>();
-        sVLG.childControlHeight = false; sVLG.childForceExpandHeight = false;
-        sVLG.spacing = 8; sVLG.padding = new RectOffset(20,20,14,14);
-
-        var (hiSpdSldr, hiSpdVal) = SliderRow(setGO.transform, "レーンスピード", .5f, 10f, 4.5f, false);
-        var (jdgSldr, jdgVal)     = SliderRow(setGO.transform, "判定オフセット", -100f, 100f, 0f, true);
-        var (visSldr, visVal)     = SliderRow(setGO.transform, "映像オフセット", -100f, 100f, 0f, true);
-
-        var modRowGO = Child("ModifierRow", setGO.transform); LE(modRowGO, 0,46);
-        var mHLG = modRowGO.AddComponent<HorizontalLayoutGroup>();
-        mHLG.childControlHeight = false; mHLG.childForceExpandHeight = false;
-        mHLG.spacing = 10; mHLG.childAlignment = TextAnchor.MiddleLeft;
-        var mLblGO = Child("Label", modRowGO.transform); LE(mLblGO, 180,36, false);
-        T(mLblGO, "Modifier", 15, new Color(.8f,.8f,.8f));
-        var modDD = MakeDropdown(modRowGO.transform);
-
-        // PlayButton
-        var plBtnGO  = Child("PlayButton", rt);
-        SR(plBtnGO, V(1,0), V(1,0), V(1,0), V(-20,20), V(240,120));
-        var plBtnImg = plBtnGO.AddComponent<Image>(); plBtnImg.color = Hex("2c5aa0");
-        var playBtn  = plBtnGO.AddComponent<Button>(); playBtn.targetGraphic = plBtnImg;
-        var plLblGO  = Child("Label", plBtnGO.transform);
-        SR(plLblGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        T(plLblGO, "▷ PLAY", 36, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
-
-        // ── Footer ────────────────────────────────────────────────────────────
-        var footerGO = Child("Footer", ct);
-        SR(footerGO, V(0,0), V(1,0), V(.5f,0), V(0,0), V(0,30));
-        footerGO.AddComponent<Image>().color = new Color(0,0,0,.5f);
-        var khGO = Child("KeyHint", footerGO.transform);
-        SR(khGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        T(khGO, "↑↓: 楽曲   ←→: 難易度   Enter: PLAY   Esc: 戻る", 13,
-            new Color(.7f,.7f,.7f), TextAlignmentOptions.Center);
-
-        // ── SongSelectController ──────────────────────────────────────────────
-        var ctrlGO = new GameObject("SongSelectController");
-        var ctrl   = ctrlGO.AddComponent<SongSelectController>();
-        var so     = new SerializedObject(ctrl);
-
-        so.FindProperty("_listContent").objectReferenceValue        = contentRT;
-        so.FindProperty("_scrollRect").objectReferenceValue         = scrollRect;
-        so.FindProperty("_jacketImage").objectReferenceValue        = jacketRaw;
-        so.FindProperty("_titleText").objectReferenceValue          = stTMP;
-        so.FindProperty("_artistText").objectReferenceValue         = artTMP;
-        so.FindProperty("_bpmDurationText").objectReferenceValue    = bpmTMP;
-        so.FindProperty("_bestScoreText").objectReferenceValue      = pbScoreTMP;
-        so.FindProperty("_bestRankText").objectReferenceValue       = pbRankTMP;
-        so.FindProperty("_btnEasy").objectReferenceValue            = diffBtns[0];
-        so.FindProperty("_btnNormal").objectReferenceValue          = diffBtns[1];
-        so.FindProperty("_btnHard").objectReferenceValue            = diffBtns[2];
-        so.FindProperty("_btnExtra").objectReferenceValue           = diffBtns[3];
-        var dlArr = so.FindProperty("_diffLevelTexts");
-        dlArr.arraySize = 4;
-        for (int i = 0; i < 4; i++)
-            dlArr.GetArrayElementAtIndex(i).objectReferenceValue = diffLvlTexts[i];
-        so.FindProperty("_hiSpeedSlider").objectReferenceValue      = hiSpdSldr;
-        so.FindProperty("_hiSpeedValue").objectReferenceValue       = hiSpdVal;
-        so.FindProperty("_judgeOffsetSlider").objectReferenceValue  = jdgSldr;
-        so.FindProperty("_judgeOffsetValue").objectReferenceValue   = jdgVal;
-        so.FindProperty("_visualOffsetSlider").objectReferenceValue = visSldr;
-        so.FindProperty("_visualOffsetValue").objectReferenceValue  = visVal;
-        so.FindProperty("_modifierDropdown").objectReferenceValue   = modDD;
-        so.FindProperty("_playButton").objectReferenceValue         = playBtn;
-        so.FindProperty("_backButton").objectReferenceValue         = backBtn;
-
-        // Find InputActionAsset in _Project/Settings
-        foreach (var guid in AssetDatabase.FindAssets("InputActions t:InputActionAsset"))
-        {
-            var iaPath = AssetDatabase.GUIDToAssetPath(guid);
-            if (iaPath.Contains("_Project"))
-            {
-                so.FindProperty("_inputAsset").objectReferenceValue =
-                    AssetDatabase.LoadAssetAtPath<UnityEngine.InputSystem.InputActionAsset>(iaPath);
-                break;
-            }
-        }
-        so.ApplyModifiedProperties();
-
-        // ── SongListItem prefab ───────────────────────────────────────────────
-        var prefabRoot  = BuildPrefabGO();
-        var savedPrefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, PrefabPath);
-        Object.DestroyImmediate(prefabRoot);
-
-        var so2 = new SerializedObject(ctrl);
-        so2.FindProperty("_songItemPrefab").objectReferenceValue = savedPrefab;
-        so2.ApplyModifiedProperties();
-
-        // ── Save ──────────────────────────────────────────────────────────────
-        EditorSceneManager.SaveScene(scene, ScenePath);
-        AssetDatabase.Refresh();
-        Debug.Log("[SongSelectSceneBuilder] Done → " + ScenePath);
+        return (scrollRect, contentRT);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Prefab
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+    // Prefab — list row
+    // ═════════════════════════════════════════════════════════════════════════
 
     static GameObject BuildPrefabGO()
     {
         var root   = new GameObject("SongListItem");
-        var rootRT = root.AddComponent<RectTransform>(); rootRT.sizeDelta = V(560, 70);
+        var rootRT = root.AddComponent<RectTransform>(); rootRT.sizeDelta = V(900, 64);
         var rootImg = root.AddComponent<Image>(); rootImg.color = new Color(1,1,1,.05f);
         var rootBtn = root.AddComponent<Button>(); rootBtn.targetGraphic = rootImg;
 
         var bgGO = Child("Background", root.transform);
         SR(bgGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        bgGO.AddComponent<Image>().color = new Color(1,1,1,.05f);
+        var bgImg = bgGO.AddComponent<Image>(); bgImg.color = new Color(1,1,1,.05f); bgImg.raycastTarget = false;
+
+        // Jacket thumbnail
+        var jkGO = Child("Jacket", root.transform);
+        SR(jkGO, V(0,.5f), V(0,.5f), V(0,.5f), V(8,0), V(48,48));
+        var jkImg = jkGO.AddComponent<Image>(); jkImg.color = new Color(.3f,.3f,.35f); jkImg.raycastTarget = false;
 
         var titleGO = Child("TitleText", root.transform);
-        SR(titleGO, V(0,.5f), V(1,1), V(0,.5f), V(14,0), V(-90,0));
+        SR(titleGO, V(0,.5f), V(1,1), V(0,.5f), V(66,-2), V(-260,30));
         var ttmp = T(titleGO, "Song Title", 20, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-        ttmp.overflowMode = TextOverflowModes.Ellipsis;
+        ttmp.overflowMode = TextOverflowModes.Ellipsis; ttmp.raycastTarget = false;
 
         var artistGO = Child("ArtistText", root.transform);
-        SR(artistGO, V(0,0), V(1,.5f), V(0,.5f), V(14,0), V(-90,0));
-        T(artistGO, "Artist", 13, new Color(.65f,.65f,.65f), TextAlignmentOptions.MidlineLeft);
+        SR(artistGO, V(0,0), V(1,.5f), V(0,.5f), V(66,2), V(-260,24));
+        var atmp = T(artistGO, "Artist", 13, new Color(.65f,.65f,.65f), TextAlignmentOptions.MidlineLeft);
+        atmp.raycastTarget = false;
 
-        var lvlGO = Child("LevelText", root.transform);
-        SR(lvlGO, V(1,0), V(1,1), V(1,.5f), V(-8,0), V(80,0));
-        T(lvlGO, "Lv.--", 18, new Color(.9f,.9f,.5f), TextAlignmentOptions.MidlineRight, FontStyles.Bold);
+        // Difficulty cells (4) on the right (visual placeholder)
+        string[] d = { "EZ","NM","HD","EX" };
+        for (int i = 0; i < 4; i++)
+        {
+            var cGO = Child("Diff" + d[i], root.transform);
+            SR(cGO, V(1,.5f), V(1,.5f), V(1,.5f), V(-14 - (3-i)*52, 0), V(46,40));
+            var cImg = cGO.AddComponent<Image>(); cImg.color = new Color(1,1,1,.06f); cImg.raycastTarget = false;
+            var cl = Child("Lv", cGO.transform);
+            SR(cl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+            var clt = T(cl, "✕", 16, new Color(.45f,.45f,.45f), TextAlignmentOptions.Center, FontStyles.Bold);
+            clt.raycastTarget = false;
+        }
 
         return root;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     // UI helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
 
     static (Slider, TextMeshProUGUI) SliderRow(
-        Transform parent, string label, float min, float max, float def, bool wholeNums)
+        Transform parent, string label, float topY,
+        float min, float max, float def, bool wholeNums, float rightInset = 0)
     {
-        var rowGO = Child(label + "Row", parent); LE(rowGO, 0,46);
-        var rHLG  = rowGO.AddComponent<HorizontalLayoutGroup>();
-        rHLG.childControlHeight = false; rHLG.childForceExpandHeight = false;
-        rHLG.spacing = 10; rHLG.childAlignment = TextAnchor.MiddleLeft;
+        var rowGO = Child(label + "Row", parent);
+        SR(rowGO, V(0,1), V(1,1), V(.5f,1), V(0, topY), V(-24, 40));
 
-        var lGO = Child("Label", rowGO.transform); LE(lGO, 180,36, false);
-        T(lGO, label, 14, new Color(.8f,.8f,.8f));
+        var lGO = Child("Label", rowGO.transform);
+        SR(lGO, V(0,0), V(0,1), V(0,.5f), V(16,0), V(110,0));
+        T(lGO, label, 14, new Color(.8f,.8f,.8f), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
         var valStr = wholeNums ? $"{(int)def} ms" : def.ToString("F1");
-        var vGO = Child("Value", rowGO.transform); LE(vGO, 82,36, false);
+        var vGO = Child("Value", rowGO.transform);
+        SR(vGO, V(1,0), V(1,1), V(1,.5f), V(-(12+rightInset),0), V(80,0));
         var vTMP = T(vGO, valStr, 16, Color.white, TextAlignmentOptions.MidlineRight, FontStyles.Bold);
 
-        var sGO = Child("Slider", rowGO.transform); LE(sGO, 0,36, true);
-        SR(sGO, V(0,0), V(0,1), V(.5f,.5f), V(0,0), V(0,36));
+        var sGO = Child("Slider", rowGO.transform);
+        SR(sGO, V(0,.5f), V(1,.5f), V(.5f,.5f), V(0,0), V(-(220+rightInset),20));
+        // center slider between label and value
+        var sRT = sGO.GetComponent<RectTransform>();
+        sRT.anchorMin = new Vector2(0,.5f); sRT.anchorMax = new Vector2(1,.5f);
+        sRT.offsetMin = new Vector2(126, -10); sRT.offsetMax = new Vector2(-(100+rightInset), 10);
 
         var bgGO = Child("Background", sGO.transform);
         SR(bgGO, V(0,.25f), V(1,.75f), V(.5f,.5f), V(0,0), V(0,0));
@@ -358,7 +546,8 @@ public static class SongSelectSceneBuilder
 
     static TMP_Dropdown MakeDropdown(Transform parent)
     {
-        var ddGO  = Child("Dropdown", parent); LE(ddGO, 200,40, false);
+        var ddGO  = Child("Dropdown", parent);
+        SR(ddGO, V(1,.5f), V(1,.5f), V(1,.5f), V(-12,0), V(200,36));
         var ddImg = ddGO.AddComponent<Image>(); ddImg.color = new Color(.12f,.12f,.12f);
         var dd    = ddGO.AddComponent<TMP_Dropdown>(); dd.targetGraphic = ddImg;
 
@@ -406,9 +595,31 @@ public static class SongSelectSceneBuilder
         return dd;
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
     // Micro helpers
-    // ─────────────────────────────────────────────────────────────────────────
+    // ═════════════════════════════════════════════════════════════════════════
+
+    static void SetRef(SerializedObject so, string prop, Object value)
+    {
+        var p = so.FindProperty(prop);
+        if (p == null) { Debug.LogWarning($"[SongSelectSceneBuilder] missing prop: {prop}"); return; }
+        p.objectReferenceValue = value;
+    }
+
+    static void SetArr(SerializedObject so, string prop, Object[] values)
+    {
+        var p = so.FindProperty(prop);
+        if (p == null) { Debug.LogWarning($"[SongSelectSceneBuilder] missing prop: {prop}"); return; }
+        p.arraySize = values.Length;
+        for (int i = 0; i < values.Length; i++)
+            p.GetArrayElementAtIndex(i).objectReferenceValue = values[i];
+    }
+
+    static void Indent(GameObject go, float left)
+    {
+        var rt = go.GetComponent<RectTransform>();
+        rt.offsetMin = new Vector2(rt.offsetMin.x + left, rt.offsetMin.y);
+    }
 
     static GameObject Child(string name, Transform parent)
     {
@@ -437,10 +648,10 @@ public static class SongSelectSceneBuilder
         return t;
     }
 
-    static void LE(GameObject go, float minH, float minW, bool flexW = true)
+    static void LE(GameObject go, float minW, float minH, bool flexW = true)
     {
         var le = go.AddComponent<LayoutElement>();
-        le.minWidth = minH; le.minHeight = minW;
+        le.minWidth = minW; le.minHeight = minH;
         le.flexibleWidth = flexW ? 1 : 0;
     }
 
@@ -455,7 +666,7 @@ public static class SongSelectSceneBuilder
     static void EnsureFolder(string path)
     {
         if (AssetDatabase.IsValidFolder(path)) return;
-        var idx    = path.LastIndexOf('/');
+        var idx = path.LastIndexOf('/');
         AssetDatabase.CreateFolder(path[..idx], path[(idx + 1)..]);
     }
 }
