@@ -35,6 +35,18 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/PVPMatchEnd.unity
     guid: cb2632f065b0ba84b8e9d6195318322a
+  - enabled: 1
+    path: Assets/_Project/Scenes/PVPPrematch.unity
+    guid: 3a85f2ad92d3b00479051776a9cf6969
+  - enabled: 1
+    path: Assets/_Project/Scenes/PVPSongPick.unity
+    guid: 856eb081d30dc8049b46f1d5e09e2eb0
+  - enabled: 1
+    path: Assets/_Project/Scenes/PVPBanPhase.unity
+    guid: a6e67a54fad44c649b91ea0cf8bcdd3b
+  - enabled: 1
+    path: Assets/_Project/Scenes/PVPResult.unity
+    guid: 8fb63255b88a49a44ae8bbd7bdef6210
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

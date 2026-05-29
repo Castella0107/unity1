@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Threading.Tasks;
 using RhythmGame.Network;
 using TMPro;
@@ -14,19 +13,28 @@ namespace RhythmGame.UI.Pvp
     /// </summary>
     public class MatchmakingController : MonoBehaviour
     {
-        [Header("Optional UI (auto fallback to OnGUI if null)")]
+        [Header("Optional UI (auto fallback to OnGUI if status text is null)")]
         [SerializeField] TextMeshProUGUI _statusText;
-        [SerializeField] TextMeshProUGUI _opponentText;
+        [SerializeField] TextMeshProUGUI _youNameText;
+        [SerializeField] TextMeshProUGUI _opponentNameText;
+        [SerializeField] TextMeshProUGUI _timerText;
+        [SerializeField] TextMeshProUGUI _songsText;
         [SerializeField] Button          _cancelButton;
         [SerializeField] float           _pollIntervalSec = 1.5f;
 
-        bool   _running;
+        const string SearchBase = "SEARCHING FOR OPPONENT";
+
         bool   _canceled;
-        string _statusLine = "(idle)";
-        string _opponentLine = "";
+        bool   _animateSearch;   // true while waiting → drives Update timer + dots
+        float  _elapsed;
+
+        string _statusLine   = "(idle)";
+        string _opponentName = "???";
+        string _songsLine    = "";
 
         void Start()
         {
+            // MCP/ウィンドウ非フォーカス時もループを止めないために必須。
             Application.runInBackground = true;
             JacketBackgroundController.Instance?.SetCanvasEnabled(true);
             JacketBackgroundController.Instance?.SetFallback();
@@ -34,12 +42,17 @@ namespace RhythmGame.UI.Pvp
             if (_cancelButton != null)
                 _cancelButton.onClick.AddListener(OnCancelPressed);
 
+            if (_youNameText != null)     _youNameText.text     = LocalIdentity.UserId;
+            if (_opponentNameText != null) _opponentNameText.text = _opponentName;
+            if (_timerText != null)       _timerText.text       = "00:00";
+
             // 試合中に直接 Matchmaking に戻ってきた場合は何もしない
             var pvp = PvpFlowController.Instance;
             if (pvp != null && pvp.IsActive)
             {
                 _statusLine = "PVP match already active — returning to game";
                 Debug.LogWarning("[Matchmaking] " + _statusLine);
+                UpdateUi();
                 return;
             }
 
@@ -51,9 +64,28 @@ namespace RhythmGame.UI.Pvp
             _canceled = true;
         }
 
+        void Update()
+        {
+            if (!_animateSearch) return;
+
+            _elapsed += Time.unscaledDeltaTime;
+
+            if (_timerText != null)
+            {
+                int sec = (int)_elapsed;
+                _timerText.text = string.Format("{0:00}:{1:00}", sec / 60, sec % 60);
+            }
+            if (_statusText != null)
+            {
+                int dots = ((int)(_elapsed * 2f)) % 4;   // ~2回/秒でドットが増減
+                _statusText.text = SearchBase + new string('.', dots);
+            }
+        }
+
         void OnCancelPressed()
         {
             _canceled = true;
+            _animateSearch = false;
             _statusLine = "Canceling...";
             UpdateUi();
             _ = CancelAndReturn();
@@ -73,7 +105,6 @@ namespace RhythmGame.UI.Pvp
 
         async Task RunMatchmakingLoop()
         {
-            _running = true;
             _statusLine = "Joining queue...";
             UpdateUi();
 
@@ -100,7 +131,9 @@ namespace RhythmGame.UI.Pvp
                 return;
             }
 
-            _statusLine = "Waiting for opponent...  depth=" + join.Body.queueDepth;
+            // 待機開始: Update がタイマーとドットアニメを駆動する
+            _animateSearch = true;
+            _statusLine = SearchBase;
             UpdateUi();
 
             while (!_canceled)
@@ -109,12 +142,8 @@ namespace RhythmGame.UI.Pvp
                 if (_canceled) break;
 
                 var s = await net.GetQueueStatusAsync(LocalIdentity.UserId);
-                if (!s.Ok)
-                {
-                    _statusLine = "Poll error: " + s.Error;
-                    UpdateUi();
-                    continue;
-                }
+                if (!s.Ok) continue;   // 一時的なポーリングエラーは UI を乱さず再試行
+
                 if (s.Body.status == "matched")
                 {
                     StartMatchFromQueueResponse(s.Body);
@@ -122,29 +151,27 @@ namespace RhythmGame.UI.Pvp
                 }
                 if (s.Body.status == "idle")
                 {
-                    _statusLine = "Queue dropped — rejoining";
-                    UpdateUi();
+                    // キューから落ちていたら再参加
                     var rejoin = await net.JoinQueueAsync(LocalIdentity.UserId);
                     if (rejoin.Ok && rejoin.Body.status == "matched")
                     {
                         StartMatchFromQueueResponse(rejoin.Body);
                         return;
                     }
-                    continue;
                 }
-                _statusLine = "Waiting...  depth=" + s.Body.queueDepth;
-                UpdateUi();
             }
-            _running = false;
         }
 
         void StartMatchFromQueueResponse(QueueResponseDto body)
         {
-            _statusLine = "Match found: " + body.opponentId;
-            _opponentLine = string.Format("Songs: {0}",
-                body.songs != null ? string.Join(", ", body.songs.ConvertAll(s => s.songId)) : "(none)");
+            _animateSearch = false;
+            _statusLine   = "MATCH FOUND";
+            _opponentName = string.IsNullOrEmpty(body.opponentId) ? "OPPONENT" : body.opponentId;
+            _songsLine    = body.songs != null
+                ? "♪ " + string.Join("    ♪ ", body.songs.ConvertAll(s => s.songId))
+                : "";
             UpdateUi();
-            Debug.Log("[Matchmaking] " + _statusLine + " / " + _opponentLine);
+            Debug.Log("[Matchmaking] MATCH FOUND vs " + _opponentName + " / " + _songsLine);
 
             var pvp = PvpFlowController.Instance;
             if (pvp == null)
@@ -157,8 +184,9 @@ namespace RhythmGame.UI.Pvp
 
         void UpdateUi()
         {
-            if (_statusText != null)   _statusText.text   = _statusLine;
-            if (_opponentText != null) _opponentText.text = _opponentLine;
+            if (_statusText != null)        _statusText.text       = _statusLine;
+            if (_opponentNameText != null)  _opponentNameText.text = _opponentName;
+            if (_songsText != null)         _songsText.text        = _songsLine;
         }
 
         // ── Fallback OnGUI (シーン UI 未組込みでも操作可) ──────────────────────
@@ -168,14 +196,14 @@ namespace RhythmGame.UI.Pvp
             if (_statusText != null) return;
 
             const float w = 420f;
-            const float h = 180f;
+            const float h = 200f;
             var rect = new Rect((Screen.width - w) / 2, (Screen.height - h) / 2, w, h);
             GUI.Box(rect, "Matchmaking");
             GUILayout.BeginArea(new Rect(rect.x + 16, rect.y + 28, rect.width - 32, rect.height - 36));
-            GUILayout.Label("Status:");
-            GUILayout.Label(_statusLine);
+            GUILayout.Label("Status: " + _statusLine);
+            GUILayout.Label("Opponent: " + _opponentName);
             GUILayout.Space(6);
-            GUILayout.Label(_opponentLine);
+            GUILayout.Label(_songsLine);
             GUILayout.Space(12);
             if (GUILayout.Button("Cancel"))
                 OnCancelPressed();
