@@ -110,11 +110,20 @@ public class BootstrapController : MonoBehaviour
         string songId = Path.GetFileName(chartArg.TrimEnd('/', '\\'));
         if (string.IsNullOrEmpty(songId)) songId = "test_play_chart";
 
+        // --hispeed <value> (ChartEditor から指定)。無効/未指定なら保存値→既定4.5。
+        string hsArg = CommandLineArgs.Get("hispeed");
+        if (string.IsNullOrEmpty(hsArg) ||
+            !float.TryParse(hsArg, System.Globalization.NumberStyles.Float,
+                            System.Globalization.CultureInfo.InvariantCulture, out float hiSpeed))
+        {
+            hiSpeed = PlayerPrefs.GetFloat("HiSpeed", 4.5f);
+        }
+
         return new GamePlayParameters
         {
             SongId       = songId,
             Difficulty   = difficulty,
-            HiSpeed      = PlayerPrefs.GetFloat("HiSpeed", 4.5f),
+            HiSpeed      = hiSpeed,
             JudgeOffset  = 0,
             VisualOffset = 0,
             Modifier     = "None",
