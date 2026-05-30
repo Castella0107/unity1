@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "songId": "test_song",
+  "difficulty": "extra",
+  "level": 10,
+  "tags": [],
+  "chartHash": "0000000000000000000000000000000000000000000000000000000000000001",
+  "totalNotes": 20,
+  "events": [
+    { "type": "bpm", "timeMs": 0, "bpm": 120.0, "multiplier": 1.0 }
+  ],
+  "notes": [
+    { "id":  1, "type": "tap",    "lane": "0",   "timeMs":  1000, "durationMs":   0 },
+    { "id":  2, "type": "tap",    "lane": "1",   "timeMs":  2000, "durationMs":   0 },
+    { "id":  3, "type": "tap",    "lane": "2",   "timeMs":  3000, "durationMs":   0 },
+    { "id":  4, "type": "tap",    "lane": "3",   "timeMs":  4000, "durationMs":   0 },
+    { "id":  5, "type": "fxTap",  "lane": "fxL", "timeMs":  5000, "durationMs":   0 },
+    { "id":  6, "type": "fxTap",  "lane": "fxR", "timeMs":  6000, "durationMs":   0 },
+    { "id":  7, "type": "hold",   "lane": "0",   "timeMs":  7000, "durationMs": 500 },
+    { "id":  8, "type": "hold",   "lane": "1",   "timeMs":  8000, "durationMs": 500 },
+    { "id":  9, "type": "hold",   "lane": "2",   "timeMs":  9000, "durationMs": 500 },
+    { "id": 10, "type": "hold",   "lane": "3",   "timeMs": 10000, "durationMs": 500 },
+    { "id": 11, "type": "fxHold", "lane": "fxL", "timeMs": 11000, "durationMs": 500 },
+    { "id": 12, "type": "fxHold", "lane": "fxR", "timeMs": 12000, "durationMs": 500 },
+    { "id": 13, "type": "tap",    "lane": "0",   "timeMs": 13000, "durationMs":   0 },
+    { "id": 14, "type": "tap",    "lane": "1",   "timeMs": 14000, "durationMs":   0 },
+    { "id": 15, "type": "tap",    "lane": "2",   "timeMs": 15000, "durationMs":   0 },
+    { "id": 16, "type": "tap",    "lane": "3",   "timeMs": 16000, "durationMs":   0 },
+    { "id": 17, "type": "fxTap",  "lane": "fxL", "timeMs": 17000, "durationMs":   0 },
+    { "id": 18, "type": "fxTap",  "lane": "fxR", "timeMs": 18000, "durationMs":   0 },
+    { "id": 19, "type": "tap",    "lane": "0",   "timeMs": 19000, "durationMs":   0 },
+    { "id": 20, "type": "tap",    "lane": "1",   "timeMs": 19500, "durationMs":   0 }
+  ]
+}

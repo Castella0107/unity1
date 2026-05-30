@@ -1,7 +1,7 @@
 // Unity-independent. No UnityEngine references allowed in this assembly.
 /// <summary>
 /// タイムライン座標系のヘルパー。
-/// レーン番号 → X 座標、時刻 (ms) → Y 座標 (上 0 → 下 dur*ppms) 変換と逆変換を提供する。
+/// レーン番号 → X 座標、時刻 (ms) → Y 座標 (下 0 → 上 dur*ppms、未来ほど高Y) の変換と逆変換を提供する。
 /// </summary>
 public static class TimelineLayout
 {
@@ -57,16 +57,19 @@ public static class TimelineLayout
         return -1;
     }
 
-    /// <summary>時刻 ms と pixelsPerMs から content 内 Y 座標 (上=高Y) を返す。</summary>
+    /// <summary>
+    /// 時刻 ms と pixelsPerMs から content 内 Y 座標を返す。
+    /// 上から下に流れる方向: time=0 を bottom (Y=0)、time=duration を top (Y=contentH)。
+    /// 未来ほど高Y → ScrollRect が上にスクロールして未来が画面上から流れて来る。
+    /// </summary>
     public static float TimeToY(double timeMs, float pixelsPerMs, float contentHeightPx)
     {
-        // Content top is at high Y in RectTransform local coords; we want time=0 at top.
-        return contentHeightPx - (float)(timeMs * pixelsPerMs);
+        return (float)(timeMs * pixelsPerMs);
     }
 
     public static double YToTime(float y, float pixelsPerMs, float contentHeightPx)
     {
         if (pixelsPerMs <= 0f) return 0.0;
-        return (contentHeightPx - y) / pixelsPerMs;
+        return y / pixelsPerMs;
     }
 }

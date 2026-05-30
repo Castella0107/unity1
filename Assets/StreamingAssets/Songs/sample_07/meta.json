@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "songId": "sample_07",
+  "title": "Sample 07",
+  "artist": "Test Artist",
+  "bpm": 120.0,
+  "durationMs": 20000,
+  "audioFile": "audio.ogg",
+  "jacketFile": "jacket.png",
+  "firstOnsetMs": 0,
+  "sectors": [
+    { "id": 1, "name": "S1", "endMs": 4000  },
+    { "id": 2, "name": "S2", "endMs": 8000  },
+    { "id": 3, "name": "S3", "endMs": 12000 },
+    { "id": 4, "name": "S4", "endMs": 16000 },
+    { "id": 5, "name": "S5", "endMs": 20000 }
+  ]
+}

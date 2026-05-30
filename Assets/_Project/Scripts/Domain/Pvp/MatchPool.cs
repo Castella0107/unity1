@@ -43,16 +43,16 @@ namespace Domain.Pvp
             Entries  = entries  ?? new MatchPoolEntry[0];
         }
 
-        /// <summary>暫定の固定プール (Phase 5 初期検証用、test_song 系 4 曲のみ)。</summary>
+        /// <summary>
+        /// 暫定の固定プール (Phase 5 検証用、サンプル 20 曲)。
+        /// sample_01..sample_20 は StreamingAssets/Songs に test_song を複製した同一譜面 (chartHash 共通)。
+        /// 設計書の「マッチングプール: 20曲固定」を満たすための仮データ。本コンテンツ整備時に差替予定。
+        /// </summary>
         public static MatchPool CreateBootstrapPool()
         {
-            var list = new List<MatchPoolEntry>
-            {
-                new MatchPoolEntry("test_song",   "extra", 10),
-                new MatchPoolEntry("test_song_1", "extra", 10),
-                new MatchPoolEntry("test_song_2", "extra", 10),
-                new MatchPoolEntry("test_song_3", "extra", 10),
-            };
+            var list = new List<MatchPoolEntry>(20);
+            for (int i = 1; i <= 20; i++)
+                list.Add(new MatchPoolEntry($"sample_{i:00}", "extra", 10));
             return new MatchPool("bootstrap_2026Q2", list);
         }
     }

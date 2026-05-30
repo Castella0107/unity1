@@ -54,7 +54,10 @@ namespace RhythmGame.Network
 
         // ── Public API ──────────────────────────────────────────────────────────
 
-        /// <summary>マッチング後、Matchmaking シーンから呼ばれる。1 曲目の GamePlay を起動する。</summary>
+        /// <summary>
+        /// マッチング後、Matchmaking シーンから呼ばれる。マッチ状態を保持し、正規 PVP フロー
+        /// (Prematch → SongPick → BanPhase → BeginSongs → GamePlay×3) の先頭 Prematch へ遷移する。
+        /// </summary>
         public void StartMatch(string matchId, string opponentId, List<SongPickDto> songs)
         {
             if (IsActive)
@@ -70,8 +73,41 @@ namespace RhythmGame.Network
             IsActive    = true;
             _submitting = false;
 
-            Debug.Log($"[PvpFlow] StartMatch {matchId.Substring(0, 8)} vs {opponentId}, songs={_songs.Count}");
+            Debug.Log($"[PvpFlow] StartMatch {matchId.Substring(0, 8)} vs {opponentId}, songs={_songs.Count} → Prematch");
+            if (SceneRouter.Instance != null)
+            {
+                SceneRouter.Instance.GoTo(SceneId.PVPPrematch);
+            }
+            else
+            {
+                // SceneRouter が無い極端な状況のフォールバック: 従来どおり即起動。
+                Debug.LogError("[PvpFlow] SceneRouter.Instance null — launching songs directly");
+                LaunchCurrentSong();
+            }
+        }
+
+        /// <summary>
+        /// BanPhase 画面の START から呼ばれる。1 曲目の GamePlay を起動する。
+        /// (Prematch/SongPick/BanPhase は表示・演出のみで、実際の曲開始はここで行う。)
+        /// </summary>
+        public void BeginSongs()
+        {
+            if (!IsActive)
+            {
+                Debug.LogWarning("[PvpFlow] BeginSongs called with no active match");
+                return;
+            }
+            CurrentSongIndex = 0;
+            Debug.Log("[PvpFlow] BeginSongs → launching song 1");
             LaunchCurrentSong();
+        }
+
+        /// <summary>試合開始前 (Prematch/SongPick/BanPhase) にユーザーが離脱したとき。状態を破棄して Title へ。</summary>
+        public void CancelMatch()
+        {
+            Debug.Log("[PvpFlow] CancelMatch (pre-game)");
+            ResetState();
+            if (SceneRouter.Instance != null) SceneRouter.Instance.GoTo(SceneId.Title);
         }
 
         /// <summary>GamePlayController から完走時に呼ばれる (PVP モード時のみ)。</summary>

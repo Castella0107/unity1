@@ -69,12 +69,16 @@ public sealed class EditorState
 
     // ── Snap helpers ────────────────────────────────────────────────────────
 
-    /// <summary>BPMとSnap分母から1スナップ単位(ms)を返す。</summary>
+    /// <summary>
+    /// BPMとSnap分母から1スナップ単位(ms)を返す。
+    /// 記譜規約: 1/N = 全音符の 1/N (= 4/4 における 4 拍を SnapDenominator で分割)。
+    /// 例: SnapDenominator=4 → 四分音符 = 1拍、=16 → 十六分音符 = 1/4拍、=12 → 三連 = 1/3拍。
+    /// </summary>
     public double SnapStepMs()
     {
         if (Bpm <= 0.0) return 0.0;
         double beatMs = 60000.0 / Bpm;
-        return beatMs / SnapDenominator;
+        return (4.0 * beatMs) / SnapDenominator;
     }
 
     /// <summary>任意の時刻を最も近いスナップ位置に丸める。</summary>

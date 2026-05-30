@@ -22,16 +22,15 @@ public static class BuildPvpScenes
         BuildMatchmakingScene();
         BuildPvpMatchEndScene();
 
-        // 仮 PVP 画面 (本実装まではプレースホルダー)。設計フロー順に NEXT で連結。
-        BuildPlaceholderScene("Assets/_Project/Scenes/PVPPrematch.unity", "PVP PREMATCH",
-            "Pre-match lobby - opponent intro / ready check", SceneId.PVPSongPick,
-            new Color(0.05f, 0.05f, 0.10f));
-        BuildPlaceholderScene("Assets/_Project/Scenes/PVPSongPick.unity", "PVP SONG PICK",
-            "Song selection phase for the match", SceneId.PVPBanPhase,
-            new Color(0.05f, 0.07f, 0.10f));
-        BuildPlaceholderScene("Assets/_Project/Scenes/PVPBanPhase.unity", "PVP BAN PHASE",
-            "Ban songs from the shared pool", SceneId.Title,
-            new Color(0.08f, 0.05f, 0.10f));
+        // 正規 PVP フロー 3 画面 (表示・演出のみ)。Prematch → SongPick → BanPhase → 本戦。
+        BuildDraftScene("Assets/_Project/Scenes/PVPPrematch.unity",
+            PvpDraftScreenController.Phase.Prematch, new Color(0.05f, 0.05f, 0.10f));
+        BuildDraftScene("Assets/_Project/Scenes/PVPSongPick.unity",
+            PvpDraftScreenController.Phase.SongPick, new Color(0.05f, 0.07f, 0.10f));
+        BuildDraftScene("Assets/_Project/Scenes/PVPBanPhase.unity",
+            PvpDraftScreenController.Phase.BanPhase, new Color(0.08f, 0.05f, 0.10f));
+
+        // PVPResult はフロー未配線 (Result/PVPMatchEnd 流用) のためプレースホルダーのまま。
         BuildPlaceholderScene("Assets/_Project/Scenes/PVPResult.unity", "PVP RESULT",
             "PVP match result (currently reuses Result / PVPMatchEnd)", SceneId.Title,
             new Color(0.05f, 0.06f, 0.11f));
@@ -247,6 +246,95 @@ public static class BuildPvpScenes
         so.FindProperty("_nextScene").enumValueIndex       = (int)nextScene;
         so.FindProperty("_nextButton").objectReferenceValue = nextGO.GetComponent<Button>();
         so.FindProperty("_backButton").objectReferenceValue = backGO.GetComponent<Button>();
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        SaveAndRegister(scene, scenePath);
+    }
+
+    // 正規 PVP フロー画面 (Prematch/SongPick/BanPhase) を1枚生成する。
+    // ヘッダ + YOU/VS/OPP + info + 3 曲リスト + Primary(NEXT/START)/Cancel ボタン。
+    // 文言・曲リストは PvpDraftScreenController が phase + PvpFlowController から実行時に流し込む。
+    static void BuildDraftScene(string scenePath, PvpDraftScreenController.Phase phase, Color bg)
+    {
+        var scene = NewEmptyScene();
+        BuildBaseObjects(scene, bg);
+        var canvasGO = GameObject.Find("Canvas");
+
+        Color cyan = new Color(0.17f, 0.85f, 0.90f, 1f);
+        Color red  = new Color(0.95f, 0.30f, 0.42f, 1f);
+        Color dim  = new Color(1, 1, 1, 0.7f);
+
+        // ヘッダー + アクセント線
+        var headerTMP = MakeTMP("Header", canvasGO, 60, "MATCH READY");
+        SetAnchored(headerTMP, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -90), new Vector2(1500, 90));
+        headerTMP.alignment = TextAlignmentOptions.Center;
+        headerTMP.fontStyle = FontStyles.Bold;
+        headerTMP.characterSpacing = 6f;
+
+        var accent = MakeImage("HeaderAccent", canvasGO, cyan);
+        SetRect(accent.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -150), new Vector2(560, 4));
+
+        // YOU / VS / OPPONENT
+        var youTMP = MakeTMP("YouNameText", canvasGO, 40, "YOU");
+        SetAnchored(youTMP, Center, Center, new Vector2(-320, 150), new Vector2(500, 70));
+        youTMP.alignment = TextAlignmentOptions.Center;
+        youTMP.color = cyan;
+        youTMP.fontStyle = FontStyles.Bold;
+        youTMP.overflowMode = TextOverflowModes.Ellipsis;
+
+        var vsTMP = MakeTMP("VS", canvasGO, 54, "VS");
+        SetAnchored(vsTMP, Center, Center, new Vector2(0, 150), new Vector2(160, 70));
+        vsTMP.alignment = TextAlignmentOptions.Center;
+        vsTMP.fontStyle = FontStyles.Bold | FontStyles.Italic;
+
+        var oppTMP = MakeTMP("OpponentNameText", canvasGO, 40, "???");
+        SetAnchored(oppTMP, Center, Center, new Vector2(320, 150), new Vector2(500, 70));
+        oppTMP.alignment = TextAlignmentOptions.Center;
+        oppTMP.color = red;
+        oppTMP.fontStyle = FontStyles.Bold;
+        oppTMP.overflowMode = TextOverflowModes.Ellipsis;
+
+        // info 行
+        var infoTMP = MakeTMP("InfoText", canvasGO, 26, "");
+        SetAnchored(infoTMP, Center, Center, new Vector2(0, 70), new Vector2(1300, 44));
+        infoTMP.alignment = TextAlignmentOptions.Center;
+        infoTMP.color = dim;
+
+        // 3 曲リスト
+        var songsTMP = MakeTMP("SongsText", canvasGO, 30, "");
+        SetAnchored(songsTMP, Center, Center, new Vector2(0, -60), new Vector2(1100, 200));
+        songsTMP.alignment = TextAlignmentOptions.Center;
+
+        // Primary ボタン (NEXT / START)
+        var primaryGO = MakeButton("PrimaryButton", canvasGO, "NEXT >");
+        var pRT = primaryGO.GetComponent<RectTransform>();
+        pRT.anchorMin = pRT.anchorMax = new Vector2(0.5f, 0f);
+        pRT.pivot = new Vector2(0.5f, 0f);
+        pRT.anchoredPosition = new Vector2(180, 110);
+        pRT.sizeDelta = new Vector2(340, 76);
+        var primaryLabel = primaryGO.GetComponentInChildren<TextMeshProUGUI>();
+
+        // Cancel ボタン
+        var cancelGO = MakeButton("CancelButton", canvasGO, "CANCEL");
+        var cRT = cancelGO.GetComponent<RectTransform>();
+        cRT.anchorMin = cRT.anchorMax = new Vector2(0.5f, 0f);
+        cRT.pivot = new Vector2(0.5f, 0f);
+        cRT.anchoredPosition = new Vector2(-180, 110);
+        cRT.sizeDelta = new Vector2(340, 76);
+
+        // Controller 配線
+        var ctrlGO = new GameObject("PvpDraftScreenController");
+        var ctrl = ctrlGO.AddComponent<PvpDraftScreenController>();
+        var so = new SerializedObject(ctrl);
+        so.FindProperty("_phase").enumValueIndex          = (int)phase;
+        so.FindProperty("_headerText").objectReferenceValue   = headerTMP;
+        so.FindProperty("_youNameText").objectReferenceValue  = youTMP;
+        so.FindProperty("_oppNameText").objectReferenceValue  = oppTMP;
+        so.FindProperty("_infoText").objectReferenceValue     = infoTMP;
+        so.FindProperty("_songsText").objectReferenceValue    = songsTMP;
+        so.FindProperty("_primaryLabel").objectReferenceValue = primaryLabel;
+        so.FindProperty("_primaryButton").objectReferenceValue = primaryGO.GetComponent<Button>();
+        so.FindProperty("_cancelButton").objectReferenceValue  = cancelGO.GetComponent<Button>();
         so.ApplyModifiedPropertiesWithoutUndo();
 
         SaveAndRegister(scene, scenePath);

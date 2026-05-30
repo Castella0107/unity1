@@ -165,7 +165,9 @@ public class ReplayPlaybackController : MonoBehaviour
 
         _conductor.SetPlaybackSpeed(PlaybackSpeed);
         AudioClip clip = _conductor.GetComponent<AudioSource>()?.clip;
-        if (clip != null) _conductor.StartSong(clip, prerollSec: 1.0, audioOffsetMs: _meta?.AudioOffsetMs ?? 0);
+        // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
+        int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
+        if (clip != null) _conductor.StartSong(clip, prerollSec: 1.0, audioOffsetMs: audioShift);
         _isPlaying = true;
     }
 

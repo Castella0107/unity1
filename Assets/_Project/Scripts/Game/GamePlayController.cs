@@ -101,7 +101,9 @@ public class GamePlayController : MonoBehaviour
             StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud,
                                               _params?.HiSpeed ?? 0f);
             if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameTabController.GetSavedComboBorder());
-            _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: _meta?.AudioOffsetMs ?? 0);
+            // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
+            int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
+            _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: audioShift);
 
             Debug.Log(string.Format("[GamePlay] Started — song={0}  difficulty={1}  notes={2}",
                 SongId, Difficulty, _chart.Notes.Count));
