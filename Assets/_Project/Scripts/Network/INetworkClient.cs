@@ -49,5 +49,12 @@ namespace RhythmGame.Network
         Task<NetworkClient.QueueResult> LeaveQueueAsync(string userId);
         /// <summary>マッチキューの現在状態を取得する。</summary>
         Task<NetworkClient.QueueResult> GetQueueStatusAsync(string userId);
+
+        /// <summary>ドラフトの現在状態を取得する。</summary>
+        Task<NetworkClient.DraftResult> FetchDraftAsync(string matchId);
+        /// <summary>PICK を送信する(プールから 1 曲)。</summary>
+        Task<NetworkClient.DraftResult> DraftPickAsync(string matchId, string userId, string songId);
+        /// <summary>BAN を送信する(候補 3 曲から 1 曲)。</summary>
+        Task<NetworkClient.DraftResult> DraftBanAsync(string matchId, string userId, string songId);
     }
 }

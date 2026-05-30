@@ -22,7 +22,7 @@ public static class BuildPvpScenes
         BuildMatchmakingScene();
         BuildPvpMatchEndScene();
 
-        // 正規 PVP フロー 3 画面 (表示・演出のみ)。Prematch → SongPick → BanPhase → 本戦。
+        // 正規 PVP フロー 3 画面 (実ドラフト)。Prematch → SongPick(PICK) → BanPhase(BAN) → 本戦。
         BuildDraftScene("Assets/_Project/Scenes/PVPPrematch.unity",
             PvpDraftScreenController.Phase.Prematch, new Color(0.05f, 0.05f, 0.10f));
         BuildDraftScene("Assets/_Project/Scenes/PVPSongPick.unity",
@@ -251,9 +251,11 @@ public static class BuildPvpScenes
         SaveAndRegister(scene, scenePath);
     }
 
-    // 正規 PVP フロー画面 (Prematch/SongPick/BanPhase) を1枚生成する。
-    // ヘッダ + YOU/VS/OPP + info + 3 曲リスト + Primary(NEXT/START)/Cancel ボタン。
-    // 文言・曲リストは PvpDraftScreenController が phase + PvpFlowController から実行時に流し込む。
+    // 正規 PVP フロー画面 (Prematch/SongPick/BanPhase) を 1 枚生成する。
+    // 実ドラフト UI: SongPick=20曲グリッド / BanPhase=3カード / Prematch=導入。各タイルは
+    // DraftTileView を baked-in 結線 (ランタイム生成しない → [[feedback_unityRuntimeUiInLayoutGroup]])。
+    // 文言・曲・ジャケットは PvpDraftScreenController が実行時に流し込む。
+    // ※ 各要素の anchored 座標は概算。Editor で目視調整前提 (グリッドが画面中央を大きく占める)。
     static void BuildDraftScene(string scenePath, PvpDraftScreenController.Phase phase, Color bg)
     {
         var scene = NewEmptyScene();
@@ -264,80 +266,202 @@ public static class BuildPvpScenes
         Color red  = new Color(0.95f, 0.30f, 0.42f, 1f);
         Color dim  = new Color(1, 1, 1, 0.7f);
 
-        // ヘッダー + アクセント線
-        var headerTMP = MakeTMP("Header", canvasGO, 60, "MATCH READY");
-        SetAnchored(headerTMP, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -90), new Vector2(1500, 90));
+        // ── ヘッダー + アクセント線 ──────────────────────────────
+        var headerTMP = MakeTMP("Header", canvasGO, 58, "MATCH READY");
+        SetAnchored(headerTMP, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -64), new Vector2(1500, 84));
         headerTMP.alignment = TextAlignmentOptions.Center;
         headerTMP.fontStyle = FontStyles.Bold;
         headerTMP.characterSpacing = 6f;
 
         var accent = MakeImage("HeaderAccent", canvasGO, cyan);
-        SetRect(accent.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -150), new Vector2(560, 4));
+        SetRect(accent.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -118), new Vector2(560, 4));
 
-        // YOU / VS / OPPONENT
-        var youTMP = MakeTMP("YouNameText", canvasGO, 40, "YOU");
-        SetAnchored(youTMP, Center, Center, new Vector2(-320, 150), new Vector2(500, 70));
+        // ── YOU / VS / OPPONENT ─────────────────────────────────
+        var youTMP = MakeTMP("YouNameText", canvasGO, 38, "YOU");
+        SetAnchored(youTMP, Center, Center, new Vector2(-360, 400), new Vector2(560, 64));
         youTMP.alignment = TextAlignmentOptions.Center;
         youTMP.color = cyan;
         youTMP.fontStyle = FontStyles.Bold;
         youTMP.overflowMode = TextOverflowModes.Ellipsis;
 
-        var vsTMP = MakeTMP("VS", canvasGO, 54, "VS");
-        SetAnchored(vsTMP, Center, Center, new Vector2(0, 150), new Vector2(160, 70));
+        var vsTMP = MakeTMP("VS", canvasGO, 50, "VS");
+        SetAnchored(vsTMP, Center, Center, new Vector2(0, 400), new Vector2(160, 64));
         vsTMP.alignment = TextAlignmentOptions.Center;
         vsTMP.fontStyle = FontStyles.Bold | FontStyles.Italic;
 
-        var oppTMP = MakeTMP("OpponentNameText", canvasGO, 40, "???");
-        SetAnchored(oppTMP, Center, Center, new Vector2(320, 150), new Vector2(500, 70));
+        var oppTMP = MakeTMP("OpponentNameText", canvasGO, 38, "???");
+        SetAnchored(oppTMP, Center, Center, new Vector2(360, 400), new Vector2(560, 64));
         oppTMP.alignment = TextAlignmentOptions.Center;
         oppTMP.color = red;
         oppTMP.fontStyle = FontStyles.Bold;
         oppTMP.overflowMode = TextOverflowModes.Ellipsis;
 
-        // info 行
-        var infoTMP = MakeTMP("InfoText", canvasGO, 26, "");
-        SetAnchored(infoTMP, Center, Center, new Vector2(0, 70), new Vector2(1300, 44));
+        // ── info (指示) / status / timer ────────────────────────
+        var infoTMP = MakeTMP("InfoText", canvasGO, 24, "");
+        SetAnchored(infoTMP, Center, Center, new Vector2(0, 348), new Vector2(1400, 40));
         infoTMP.alignment = TextAlignmentOptions.Center;
         infoTMP.color = dim;
 
-        // 3 曲リスト
-        var songsTMP = MakeTMP("SongsText", canvasGO, 30, "");
-        SetAnchored(songsTMP, Center, Center, new Vector2(0, -60), new Vector2(1100, 200));
-        songsTMP.alignment = TextAlignmentOptions.Center;
+        var statusTMP = MakeTMP("StatusText", canvasGO, 30, "");
+        SetAnchored(statusTMP, Center, Center, new Vector2(0, 300), new Vector2(1200, 42));
+        statusTMP.alignment = TextAlignmentOptions.Center;
+        statusTMP.color = cyan;
+        statusTMP.fontStyle = FontStyles.Bold;
 
-        // Primary ボタン (NEXT / START)
+        var timerTMP = MakeTMP("TimerText", canvasGO, 40, "");
+        SetAnchored(timerTMP, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-150, -90), new Vector2(240, 56));
+        timerTMP.alignment = TextAlignmentOptions.Center;
+        timerTMP.fontStyle = FontStyles.Bold;
+
+        // ── reveal (開示) / songs (候補・確定ラインナップ) ─────────
+        var revealTMP = MakeTMP("RevealText", canvasGO, 30, "");
+        SetAnchored(revealTMP, Center, Center, new Vector2(0, -352), new Vector2(1500, 46));
+        revealTMP.alignment = TextAlignmentOptions.Center;
+        revealTMP.fontStyle = FontStyles.Bold;
+
+        var songsTMP = MakeTMP("SongsText", canvasGO, 26, "");
+        SetAnchored(songsTMP, Center, Center, new Vector2(0, -420), new Vector2(1400, 110));
+        songsTMP.alignment = TextAlignmentOptions.Center;
+        songsTMP.color = new Color(1, 1, 1, 0.85f);
+
+        // ── タイルグリッド (phase 別) ───────────────────────────
+        var tiles = new System.Collections.Generic.List<DraftTileView>();
+        if (phase == PvpDraftScreenController.Phase.SongPick)
+        {
+            var grid = MakeGrid("PoolGrid", canvasGO, new Vector2(0, -36),
+                new Vector2(772, 608), new Vector2(140, 140), new Vector2(12, 12), 5);
+            for (int i = 0; i < 20; i++) tiles.Add(MakeDraftTile(grid, 18, 15));
+        }
+        else if (phase == PvpDraftScreenController.Phase.BanPhase)
+        {
+            var grid = MakeGrid("CandidateGrid", canvasGO, new Vector2(0, 20),
+                new Vector2(960, 340), new Vector2(280, 320), new Vector2(40, 0), 3);
+            for (int i = 0; i < 3; i++) tiles.Add(MakeDraftTile(grid, 26, 22));
+        }
+
+        // ── Primary (LOCK IN / START / TO SONG PICK) / Cancel ────
         var primaryGO = MakeButton("PrimaryButton", canvasGO, "NEXT >");
         var pRT = primaryGO.GetComponent<RectTransform>();
         pRT.anchorMin = pRT.anchorMax = new Vector2(0.5f, 0f);
         pRT.pivot = new Vector2(0.5f, 0f);
-        pRT.anchoredPosition = new Vector2(180, 110);
-        pRT.sizeDelta = new Vector2(340, 76);
+        pRT.anchoredPosition = new Vector2(200, 56);
+        pRT.sizeDelta = new Vector2(360, 76);
         var primaryLabel = primaryGO.GetComponentInChildren<TextMeshProUGUI>();
 
-        // Cancel ボタン
         var cancelGO = MakeButton("CancelButton", canvasGO, "CANCEL");
         var cRT = cancelGO.GetComponent<RectTransform>();
         cRT.anchorMin = cRT.anchorMax = new Vector2(0.5f, 0f);
         cRT.pivot = new Vector2(0.5f, 0f);
-        cRT.anchoredPosition = new Vector2(-180, 110);
-        cRT.sizeDelta = new Vector2(340, 76);
+        cRT.anchoredPosition = new Vector2(-200, 56);
+        cRT.sizeDelta = new Vector2(360, 76);
 
-        // Controller 配線
+        // ── Controller 配線 ─────────────────────────────────────
         var ctrlGO = new GameObject("PvpDraftScreenController");
         var ctrl = ctrlGO.AddComponent<PvpDraftScreenController>();
         var so = new SerializedObject(ctrl);
-        so.FindProperty("_phase").enumValueIndex          = (int)phase;
-        so.FindProperty("_headerText").objectReferenceValue   = headerTMP;
-        so.FindProperty("_youNameText").objectReferenceValue  = youTMP;
-        so.FindProperty("_oppNameText").objectReferenceValue  = oppTMP;
-        so.FindProperty("_infoText").objectReferenceValue     = infoTMP;
-        so.FindProperty("_songsText").objectReferenceValue    = songsTMP;
-        so.FindProperty("_primaryLabel").objectReferenceValue = primaryLabel;
+        so.FindProperty("_phase").enumValueIndex            = (int)phase;
+        so.FindProperty("_headerText").objectReferenceValue    = headerTMP;
+        so.FindProperty("_youNameText").objectReferenceValue   = youTMP;
+        so.FindProperty("_oppNameText").objectReferenceValue   = oppTMP;
+        so.FindProperty("_infoText").objectReferenceValue      = infoTMP;
+        so.FindProperty("_statusText").objectReferenceValue    = statusTMP;
+        so.FindProperty("_timerText").objectReferenceValue     = timerTMP;
+        so.FindProperty("_revealText").objectReferenceValue    = revealTMP;
+        so.FindProperty("_songsText").objectReferenceValue     = songsTMP;
+        so.FindProperty("_primaryLabel").objectReferenceValue  = primaryLabel;
         so.FindProperty("_primaryButton").objectReferenceValue = primaryGO.GetComponent<Button>();
         so.FindProperty("_cancelButton").objectReferenceValue  = cancelGO.GetComponent<Button>();
+
+        var tilesProp = so.FindProperty("_tiles");
+        tilesProp.arraySize = tiles.Count;
+        for (int i = 0; i < tiles.Count; i++)
+            tilesProp.GetArrayElementAtIndex(i).objectReferenceValue = tiles[i];
+
         so.ApplyModifiedPropertiesWithoutUndo();
 
         SaveAndRegister(scene, scenePath);
+    }
+
+    // GridLayoutGroup コンテナを生成する (タイルは baked-in で子に追加)。
+    static GameObject MakeGrid(string name, GameObject parent, Vector2 pos, Vector2 size,
+                               Vector2 cell, Vector2 spacing, int cols)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent.transform, false);
+        var rt = go.AddComponent<RectTransform>();
+        rt.anchorMin = rt.anchorMax = Center;
+        rt.pivot = Center;
+        rt.anchoredPosition = pos;
+        rt.sizeDelta = size;
+        var grid = go.AddComponent<GridLayoutGroup>();
+        grid.cellSize        = cell;
+        grid.spacing         = spacing;
+        grid.constraint      = GridLayoutGroup.Constraint.FixedColumnCount;
+        grid.constraintCount = cols;
+        grid.childAlignment  = TextAnchor.MiddleCenter;
+        return go;
+    }
+
+    // ドラフトの 1 タイルを生成し DraftTileView を結線して返す。
+    // 構成(背面→前面): 選択枠(大きめ) / 背景(Buttonターゲット, raycast) / ジャケット / 暗転 / ラベル(下) / タグ(上)。
+    static DraftTileView MakeDraftTile(GameObject grid, int labelSize, int tagSize)
+    {
+        var go = new GameObject("Tile");
+        go.transform.SetParent(grid.transform, false);
+        go.AddComponent<RectTransform>();
+
+        // 選択枠 (背面・一回り大きい cyan)。選択時のみ enabled。
+        var frame = MakeImageRay("SelFrame", go, new Color(0.17f, 0.85f, 0.90f, 0.95f), false);
+        StretchInset(frame.rectTransform, -6);
+        frame.enabled = false;
+
+        // 背景 (Button のターゲット, クリックを受ける)
+        var bgImg = MakeImageRay("BG", go, new Color(1, 1, 1, 0.12f), true);
+        FullStretch(bgImg.rectTransform);
+        var btn = go.AddComponent<Button>();
+        btn.targetGraphic = bgImg;
+
+        // ジャケット (sprite 未取得時は disabled)
+        var jacket = MakeImageRay("Jacket", go, Color.white, false);
+        StretchInset(jacket.rectTransform, 5);
+        jacket.preserveAspect = true;
+        jacket.enabled = false;
+
+        // 暗転 (BAN / 非選択) 既定 disabled
+        var dimImg = MakeImageRay("Dim", go, new Color(0, 0, 0, 0.62f), false);
+        FullStretch(dimImg.rectTransform);
+        dimImg.enabled = false;
+
+        // ラベル (下部)
+        var label = MakeTMP("Label", go, labelSize, "");
+        var lrt = label.rectTransform;
+        lrt.anchorMin = new Vector2(0, 0); lrt.anchorMax = new Vector2(1, 0); lrt.pivot = new Vector2(0.5f, 0);
+        lrt.anchoredPosition = new Vector2(0, 4); lrt.sizeDelta = new Vector2(-8, 38);
+        label.alignment = TextAlignmentOptions.Center;
+        label.enableWordWrapping = false;
+        label.overflowMode = TextOverflowModes.Ellipsis;
+        label.raycastTarget = false;
+
+        // タグ (上部) 既定 disabled
+        var tag = MakeTMP("Tag", go, tagSize, "");
+        var trt = tag.rectTransform;
+        trt.anchorMin = new Vector2(0, 1); trt.anchorMax = new Vector2(1, 1); trt.pivot = new Vector2(0.5f, 1);
+        trt.anchoredPosition = new Vector2(0, -4); trt.sizeDelta = new Vector2(-8, 30);
+        tag.alignment = TextAlignmentOptions.Center;
+        tag.fontStyle = FontStyles.Bold;
+        tag.raycastTarget = false;
+        tag.enabled = false;
+
+        var view = go.AddComponent<DraftTileView>();
+        var so = new SerializedObject(view);
+        so.FindProperty("_button").objectReferenceValue         = btn;
+        so.FindProperty("_jacket").objectReferenceValue         = jacket;
+        so.FindProperty("_label").objectReferenceValue          = label;
+        so.FindProperty("_selectionFrame").objectReferenceValue = frame;
+        so.FindProperty("_dim").objectReferenceValue            = dimImg;
+        so.FindProperty("_tag").objectReferenceValue            = tag;
+        so.ApplyModifiedPropertiesWithoutUndo();
+        return view;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -353,6 +477,26 @@ public static class BuildPvpScenes
         img.color = color;
         img.raycastTarget = false;   // 視覚専用 (クリックは Button のみに通す)
         return img;
+    }
+
+    // raycastTarget を明示指定できる Image 生成 (タイル背景はクリックを受けるため true)。
+    static Image MakeImageRay(string name, GameObject parent, Color color, bool raycast)
+    {
+        var go = new GameObject(name);
+        go.transform.SetParent(parent.transform, false);
+        go.AddComponent<RectTransform>();
+        var img = go.AddComponent<Image>();
+        img.color = color;
+        img.raycastTarget = raycast;
+        return img;
+    }
+
+    // 親に対し full-stretch しつつ四辺を inset px だけ内側(正)/外側(負)へ。
+    static void StretchInset(RectTransform rt, float inset)
+    {
+        rt.anchorMin = Vector2.zero; rt.anchorMax = Vector2.one;
+        rt.offsetMin = new Vector2(inset, inset);
+        rt.offsetMax = new Vector2(-inset, -inset);
     }
 
     static void SetRect(RectTransform rt, Vector2 aMin, Vector2 aMax, Vector2 pos, Vector2 size)

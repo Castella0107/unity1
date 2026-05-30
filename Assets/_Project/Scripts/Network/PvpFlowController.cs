@@ -28,6 +28,10 @@ namespace RhythmGame.Network
         public string OpponentId     { get; private set; }
         /// <summary>自分のユーザーID。</summary>
         public string SelfUserId     { get; private set; }
+        /// <summary>自分がマッチの A 側か。ドラフト/結果の YOU/OPP 左右割当に使う。ResolveSidesAsync 後に有効。</summary>
+        public bool   SelfIsA        { get; private set; }
+        /// <summary>A/B 割当が解決済みか。</summary>
+        public bool   SidesResolved  { get; private set; }
         /// <summary>現在プレイ中の曲インデックス(0 始まり)。</summary>
         public int    CurrentSongIndex { get; private set; }
         /// <summary>このマッチの選曲一覧。</summary>
@@ -67,11 +71,13 @@ namespace RhythmGame.Network
             MatchId    = matchId;
             OpponentId = opponentId;
             SelfUserId = LocalIdentity.UserId;
-            _songs     = songs ?? new List<SongPickDto>();
+            _songs     = songs ?? new List<SongPickDto>();   // queue 経由は空 → ドラフトで確定する
             _replayPaths.Clear();
             CurrentSongIndex = 0;
             IsActive    = true;
             _submitting = false;
+            SidesResolved = false;
+            SelfIsA       = false;
 
             Debug.Log($"[PvpFlow] StartMatch {matchId.Substring(0, 8)} vs {opponentId}, songs={_songs.Count} → Prematch");
             if (SceneRouter.Instance != null)
@@ -87,14 +93,61 @@ namespace RhythmGame.Network
         }
 
         /// <summary>
+        /// マッチの A/B とローカルユーザーの対応を解決する(ドラフト/結果表示の YOU/OPP 左右割当に必要)。
+        /// キュー応答は A/B を区別しないため、既存の <c>GET /api/pvp/match/{id}</c>(進行中も userIdA/B を返す)
+        /// で解決する。サーバー追加は不要。冪等で、解決済みなら即 return。
+        /// </summary>
+        public async Task ResolveSidesAsync()
+        {
+            if (SidesResolved || !IsActive || string.IsNullOrEmpty(MatchId)) return;
+            var net = NetworkClient.Instance;
+            if (net == null) return;
+            try
+            {
+                var f = await net.FetchMatchAsync(MatchId);
+                if (f.Ok && f.Body != null && !string.IsNullOrEmpty(f.Body.userIdA))
+                {
+                    SelfIsA       = SelfUserId == f.Body.userIdA;
+                    SidesResolved = true;
+                    Debug.Log($"[PvpFlow] Sides resolved: selfIsA={SelfIsA} (A={f.Body.userIdA}, B={f.Body.userIdB})");
+                }
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[PvpFlow] ResolveSidesAsync failed: " + e.Message);
+            }
+        }
+
+        /// <summary>
+        /// ドラフト確定後、BanPhase 画面から呼ばれる。確定した 3 曲を保持して本戦に備える。
+        /// (queue 経由のマッチは StartMatch 時点では曲が空で、ここで初めて確定する。)
+        /// </summary>
+        public void SetDraftSongs(List<SongPickDto> songs)
+        {
+            if (songs == null || songs.Count == 0)
+            {
+                Debug.LogWarning("[PvpFlow] SetDraftSongs called with empty songs — ignored");
+                return;
+            }
+            _songs = songs;
+            Debug.Log($"[PvpFlow] Draft songs set ({songs.Count}): "
+                      + string.Join(", ", songs.ConvertAll(s => s.songId)));
+        }
+
+        /// <summary>
         /// BanPhase 画面の START から呼ばれる。1 曲目の GamePlay を起動する。
-        /// (Prematch/SongPick/BanPhase は表示・演出のみで、実際の曲開始はここで行う。)
+        /// (Prematch/SongPick/BanPhase でドラフトを進め、3 曲確定後にここで本戦を開始する。)
         /// </summary>
         public void BeginSongs()
         {
             if (!IsActive)
             {
                 Debug.LogWarning("[PvpFlow] BeginSongs called with no active match");
+                return;
+            }
+            if (_songs == null || _songs.Count == 0)
+            {
+                AbortMatch("Draft did not produce any songs");
                 return;
             }
             CurrentSongIndex = 0;
@@ -416,6 +469,8 @@ namespace RhythmGame.Network
             _songs.Clear();
             _replayPaths.Clear();
             CurrentSongIndex = 0;
+            SidesResolved = false;
+            SelfIsA       = false;
         }
     }
 }

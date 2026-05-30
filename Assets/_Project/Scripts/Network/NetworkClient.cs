@@ -338,6 +338,46 @@ namespace RhythmGame.Network
             return new QueueResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        // ── PVP Draft (PICK/BAN) ────────────────────────────────────────────────
+
+        /// <summary>ドラフト操作の結果(Ok/Error/RoundtripMs/Body)。</summary>
+        public class DraftResult
+        {
+            public bool          Ok;
+            public string        Error;
+            public long          RoundtripMs;
+            public DraftStateDto Body;
+        }
+
+        /// <summary>ドラフトの現在状態を取得 (GET /match/{id}/draft)。</summary>
+        public async Task<DraftResult> FetchDraftAsync(string matchId)
+        {
+            if (!ServerConfig.Enabled) return new DraftResult { Ok = false, Error = "Network disabled" };
+            string url = ServerConfig.BaseUrl.TrimEnd('/') + $"/api/pvp/match/{UnityWebRequest.EscapeURL(matchId)}/draft";
+            var (ok, err, body, rt) = await GetJsonAsync<DraftStateDto>(url);
+            return new DraftResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
+        }
+
+        /// <summary>PICK を送信 (POST /match/{id}/draft/pick)。両者完了なら Body.phase=="ban"。</summary>
+        public async Task<DraftResult> DraftPickAsync(string matchId, string userId, string songId)
+        {
+            if (!ServerConfig.Enabled) return new DraftResult { Ok = false, Error = "Network disabled" };
+            var dto = new DraftActionRequestDto { userId = userId, songId = songId };
+            string url = ServerConfig.BaseUrl.TrimEnd('/') + $"/api/pvp/match/{UnityWebRequest.EscapeURL(matchId)}/draft/pick";
+            var (ok, err, body, rt) = await PostJsonAsync<DraftStateDto>(url, dto);
+            return new DraftResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
+        }
+
+        /// <summary>BAN を送信 (POST /match/{id}/draft/ban)。両者完了なら Body.phase=="done" + Songs 確定。</summary>
+        public async Task<DraftResult> DraftBanAsync(string matchId, string userId, string songId)
+        {
+            if (!ServerConfig.Enabled) return new DraftResult { Ok = false, Error = "Network disabled" };
+            var dto = new DraftActionRequestDto { userId = userId, songId = songId };
+            string url = ServerConfig.BaseUrl.TrimEnd('/') + $"/api/pvp/match/{UnityWebRequest.EscapeURL(matchId)}/draft/ban";
+            var (ok, err, body, rt) = await PostJsonAsync<DraftStateDto>(url, dto);
+            return new DraftResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
+        }
+
         // ── Generic JSON helpers ────────────────────────────────────────────────
 
         async Task<(bool ok, string err, T body, long rt)> PostJsonAsync<T>(string url, object request)

@@ -187,6 +187,41 @@ namespace RhythmGame.Network
         public int    queueDepth;
     }
 
+    /// <summary>ドラフト(PICK/BAN)の操作リクエスト(自分の userId + 対象 songId)。</summary>
+    [Serializable]
+    public class DraftActionRequestDto
+    {
+        public string userId;
+        public string songId;
+    }
+
+    /// <summary>
+    /// ドラフト状態スナップショット。サーバー <c>PvpController.DraftStateDto</c> に対応。
+    /// ブラインド方式: 両者が完了するまで相手の選択 (pickA/pickB, banA/banB) は空で伏せられる。
+    /// </summary>
+    [Serializable]
+    public class DraftStateDto
+    {
+        /// <summary>現在フェーズ ("pick" / "ban" / "done")。</summary>
+        public string phase;
+        public bool   aPicked;
+        public bool   bPicked;
+        public bool   aBanned;
+        public bool   bBanned;
+        /// <summary>両 PICK 完了まで空文字。</summary>
+        public string pickA;
+        public string pickB;
+        /// <summary>両 PICK 後に確定する BAN 候補 3 曲 (songId)。</summary>
+        public System.Collections.Generic.List<string> candidates;
+        /// <summary>両 BAN 完了まで空文字。</summary>
+        public string banA;
+        public string banB;
+        /// <summary>done 時の確定 3 曲 ([PickA, PickB, 3曲目])。</summary>
+        public System.Collections.Generic.List<SongPickDto> songs;
+        /// <summary>PICK 候補 = プール全曲 ID。</summary>
+        public System.Collections.Generic.List<string> pool;
+    }
+
     /// <summary>PVP 進捗の送信 DTO。</summary>
     [Serializable]
     public class ProgressUpdateDto

@@ -76,25 +76,22 @@ namespace RhythmGame.Server.Services
                         _waiting.Enqueue(userId);
                         return new Snapshot { Status = Status.Queued, QueueDepth = _waiting.Count };
                     }
-                    // 楽曲は MatchPool から 3 曲
-                    var pool = MatchPool.CreateBootstrapPool();
-                    var rng = new Random();
-                    var picks = pool.Entries.OrderBy(_ => rng.Next()).Take(3)
-                        .Select(e => new ActiveMatchStore.SongPick { SongId = e.SongId, Difficulty = e.Difficulty })
-                        .ToList();
-                    var m = _store.Create(other, userId, picks);
+                    // 曲は空で作成 = ドラフト開始 (PICK/BAN はクライアントが polling で進める)。
+                    // 旧来の「即3曲ランダム」は debug の match/create に残置。
+                    var noSongs = new List<ActiveMatchStore.SongPick>();
+                    var m = _store.Create(other, userId, noSongs);
                     _matched[other] = new MatchedNotice
                     {
                         MatchId    = m.MatchId,
                         OpponentId = userId,
-                        Songs      = picks,
+                        Songs      = noSongs,
                     };
                     return new Snapshot
                     {
                         Status     = Status.Matched,
                         MatchId    = m.MatchId,
                         OpponentId = other,
-                        Songs      = picks,
+                        Songs      = noSongs,
                     };
                 }
 

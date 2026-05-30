@@ -157,6 +157,92 @@ namespace RhythmGame.Server.Services
             };
         }
 
+        // ── Draft (PICK/BAN) ─────────────────────────────────────────────────────
+        // queue 経由のマッチは曲未確定 (DraftDone=false) で始まる。クライアントが
+        // pick → ban を polling で進め、両者完了で 3 曲が確定する。ブラインド方式
+        // (相手の選択は両者完了まで伏せる)。サーバー追加は最小 (既存 polling と同形)。
+
+        public class DraftActionDto
+        {
+            public string UserId { get; set; } = "";
+            public string SongId { get; set; } = "";
+        }
+
+        public class DraftStateDto
+        {
+            public string             Phase      { get; set; } = "";   // pick / ban / done
+            public bool               APicked    { get; set; }
+            public bool               BPicked    { get; set; }
+            public bool               ABanned    { get; set; }
+            public bool               BBanned    { get; set; }
+            public string             PickA      { get; set; } = "";   // 両PICK完了まで伏せる
+            public string             PickB      { get; set; } = "";
+            public List<string>       Candidates { get; set; } = new(); // 両PICK後の3曲
+            public string             BanA       { get; set; } = "";   // 両BAN完了まで伏せる
+            public string             BanB       { get; set; } = "";
+            public List<SongPickDto>  Songs      { get; set; } = new(); // 確定3曲 (done時)
+            public List<string>       Pool       { get; set; } = new(); // PICK候補=プール全曲ID
+        }
+
+        [HttpPost("match/{id}/draft/pick")]
+        public ActionResult<DraftStateDto> DraftPick(string id, [FromBody] DraftActionDto req)
+        {
+            if (req == null || string.IsNullOrEmpty(req.UserId) || string.IsNullOrEmpty(req.SongId))
+                return BadRequest("userId / songId required");
+            var m = _matches.TryGet(id);
+            if (m == null) return NotFound("match not found");
+            var pool = MatchPool.CreateBootstrapPool();
+            var (ok, err) = _matches.ApplyPick(m, req.UserId, req.SongId, pool.Entries);
+            if (!ok) return BadRequest(err);
+            return BuildDraftDto(m, pool);
+        }
+
+        [HttpPost("match/{id}/draft/ban")]
+        public ActionResult<DraftStateDto> DraftBan(string id, [FromBody] DraftActionDto req)
+        {
+            if (req == null || string.IsNullOrEmpty(req.UserId) || string.IsNullOrEmpty(req.SongId))
+                return BadRequest("userId / songId required");
+            var m = _matches.TryGet(id);
+            if (m == null) return NotFound("match not found");
+            var pool = MatchPool.CreateBootstrapPool();
+            var (ok, err) = _matches.ApplyBan(m, req.UserId, req.SongId, pool.Entries);
+            if (!ok) return BadRequest(err);
+            if (m.DraftDone)
+                _logger.LogInformation("[Pvp] Draft resolved {MatchId}: songs={Songs}",
+                    m.MatchId, string.Join(",", m.Songs.Select(s => s.SongId)));
+            return BuildDraftDto(m, pool);
+        }
+
+        [HttpGet("match/{id}/draft")]
+        public ActionResult<DraftStateDto> DraftGet(string id)
+        {
+            var m = _matches.TryGet(id);
+            if (m == null) return NotFound("match not found");
+            return BuildDraftDto(m, MatchPool.CreateBootstrapPool());
+        }
+
+        private static DraftStateDto BuildDraftDto(ActiveMatchStore.ActiveMatch m, MatchPool pool)
+        {
+            var phase = ActiveMatchStore.GetPhase(m);
+            bool bothPicked = !string.IsNullOrEmpty(m.PickA) && !string.IsNullOrEmpty(m.PickB);
+            bool bothBanned = !string.IsNullOrEmpty(m.BanA) && !string.IsNullOrEmpty(m.BanB);
+            return new DraftStateDto
+            {
+                Phase      = phase.ToString().ToLowerInvariant(),
+                APicked    = !string.IsNullOrEmpty(m.PickA),
+                BPicked    = !string.IsNullOrEmpty(m.PickB),
+                ABanned    = !string.IsNullOrEmpty(m.BanA),
+                BBanned    = !string.IsNullOrEmpty(m.BanB),
+                PickA      = bothPicked ? m.PickA : "",   // ブラインド: 両者完了まで伏せる
+                PickB      = bothPicked ? m.PickB : "",
+                Candidates = new List<string>(m.BanCandidates),
+                BanA       = bothBanned ? m.BanA : "",
+                BanB       = bothBanned ? m.BanB : "",
+                Songs      = m.Songs.Select(s => new SongPickDto { SongId = s.SongId, Difficulty = s.Difficulty }).ToList(),
+                Pool       = pool.Entries.Select(e => e.SongId).ToList(),
+            };
+        }
+
         // ── Submit ─────────────────────────────────────────────────────────────
 
         public class SubmitSongDto
