@@ -16,22 +16,28 @@ namespace Domain.Pvp
         public readonly int    ScoreA;
         /// <summary>Player B のセクタースコア。</summary>
         public readonly int    ScoreB;
-        /// <summary>楽曲の難易度("easy"/"normal"/"hard"/"extra")。獲得ポイントの倍率に使う。null/不明は extra (×1.0) 扱い。</summary>
-        public readonly string Difficulty;
-        /// <summary>Player A のタイブレーク値(Σ 2×PerfectPlus + Perfect)。スコア同点時に優劣を決める。0/未指定なら同点は引分のまま。</summary>
+        /// <summary>Player A の難易度("easy"/"normal"/"hard"/"extra")。実効スコア = スコア × 難易度倍率 の比較に使う。null/不明は extra (×1.0)。</summary>
+        public readonly string DifficultyA;
+        /// <summary>Player B の難易度。各プレイヤーが自分の難易度を選べる(相手と異なり得る)。</summary>
+        public readonly string DifficultyB;
+        /// <summary>Player A のタイブレーク値(Σ 2×PerfectPlus + Perfect)。実効スコア同点時に優劣を決める。</summary>
         public readonly int    TieA;
         /// <summary>Player B のタイブレーク値(Σ 2×PerfectPlus + Perfect)。</summary>
         public readonly int    TieB;
 
-        /// <summary>楽曲ID・セクション・両者スコア・難易度・(任意)タイブレーク値を指定してセクター対戦ペアを生成する。</summary>
+        /// <summary>
+        /// 楽曲ID・セクション・両者スコア・難易度・(任意)タイブレーク値を指定してセクター対戦ペアを生成する。
+        /// <paramref name="difficultyB"/> 省略時は <paramref name="difficultyA"/> を両者に適用(後方互換: 同一難易度)。
+        /// </summary>
         public SectorPair(string songId, int sectorIndex, int scoreA, int scoreB,
-                          string difficulty = null, int tieA = 0, int tieB = 0)
+                          string difficultyA = null, int tieA = 0, int tieB = 0, string difficultyB = null)
         {
             SongId      = songId;
             SectorIndex = sectorIndex;
             ScoreA      = scoreA;
             ScoreB      = scoreB;
-            Difficulty  = difficulty;
+            DifficultyA = difficultyA;
+            DifficultyB = difficultyB ?? difficultyA;
             TieA        = tieA;
             TieB        = tieB;
         }
@@ -138,23 +144,28 @@ namespace Domain.Pvp
     /// </summary>
     public static class MatchScoring
     {
-        /// <summary>難易度倍率 (設計書: easy 0.75 / normal 0.80 / hard 0.90 / extra 1.00)。null/不明は 1.0。</summary>
-        public static double DifficultyMultiplier(string difficulty)
+        /// <summary>難易度倍率 (設計書: easy 0.75 / normal 0.80 / hard 0.90 / extra 1.00)。表示用。null/不明は 1.0。</summary>
+        public static double DifficultyMultiplier(string difficulty) => MultiplierPercent(difficulty) / 100.0;
+
+        /// <summary>難易度倍率を百分率の整数で返す (easy75 / normal80 / hard90 / extra100)。実効スコア比較に使う(浮動小数回避)。</summary>
+        public static int MultiplierPercent(string difficulty)
         {
             switch (difficulty?.Trim().ToLowerInvariant())
             {
-                case "easy":   return 0.75;
-                case "normal": return 0.80;
-                case "hard":   return 0.90;
-                case "extra":  return 1.00;
-                default:       return 1.00;   // null/未知は重み無し
+                case "easy":   return 75;
+                case "normal": return 80;
+                case "hard":   return 90;
+                case "extra":  return 100;
+                default:       return 100;   // null/未知は重み無し
             }
         }
 
         /// <summary>
-        /// セクター対戦ペア列を採点する。各セクターの勝敗(勝ち1.0/引分0.5/負け0.0)に楽曲の
-        /// 難易度倍率を掛けたものを獲得ポイントとし、合計と試合勝敗を集計する。
-        /// 倍率は試合ポイント(最大15pt表示)にのみ効き、レーティング(Glicko-2)は素の勝敗を使う。
+        /// セクター対戦ペア列を採点する。各プレイヤーの「実効スコア = セクタースコア × 自分の難易度倍率」を
+        /// 比較してセクター勝敗を決め、勝敗ポイントは <b>フラット</b>(勝ち1.0/引分0.5/負け0.0、倍率を掛けない)。
+        /// 実効スコア同点はタイブレーク(Σ 2×PerfectPlus + Perfect、これも実効=各自の倍率を掛けて比較)で決着、
+        /// なお同点なら真の引分。合計ポイントの多い側が試合勝者。レーティング(Glicko-2)は素の勝敗を使う。
+        /// 例: 理論値 200000 どうしで A=easy / B=extra → 実効 150000 vs 200000 → B 勝ち。
         /// </summary>
         public static MatchOutcome Score(IReadOnlyList<SectorPair> sectors)
         {
@@ -164,19 +175,28 @@ namespace Domain.Pvp
             double a = 0, b = 0;
             foreach (var sp in sectors)
             {
+                int multA = MultiplierPercent(sp.DifficultyA);
+                int multB = MultiplierPercent(sp.DifficultyB);
+                long effA = (long)sp.ScoreA * multA;   // 実効スコア(整数、浮動小数回避)
+                long effB = (long)sp.ScoreB * multB;
+
                 double rawA, rawB;
                 SectorOutcome o;
-                if      (sp.ScoreA >  sp.ScoreB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
-                else if (sp.ScoreA <  sp.ScoreB) { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
-                // スコア同点 → タイブレーク (Σ 2×PerfectPlus + Perfect が多い側の勝ち)。
-                // タイブレークも同点なら真の引分 (0.5/0.5)。TieA/TieB 未指定 (0/0) は従来どおり引分。
-                else if (sp.TieA >  sp.TieB)     { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
-                else if (sp.TieA <  sp.TieB)     { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
-                else                              { rawA = 0.5; rawB = 0.5; o = SectorOutcome.Draw;  }
+                if      (effA >  effB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
+                else if (effA <  effB) { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
+                else
+                {
+                    // 実効スコア同点 → タイブレーク (Σ 2×P+ + P も実効化して比較)。
+                    long tieA = (long)sp.TieA * multA;
+                    long tieB = (long)sp.TieB * multB;
+                    if      (tieA > tieB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
+                    else if (tieA < tieB) { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
+                    else                  { rawA = 0.5; rawB = 0.5; o = SectorOutcome.Draw;  }
+                }
 
-                double mult = DifficultyMultiplier(sp.Difficulty);
-                double pa = rawA * mult;
-                double pb = rawB * mult;
+                // 勝敗ポイントはフラット(難易度倍率は実効スコア比較で既に反映済み)。
+                double pa = rawA;
+                double pb = rawB;
 
                 a += pa;
                 b += pb;

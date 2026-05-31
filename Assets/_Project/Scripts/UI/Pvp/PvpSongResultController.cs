@@ -118,11 +118,14 @@ namespace RhythmGame.UI.Pvp
         // サーバーの MatchScoring と同じ規則。>0=WIN / <0=LOSE / 0=真の引分。
         static int CompareSector(SongResultDto sr, int i)
         {
-            int a = (sr.selfSectors != null && i < sr.selfSectors.Count) ? sr.selfSectors[i] : 0;
-            int b = (sr.oppSectors  != null && i < sr.oppSectors.Count)  ? sr.oppSectors[i]  : 0;
+            // 実効スコア = セクタースコア × 自分の難易度倍率(サーバー MatchScoring と同一規則)。
+            int selfMul = Domain.Pvp.MatchScoring.MultiplierPercent(sr.selfDifficulty);
+            int oppMul  = Domain.Pvp.MatchScoring.MultiplierPercent(sr.oppDifficulty);
+            long a = (long)((sr.selfSectors != null && i < sr.selfSectors.Count) ? sr.selfSectors[i] : 0) * selfMul;
+            long b = (long)((sr.oppSectors  != null && i < sr.oppSectors.Count)  ? sr.oppSectors[i]  : 0) * oppMul;
             if (a != b) return a > b ? 1 : -1;
-            int ta = (sr.selfSectorTieBreaks != null && i < sr.selfSectorTieBreaks.Count) ? sr.selfSectorTieBreaks[i] : 0;
-            int tb = (sr.oppSectorTieBreaks  != null && i < sr.oppSectorTieBreaks.Count)  ? sr.oppSectorTieBreaks[i]  : 0;
+            long ta = (long)((sr.selfSectorTieBreaks != null && i < sr.selfSectorTieBreaks.Count) ? sr.selfSectorTieBreaks[i] : 0) * selfMul;
+            long tb = (long)((sr.oppSectorTieBreaks  != null && i < sr.oppSectorTieBreaks.Count)  ? sr.oppSectorTieBreaks[i]  : 0) * oppMul;
             return ta == tb ? 0 : (ta > tb ? 1 : -1);
         }
 

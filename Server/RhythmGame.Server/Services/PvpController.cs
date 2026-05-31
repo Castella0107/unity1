@@ -356,6 +356,8 @@ namespace RhythmGame.Server.Services
             public List<int> OppSectors  { get; set; } = new();   // 相手の 5 セクター (両者提出時のみ)
             public List<int> SelfSectorTieBreaks { get; set; } = new();  // 提出者の 5 セクターのタイブレーク値 (同点表示解決用)
             public List<int> OppSectorTieBreaks  { get; set; } = new();  // 相手の 5 セクターのタイブレーク値 (両者提出時のみ)
+            public string SelfDifficulty { get; set; }   // 提出者の難易度(実効スコア比較用)
+            public string OppDifficulty  { get; set; }   // 相手の難易度(両者提出時)
             public double SelfSongPoints { get; set; }            // この曲の自分pt (難易度倍率込み, 両者提出時)
             public double OppSongPoints  { get; set; }
             public double SelfCumulative { get; set; }            // 提出済み曲の累計 (両者提出時)
@@ -405,13 +407,17 @@ namespace RhythmGame.Server.Services
             mine[idx]    = copy;
             mineTie[idx] = ExtractTieBreaks(vr.Snapshot);
 
-            // 各自が選んだ難易度を反映 (倍率計算に効く)。空でなければ採用。
+            // 各自が選んだ難易度を保存 (プレイヤー別。実効スコア = スコア × 難易度倍率 の比較に使う)。
             if (!string.IsNullOrEmpty(req.Difficulty))
-                m.Songs[idx].Difficulty = req.Difficulty;
+            {
+                (isA ? m.SongDiffA : m.SongDiffB)[idx] = req.Difficulty;
+                m.Songs[idx].Difficulty = req.Difficulty;  // 表示/履歴用の代表値(暫定・後勝ち)
+            }
 
             var dto = new SongResultDto { SongIndex = idx };
             dto.SelfSectors = new List<int>(copy);
             dto.SelfSectorTieBreaks = new List<int>(mineTie[idx]);
+            dto.SelfDifficulty = (isA ? m.SongDiffA : m.SongDiffB)[idx];
 
             if (!ActiveMatchStore.BothSubmittedSong(m, idx))
             {
@@ -427,13 +433,15 @@ namespace RhythmGame.Server.Services
             dto.OppSectors  = new List<int>(oppArr);
             dto.SelfSectorTieBreaks = new List<int>((isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)[idx] ?? new int[5]);
             dto.OppSectorTieBreaks  = new List<int>((isA ? m.PerSongTieBreaksB : m.PerSongTieBreaksA)[idx] ?? new int[5]);
+            dto.SelfDifficulty = Diff(isA ? m.SongDiffA : m.SongDiffB, idx);
+            dto.OppDifficulty  = Diff(isA ? m.SongDiffB : m.SongDiffA, idx);
 
-            // この曲のポイント (難易度倍率込み)
+            // この曲のポイント (実効スコア比較 = スコア × 各自の難易度倍率)
             var songPairs = new List<SectorPair>(5);
             for (int sec = 0; sec < 5; sec++)
                 songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
-                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty,
-                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec)));
+                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], Diff(m.SongDiffA, idx),
+                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec), Diff(m.SongDiffB, idx)));
             var songOutcome = MatchScoring.Score(songPairs);
             dto.SelfSongPoints = isA ? songOutcome.TotalPointsA : songOutcome.TotalPointsB;
             dto.OppSongPoints  = isA ? songOutcome.TotalPointsB : songOutcome.TotalPointsA;
@@ -492,12 +500,14 @@ namespace RhythmGame.Server.Services
             dto.OppSectors  = new List<int>((isA ? m.PerSongScoresB : m.PerSongScoresA)[idx]);
             dto.SelfSectorTieBreaks = new List<int>((isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)[idx] ?? new int[5]);
             dto.OppSectorTieBreaks  = new List<int>((isA ? m.PerSongTieBreaksB : m.PerSongTieBreaksA)[idx] ?? new int[5]);
+            dto.SelfDifficulty = Diff(isA ? m.SongDiffA : m.SongDiffB, idx);
+            dto.OppDifficulty  = Diff(isA ? m.SongDiffB : m.SongDiffA, idx);
 
             var songPairs = new List<SectorPair>(5);
             for (int sec = 0; sec < 5; sec++)
                 songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
-                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty,
-                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec)));
+                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], Diff(m.SongDiffA, idx),
+                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec), Diff(m.SongDiffB, idx)));
             var so = MatchScoring.Score(songPairs);
             dto.SelfSongPoints = isA ? so.TotalPointsA : so.TotalPointsB;
             dto.OppSongPoints  = isA ? so.TotalPointsB : so.TotalPointsA;
@@ -527,8 +537,8 @@ namespace RhythmGame.Server.Services
                 count++;
                 for (int sec = 0; sec < 5; sec++)
                     pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
-                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty,
-                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec)));
+                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], Diff(m.SongDiffA, i),
+                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec), Diff(m.SongDiffB, i)));
             }
             var o = MatchScoring.Score(pairs);
             return (o.TotalPointsA, o.TotalPointsB, count);
@@ -551,6 +561,10 @@ namespace RhythmGame.Server.Services
             if (row == null || sector < 0 || sector >= row.Length) return 0;
             return row[sector];
         }
+
+        // 各プレイヤーの曲難易度を null 安全に取得 (未保存は null = MultiplierPercent で extra/×1.0 扱い)。
+        private static string Diff(string[] arr, int song)
+            => (arr != null && song >= 0 && song < arr.Length) ? arr[song] : null;
 
         // ── Progress (in-match real-time) ──────────────────────────────────────
 
@@ -753,8 +767,8 @@ namespace RhythmGame.Server.Services
                 for (int sec = 0; sec < 5; sec++)
                 {
                     pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
-                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty,
-                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec)));
+                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], Diff(m.SongDiffA, i),
+                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec), Diff(m.SongDiffB, i)));
                     flatA.Add(m.PerSongScoresA[i][sec]);
                     flatB.Add(m.PerSongScoresB[i][sec]);
                 }

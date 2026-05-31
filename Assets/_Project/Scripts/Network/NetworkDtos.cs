@@ -189,6 +189,8 @@ namespace RhythmGame.Network
         public System.Collections.Generic.List<int> oppSectors;    // 相手の 5 セクター (両者提出時)
         public System.Collections.Generic.List<int> selfSectorTieBreaks;  // 提出者の 5 セクターのタイブレーク値 (同点表示解決用)
         public System.Collections.Generic.List<int> oppSectorTieBreaks;   // 相手の 5 セクターのタイブレーク値 (両者提出時)
+        public string selfDifficulty;   // 提出者の難易度(実効スコア比較用)
+        public string oppDifficulty;    // 相手の難易度(両者提出時)
         public double selfSongPoints;
         public double oppSongPoints;
         public double selfCumulative;
