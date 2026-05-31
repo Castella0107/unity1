@@ -20,6 +20,7 @@
 | 3 | **プレイ中の相手ライブスコア**(VSバー/リード/セクター勝敗) | ★ | 将来。ライブ同期 or ゴースト方式の選択 |
 | 4 | **タイブレークの DB 永続化 & DTO**(Phase 2 未実装) | ★★ | スキーマ & レスポンス契約 |
 | 5 | ロビーのティア/LP/ラダー/シーズン | ★ | 完全に K ドメイン(プレースホルダーで待ち) |
+| 6 | **ホールド判定/スコア式の変更**(§5.1、別件) | ★★★ | `ScoreCalculator` verbatim 共有。Go の再現必須 |
 
 > 方針(既存合意の再確認): C# Domain は **Go 再実装の仕様書**として参照。bit-perfect は保証しない(整数マイクロポイント + Glicko2 は ±0.01 許容)。本書の数式・しきい値は現行 C# 実装の値です。
 
@@ -226,6 +227,21 @@ ratingABefore/After, ratingBBefore/After, completedAtUnixMs
 - **クリンチ(早期決着):** per-song 完全同期で、2 曲目(index≥1)以降に **どちらかの累計 ≥ 8.0pt** で決着(15pt 満点・過半数)、3 曲目をスキップ。`PvpController` の per-song submit 内で判定。**この累計計算も同点タイブレーク込み**であることに注意(§1.4-3)。
 - **chartHash 登録の注意:** サンプル譜面は `charts/extra.json` の **宣言値 chartHash**(`0000…0001`)で登録(再計算しない)。リプレイ検証は **リプレイ内包の chartHash で登録譜面を引く**ため、リプレイがどの曲のものかは問わず「内部的に valid なら通る」。Go の検証も「登録済みハッシュとの一致 + JudgmentRunner 再生」で同様。
 
+### 5.1 ★ ホールド判定 / スコア式(K 再現必須・別件だが採点パイプライン直撃)
+
+> タイブレークとは別件だが、**直近でホールド判定のスコア式が変わっており、`ScoreCalculator` はサーバー検証 pipeline と verbatim 共有**のため Go 側の再現が必須(でないと検証スコアがズレる)。既存リプレイの再計算も旧式とは合わなくなる点に注意。
+
+仕様(`Assets/_Project/Scripts/Domain/Play/BpmTimeline.cs` / `HoldJudgmentTracker.cs` / `ScoringEventCounter.cs`):
+
+- **ホールド = 頭(tap)+ ボディティック + 尾(tail)** の合算でスコア/コンボを構成。
+- **ティック間隔 = 1 小節 / 2**(`HoldTicksPerMeasure = 2`)。小節長 = `GetBeatIntervalMs × BeatsPerMeasure`、**`BeatsPerMeasure = 4`(拍子情報が無いため 4/4 固定)**。実質「2 拍ごとに 1 ティック」。
+- ボディティックは `(startMs, endMs)` の**厳密に内側**に配置。ただし **`endMs − HoldTailGuardMs`(`HoldTailGuardMs = 1.0ms`)以降のティックは生成しない**(末尾の小節区切りが tail と重なってコンボ/スコアが二重加算されるのを防止 = 尾優先)。
+- 各ティックの判定: **押下継続中は `PerfectPlus`**。離上しても **ガード `GUARD_MS = 50.0ms` 以内の短い離上は許容(P+ 継続)**、ガード超過で **放棄(abandon)→ 残りティックを全て `Miss`** で流す。
+- 尾の解決: `EndMs` 到達時、押下継続 or ガード内離上なら P+、ガード超過なら Miss(離上の明示操作は不要)。
+- **満点整合:** `ScoringEventCounter.CountHoldTicks` も**同じ `GetHoldTickIntervalMs`** を使い、`HoldTailGuardMs` で同様に末尾を打ち切る。これで全 PerfectPlus 時の合計が `1,000,000` に一致する(検証済)。
+
+→ K の Go 実装で **ティック生成位置(2/小節・末尾ガード 1ms)・離上ガード 50ms・満点整合**を同一にすること。bit-perfect は非保証方針だが、**ティック個数がズレると判定数・スコアが構造的にズレる**ので、ティック生成ロジックは厳密一致が必要(許容差で吸収できない種類のズレ)。
+
 ---
 
 ## 6. API / DTO 命名の対応(現行 C# → Go 長期方針)
@@ -250,6 +266,7 @@ ratingABefore/After, ratingBBefore/After, completedAtUnixMs
 - [ ] **(§2)** 不戦勝/不戦敗の確定条件・レート規則・「再接続中」ステータスを定義。forfeit を勝者付きで返す API 挙動を決定(walkover 専用フラグの要否も)。
 - [ ] **(§3)** プレイ中の相手ライブスコア供給方式(ライブ進捗 / ゴースト / なし)を決定。
 - [ ] **(§5)** chartHash 登録・Glicko 許容差・クリンチ仕様を Go 実装で踏襲。
+- [ ] **(§5.1)** ホールド判定/スコア式(2 ティック/小節・末尾ガード 1ms・離上ガード 50ms・満点整合)を Go の JudgmentRunner で厳密再現。**別件だが採点 pipeline 直撃。**
 
 ---
 
