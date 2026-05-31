@@ -54,9 +54,7 @@ namespace RhythmGame.UI.Pvp
 
             if (!string.IsNullOrEmpty(_params.ErrorMessage))
             {
-                _header  = "Match Aborted";
-                _scores  = _params.ErrorMessage;
-                _ratings = "";
+                BuildAbortText(_params.ErrorMessage);
                 return;
             }
 
@@ -97,6 +95,31 @@ namespace RhythmGame.UI.Pvp
                 "Your rating: {0:F1} → {1:F1} ({2:+0.0;-0.0})\nOpponent:   {3:F1} → {4:F1} ({5:+0.0;-0.0})",
                 selfBefore, selfAfter, selfAfter - selfBefore,
                 oppBefore,  oppAfter,  oppAfter  - oppBefore);
+        }
+
+        // 中断理由(内部的な技術メッセージ)をユーザー向けの分類済み文言にマッピングする。
+        // 不戦勝/不戦敗(walkover)や「再接続中」の自動復帰は、サーバーの切断/forfeit 判定が
+        // 必要なため未対応(相手タイムアウトは現状「勝敗なしの中断」)。生メッセージは detail に残す。
+        void BuildAbortText(string raw)
+        {
+            string lower = raw.ToLowerInvariant();
+            if (lower.Contains("timeout"))
+            {
+                _header = "MATCH INCOMPLETE";
+                _scores = "Opponent did not finish in time.\nThe match was cancelled.";
+            }
+            else if (lower.Contains("network") || lower.Contains("transport") || lower.Contains("connect"))
+            {
+                _header = "CONNECTION ERROR";
+                _scores = "Lost connection to the server.\nCheck your network and try again.";
+            }
+            else
+            {
+                _header = "MATCH ABORTED";
+                _scores = "The match ended unexpectedly.";
+            }
+            _breakdown = "detail: " + raw;   // 原因の生メッセージ(デバッグ/サポート用、小さく表示)
+            _ratings   = "";
         }
 
         void ApplyToUi()
