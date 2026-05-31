@@ -104,3 +104,16 @@ InitTestScene*.unity*
 
 # Auto-generated cache in Assets folder
 /[Aa]ssets/[Ss]ceneDependencyCache*
+
+# ── .NET server build artifacts (root /[Oo]bj//[Bb]in/ above is root-anchored, so the
+#    Server subproject's bin/obj were NOT matched and got committed by accident) ──
+/Server/**/[Bb]in/
+/Server/**/[Oo]bj/
+
+# SQLite dev database (regenerated on startup; test ratings should not be committed)
+*.db
+*.db-shm
+*.db-wal
+
+# Unity crash/recovery scene dumps
+/[Aa]ssets/_[Rr]ecovery/
