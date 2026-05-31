@@ -83,4 +83,38 @@ public class PlayProgressAggregatorTests
         Assert.AreEqual(1, snap.GreatCount);
         Assert.AreEqual(1, snap.MissCount);
     }
+
+    // ── Per-sector tie-break (Σ 2×PerfectPlus + Perfect、セクター毎; 同点解決用) ──
+
+    [Test]
+    public void SectorTieBreaks_AccumulatePerSector_TwoPerPlusOnePerPerfect()
+    {
+        var agg = new PlayProgressAggregator(4, FourSectors, Judgment.Good);
+        agg.ApplyHit(Judgment.PerfectPlus, 0, 500);   // sector0 → +2
+        agg.ApplyHit(Judgment.Perfect,     0, 600);   // sector0 → +1  (計 3)
+        agg.ApplyHit(Judgment.PerfectPlus, 0, 1500);  // sector1 → +2
+        agg.ApplyHit(Judgment.Great,       0, 1600);  // sector1 → +0
+        agg.FinalizeLastSector();
+
+        Assert.AreEqual(3, agg.SectorTieBreaks[0]);
+        Assert.AreEqual(2, agg.SectorTieBreaks[1]);
+        Assert.AreEqual(0, agg.SectorTieBreaks[2]);
+    }
+
+    [Test]
+    public void SectorTieBreaks_PropagatedToSnapshot()
+    {
+        var agg = new PlayProgressAggregator(2, FourSectors, Judgment.Good);
+        agg.ApplyHit(Judgment.PerfectPlus, 0, 500);   // sector0 → +2
+        agg.ApplyHit(Judgment.Perfect,     0, 1500);  // sector1 → +1
+        agg.FinalizeLastSector();
+
+        var snap = agg.Snapshot();
+        Assert.AreEqual(5, snap.SectorTieBreaks.Length);
+        Assert.AreEqual(2, snap.SectorTieBreaks[0]);
+        Assert.AreEqual(1, snap.SectorTieBreaks[1]);
+        // 加算的: タイブレーク追跡は既存出力 (スコア/カウント) に影響しない
+        Assert.AreEqual(agg.CurrentScore, snap.CurrentScore);
+        Assert.AreEqual(2, snap.PerfectPlusCount + snap.PerfectCount);
+    }
 }

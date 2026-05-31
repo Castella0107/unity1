@@ -205,59 +205,6 @@ public static class BuildPvpScenes
         SaveAndRegister(scene, "Assets/_Project/Scenes/PVPMatchEnd.unity");
     }
 
-    // 仮 PVP 画面を1枚生成する。タイトル + 説明 + NEXT/BACK ボタンのみ。
-    static void BuildPlaceholderScene(string scenePath, string titleText, string descText,
-                                      SceneId nextScene, Color bg)
-    {
-        var scene = NewEmptyScene();
-        BuildBaseObjects(scene, bg);
-        var canvasGO = GameObject.Find("Canvas");
-
-        Color cyan = new Color(0.17f, 0.85f, 0.90f, 1f);
-
-        var titleTMP = MakeTMP("Title", canvasGO, 60, titleText);
-        SetAnchored(titleTMP, Center, Center, new Vector2(0, 150), new Vector2(1500, 90));
-        titleTMP.alignment = TextAlignmentOptions.Center;
-        titleTMP.fontStyle = FontStyles.Bold;
-        titleTMP.characterSpacing = 6f;
-
-        var tagTMP = MakeTMP("PlaceholderTag", canvasGO, 26, "PLACEHOLDER");
-        SetAnchored(tagTMP, Center, Center, new Vector2(0, 80), new Vector2(1200, 40));
-        tagTMP.alignment = TextAlignmentOptions.Center;
-        tagTMP.color = cyan;
-        tagTMP.characterSpacing = 8f;
-
-        var descTMP = MakeTMP("DescText", canvasGO, 26, descText);
-        SetAnchored(descTMP, Center, Center, new Vector2(0, 0), new Vector2(1300, 100));
-        descTMP.alignment = TextAlignmentOptions.Center;
-        descTMP.color = new Color(1, 1, 1, 0.7f);
-
-        var backGO = MakeButton("BackButton", canvasGO, "< TITLE");
-        var bRT = backGO.GetComponent<RectTransform>();
-        bRT.anchorMin = bRT.anchorMax = new Vector2(0.5f, 0f);
-        bRT.pivot = new Vector2(0.5f, 0f);
-        bRT.anchoredPosition = new Vector2(-180, 120);
-        bRT.sizeDelta = new Vector2(300, 72);
-
-        var nextGO = MakeButton("NextButton", canvasGO, "NEXT >");
-        var nRT = nextGO.GetComponent<RectTransform>();
-        nRT.anchorMin = nRT.anchorMax = new Vector2(0.5f, 0f);
-        nRT.pivot = new Vector2(0.5f, 0f);
-        nRT.anchoredPosition = new Vector2(180, 120);
-        nRT.sizeDelta = new Vector2(300, 72);
-
-        var ctrlGO = new GameObject("PvpPlaceholderController");
-        var ctrl = ctrlGO.AddComponent<PvpPlaceholderController>();
-        var so = new SerializedObject(ctrl);
-        so.FindProperty("_screenTitle").stringValue        = titleText;
-        so.FindProperty("_nextScene").enumValueIndex       = (int)nextScene;
-        so.FindProperty("_nextButton").objectReferenceValue = nextGO.GetComponent<Button>();
-        so.FindProperty("_backButton").objectReferenceValue = backGO.GetComponent<Button>();
-        so.ApplyModifiedPropertiesWithoutUndo();
-
-        SaveAndRegister(scene, scenePath);
-    }
-
     // 正規 PVP フロー画面 (Prematch/SongPick/BanPhase) を 1 枚生成する。
     // 実ドラフト UI: SongPick=20曲グリッド / BanPhase=3カード / Prematch=導入。各タイルは
     // DraftTileView を baked-in 結線 (ランタイム生成しない → [[feedback_unityRuntimeUiInLayoutGroup]])。
