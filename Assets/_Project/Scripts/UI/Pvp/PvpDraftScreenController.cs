@@ -42,12 +42,16 @@ namespace RhythmGame.UI.Pvp
         [SerializeField] TextMeshProUGUI _timerText;    // PICK/BAN 制限時間カウントダウン
         [SerializeField] TextMeshProUGUI _revealText;   // YOU x / OPP y の開示
         [SerializeField] TextMeshProUGUI _songsText;    // 候補 / 確定ラインナップ
+        [SerializeField] TextMeshProUGUI _lockStatusText; // "YOU ● / OPP ○" 両者のロック状況
         [SerializeField] TextMeshProUGUI _primaryLabel; // primary ボタンのラベル
         [SerializeField] Button          _primaryButton;
         [SerializeField] Button          _cancelButton;
 
         [Header("Tiles (baked-in: 20 for SongPick, 3 for BanPhase, 0 for Prematch)")]
         [SerializeField] DraftTileView[] _tiles = new DraftTileView[0];
+
+        [Header("Lineup cards (BanPhase only: 3 final songs revealed at draft end)")]
+        [SerializeField] DraftTileView[] _lineupTiles = new DraftTileView[0];
 
         // 自分=シアン / 相手=レッド (History / Matchmaking と統一)
         static readonly Color Cyan = new Color(0.17f, 0.85f, 0.90f, 1f);
@@ -95,6 +99,9 @@ namespace RhythmGame.UI.Pvp
                     _tiles[i].SetVisible(false);
                 }
             }
+
+            // ラインナップカードは BAN 開示まで隠す。
+            HideTiles(_lineupTiles);
 
             if (_headerText  != null) _headerText.text = HeaderFor(_phase);
             if (_timerText   != null) _timerText.text  = "";
@@ -151,6 +158,7 @@ namespace RhythmGame.UI.Pvp
             _state = await SafeFetchDraftAsync();
             if (!_alive) return;
             if (_state == null) { ShowError("Could not load draft state."); return; }
+            UpdateLockStatus();
 
             // BanPhase に来たがまだ pick 中(相手の PICK 待ち)の保険
             if (_isBan && _state.phase == "pick")
@@ -190,6 +198,8 @@ namespace RhythmGame.UI.Pvp
             _timeLeft    = SelectSeconds;
             _timerActive = SelectSeconds > 0f;
             if (!_timerActive && _timerText != null) _timerText.text = "";
+
+            UpdateLockStatus();
         }
 
         void OnTileClicked(int index)
@@ -286,6 +296,7 @@ namespace RhythmGame.UI.Pvp
             }
 
             _state = res.Body ?? _state;
+            UpdateLockStatus();
             if (IsPhaseComplete(_state)) { EnterReveal(); return; }
 
             _step = Step.Waiting;
@@ -303,6 +314,7 @@ namespace RhythmGame.UI.Pvp
                 var s = await SafeFetchDraftAsync();
                 if (s == null) continue;   // 一時的なエラーは無視して継続
                 _state = s;
+                UpdateLockStatus();
                 if (IsPhaseComplete(s)) { EnterReveal(); return; }
             }
         }
@@ -312,6 +324,7 @@ namespace RhythmGame.UI.Pvp
             _step = Step.Reveal;
             _timerActive = false;
             if (_timerText != null) _timerText.text = "";
+            UpdateLockStatus();
 
             bool selfIsA = Pvp != null && Pvp.SelfIsA;
 
@@ -320,29 +333,15 @@ namespace RhythmGame.UI.Pvp
                 string selfBan = selfIsA ? _state.banA : _state.banB;
                 string oppBan  = selfIsA ? _state.banB : _state.banA;
 
-                // 候補タイルに BAN を反映 (banned=暗転+タグ / 生存=ハイライト)
-                var cand = _state.candidates ?? new List<string>();
-                PopulateTiles(cand, interactable: false);
-                _ = LoadVisualsAsync(cand);
-                foreach (var t in ActiveTiles())
-                {
-                    bool bannedBySelf = t.SongId == selfBan;
-                    bool bannedByOpp  = t.SongId == oppBan;
-                    if (bannedBySelf || bannedByOpp)
-                    {
-                        t.SetDimmed(true);
-                        t.SetTag(bannedBySelf ? "YOU BAN" : "OPP BAN", bannedBySelf ? Cyan : Red);
-                    }
-                    else
-                    {
-                        t.SetSelected(true);
-                        t.SetTag("SURVIVES", Color.white);
-                    }
-                }
+                // BAN 候補タイルは隠し、確定 3 曲をラインナップカードで発表する (= フローの「3 曲発表」)。
+                // PickA/PickB は候補に含まれないため、出自(YOU PICK / OPP PICK / PICKED)をタグで示す。
+                HideTiles(_tiles);
+                PopulateLineup(_state.songs);
 
+                if (_headerText != null) _headerText.text = "MATCH LINEUP";
                 SetStatus("DRAFT COMPLETE");
                 SetReveal($"YOU banned  {Label(selfBan)}        OPP banned  {Label(oppBan)}");
-                if (_songsText != null) _songsText.text = "FINAL LINEUP\n" + BuildLineup(_state.songs);
+                if (_songsText != null) _songsText.text = "FIRST TO 8 POINTS WINS";
                 SetPrimary("START MATCH", true);
             }
             else
@@ -392,6 +391,74 @@ namespace RhythmGame.UI.Pvp
                     t.SetVisible(false);
                 }
             }
+        }
+
+        // 確定 3 曲を専用ラインナップカードに発表する (BanPhase 開示時)。出自タグ付き。
+        void PopulateLineup(List<SongPickDto> songs)
+        {
+            if (_lineupTiles == null || _lineupTiles.Length == 0) return;
+
+            bool selfIsA = Pvp != null && Pvp.SelfIsA;
+            string selfPick = _state != null ? (selfIsA ? _state.pickA : _state.pickB) : null;
+            string oppPick  = _state != null ? (selfIsA ? _state.pickB : _state.pickA) : null;
+
+            var ids = new List<string>();
+            for (int i = 0; i < _lineupTiles.Length; i++)
+            {
+                var t = _lineupTiles[i];
+                if (t == null) continue;
+                if (songs != null && i < songs.Count)
+                {
+                    string id = songs[i].songId;
+                    ids.Add(id);
+                    t.SetSong(id, Label(id));
+                    t.SetInteractable(false);
+                    t.SetVisible(true);
+                    var sp = SpriteFor(id);
+                    if (sp != null) t.SetJacket(sp);
+                    if (id == selfPick)     t.SetTag("YOU PICK", Cyan);
+                    else if (id == oppPick) t.SetTag("OPP PICK", Red);
+                    else                    t.SetTag("PICKED", Color.white);
+                }
+                else
+                {
+                    t.SetVisible(false);
+                }
+            }
+            // PickA/PickB は BAN フェーズで未ロードのため、タイトル/ジャケットを取得する。
+            _ = LoadVisualsAsync(ids);
+        }
+
+        // 指定タイル配列を一括で隠す。
+        void HideTiles(DraftTileView[] arr)
+        {
+            if (arr == null) return;
+            foreach (var t in arr) if (t != null) t.SetVisible(false);
+        }
+
+        // 両者のロック状況 (PICK/BAN を確定済みか) を "YOU ● / OPP ○" で表示する。
+        void UpdateLockStatus()
+        {
+            if (_lockStatusText == null) return;
+            if (_state == null || _phase == Phase.Prematch) { _lockStatusText.text = ""; return; }
+
+            bool selfIsA = Pvp != null && Pvp.SelfIsA;
+            bool selfDone, oppDone;
+            if (_isBan)
+            {
+                selfDone = selfIsA ? _state.aBanned : _state.bBanned;
+                oppDone  = selfIsA ? _state.bBanned : _state.aBanned;
+            }
+            else
+            {
+                selfDone = selfIsA ? _state.aPicked : _state.bPicked;
+                oppDone  = selfIsA ? _state.bPicked : _state.aPicked;
+            }
+
+            string you = selfDone ? "● LOCKED" : "○ . . .";
+            string opp = oppDone  ? "● LOCKED" : "○ . . .";
+            _lockStatusText.text =
+                $"<color=#2BD9E6>YOU {you}</color>      <color=#F24D6B>OPP {opp}</color>";
         }
 
         async Task LoadVisualsAsync(IList<string> set)
@@ -530,9 +597,12 @@ namespace RhythmGame.UI.Pvp
 
         IEnumerable<DraftTileView> ActiveTiles()
         {
-            if (_tiles == null) yield break;
-            foreach (var t in _tiles)
-                if (t != null && t.gameObject.activeSelf && !string.IsNullOrEmpty(t.SongId)) yield return t;
+            if (_tiles != null)
+                foreach (var t in _tiles)
+                    if (t != null && t.gameObject.activeSelf && !string.IsNullOrEmpty(t.SongId)) yield return t;
+            if (_lineupTiles != null)
+                foreach (var t in _lineupTiles)
+                    if (t != null && t.gameObject.activeSelf && !string.IsNullOrEmpty(t.SongId)) yield return t;
         }
 
         void SetTilesInteractable(bool on)

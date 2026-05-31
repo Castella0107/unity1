@@ -263,6 +263,43 @@ namespace RhythmGame.Network
             return new PvpFetchResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
+        // ── PVP Per-song submit (完全同期) ──────────────────────────────────────
+
+        /// <summary>曲ごと提出/結果取得の結果(Ok/Error/RoundtripMs/Body)。</summary>
+        public class PvpSongResult
+        {
+            public bool          Ok;
+            public string        Error;
+            public long          RoundtripMs;
+            public SongResultDto Body;
+        }
+
+        /// <inheritdoc/>
+        public async Task<PvpSongResult> SubmitSongAsync(
+            string matchId, string userId, int songIndex, string songId, string difficulty, string replayDataBase64)
+        {
+            if (!ServerConfig.Enabled) return new PvpSongResult { Ok = false, Error = "Network disabled" };
+            var dto = new SongSubmitRequestDto
+            {
+                userId = userId, songIndex = songIndex, songId = songId,
+                difficulty = difficulty, replayDataBase64 = replayDataBase64,
+            };
+            string url = ServerConfig.BaseUrl.TrimEnd('/') + $"/api/pvp/match/{UnityWebRequest.EscapeURL(matchId)}/song/submit";
+            var (ok, err, body, rt) = await PostJsonAsync<SongResultDto>(url, dto);
+            return new PvpSongResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
+        }
+
+        /// <inheritdoc/>
+        public async Task<PvpSongResult> FetchSongResultAsync(string matchId, int songIndex, string userId)
+        {
+            if (!ServerConfig.Enabled) return new PvpSongResult { Ok = false, Error = "Network disabled" };
+            string url = ServerConfig.BaseUrl.TrimEnd('/')
+                       + $"/api/pvp/match/{UnityWebRequest.EscapeURL(matchId)}/song/{songIndex}/result?userId="
+                       + UnityWebRequest.EscapeURL(userId);
+            var (ok, err, body, rt) = await GetJsonAsync<SongResultDto>(url);
+            return new PvpSongResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
+        }
+
         // ── PVP Progress (in-match real-time) ───────────────────────────────────
 
         /// <summary>PVP 進捗送受信の結果(Ok/Error/RoundtripMs/Body)。</summary>
@@ -298,6 +335,26 @@ namespace RhythmGame.Network
             string url = ServerConfig.BaseUrl.TrimEnd('/') + $"/api/pvp/match/{UnityWebRequest.EscapeURL(matchId)}/progress";
             var (ok, err, body, rt) = await GetJsonAsync<ProgressSnapshotDto>(url);
             return new PvpProgressResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
+        }
+
+        // ── PVP User stats (ロビー) ─────────────────────────────────────────────
+
+        /// <summary>ユーザー PVP 戦績取得の結果(Ok/Error/RoundtripMs/Body)。</summary>
+        public class PvpUserStatsResult
+        {
+            public bool             Ok;
+            public string           Error;
+            public long             RoundtripMs;
+            public UserPvpStatsDto  Body;
+        }
+
+        /// <inheritdoc/>
+        public async Task<PvpUserStatsResult> FetchPvpUserStatsAsync(string userId)
+        {
+            if (!ServerConfig.Enabled) return new PvpUserStatsResult { Ok = false, Error = "Network disabled" };
+            string url = ServerConfig.BaseUrl.TrimEnd('/') + $"/api/pvp/user/{UnityWebRequest.EscapeURL(userId)}/stats";
+            var (ok, err, body, rt) = await GetJsonAsync<UserPvpStatsDto>(url);
+            return new PvpUserStatsResult { Ok = ok, Error = err, Body = body, RoundtripMs = rt };
         }
 
         // ── PVP Queue ───────────────────────────────────────────────────────────

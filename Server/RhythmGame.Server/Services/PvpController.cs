@@ -331,6 +331,192 @@ namespace RhythmGame.Server.Services
             return new SubmitResponseDto { Accepted = true, MatchFinalized = false };
         }
 
+        // ── Per-song submit (完全同期: 曲ごと提出 + 開示 + 8pt クリンチ) ──────────
+        // 想定契約。K のサーバー完全同期実装と統合予定 (additive・既存 /submit は不変)。
+        // 各曲プレイ直後に submit し、相手も同曲を提出済みなら相手のセクタースコアを開示する。
+        // 2 曲目(index 1)以降で累計が 8.0pt 以上に達した側がいれば早期決着 (3 曲目を省略)。
+
+        public class SongSubmitDto
+        {
+            public string UserId           { get; set; } = "";
+            public int    SongIndex        { get; set; }
+            public string SongId           { get; set; } = "";
+            public string Difficulty       { get; set; } = "";
+            public string ReplayDataBase64 { get; set; } = "";
+        }
+
+        public class SongResultDto
+        {
+            public int    SongIndex      { get; set; }
+            public bool   BothSubmitted  { get; set; }
+            public List<int> SelfSectors { get; set; } = new();   // 提出者の 5 セクター (常に返す)
+            public List<int> OppSectors  { get; set; } = new();   // 相手の 5 セクター (両者提出時のみ)
+            public double SelfSongPoints { get; set; }            // この曲の自分pt (難易度倍率込み, 両者提出時)
+            public double OppSongPoints  { get; set; }
+            public double SelfCumulative { get; set; }            // 提出済み曲の累計 (両者提出時)
+            public double OppCumulative  { get; set; }
+            public bool   Clinch         { get; set; }            // 早期決着が発生したか
+            public bool   MatchOver      { get; set; }            // clinch または全曲完了
+            public MatchResultDto Result { get; set; }            // MatchOver 時のみ非 null
+        }
+
+        [HttpPost("match/{matchId}/song/submit")]
+        public async Task<ActionResult<SongResultDto>> SongSubmit(string matchId, [FromBody] SongSubmitDto req)
+        {
+            if (req == null || string.IsNullOrEmpty(req.UserId)) return BadRequest("userId required");
+            var m = _matches.TryGet(matchId);
+            if (m == null) return NotFound("match not found or already finalized");
+            if (m.Finalized) return BadRequest("match already finalized");
+            if (!m.DraftDone) return BadRequest("draft not done");
+
+            bool isA = req.UserId == m.UserIdA;
+            bool isB = req.UserId == m.UserIdB;
+            if (!isA && !isB) return Forbid();
+
+            int idx = req.SongIndex;
+            if (idx < 0 || idx >= m.Songs.Count) return BadRequest($"songIndex out of range (0..{m.Songs.Count - 1})");
+            if (req.SongId != m.Songs[idx].SongId)
+                return BadRequest($"songId mismatch: expected={m.Songs[idx].SongId}, got={req.SongId}");
+
+            ActiveMatchStore.EnsurePerSong(m);
+            var mine = isA ? m.PerSongScoresA : m.PerSongScoresB;
+            if (mine[idx] != null) return BadRequest("song already submitted");
+
+            // リプレイ検証 → セクタースコア抽出
+            byte[] bytes;
+            try { bytes = Convert.FromBase64String(req.ReplayDataBase64 ?? ""); }
+            catch { return BadRequest("base64 decode failed"); }
+            ReplayData replay;
+            try { replay = ReplayDecoder.Decode(bytes); }
+            catch (Exception ex) { return BadRequest("decode: " + ex.Message); }
+            var chartHash = Convert.ToHexString(replay.Metadata.ChartHash ?? Array.Empty<byte>());
+            var vr = await _validator.ValidateAsync(chartHash, bytes);
+            if (!vr.Ok) return BadRequest("validate: " + vr.Error);
+
+            var s = vr.Snapshot.SectorScores ?? new int[5];
+            var copy = new int[5];
+            for (int k = 0; k < 5 && k < s.Length; k++) copy[k] = s[k];
+            mine[idx] = copy;
+
+            // 各自が選んだ難易度を反映 (倍率計算に効く)。空でなければ採用。
+            if (!string.IsNullOrEmpty(req.Difficulty))
+                m.Songs[idx].Difficulty = req.Difficulty;
+
+            var dto = new SongResultDto { SongIndex = idx };
+            dto.SelfSectors = new List<int>(copy);
+
+            if (!ActiveMatchStore.BothSubmittedSong(m, idx))
+            {
+                dto.BothSubmitted = false;
+                return dto;   // 相手待ち (ブラインド)
+            }
+
+            // 両者提出 → この曲の結果 + 累計を集計して開示
+            dto.BothSubmitted = true;
+            var selfArr = (isA ? m.PerSongScoresA : m.PerSongScoresB)[idx];
+            var oppArr  = (isA ? m.PerSongScoresB : m.PerSongScoresA)[idx];
+            dto.SelfSectors = new List<int>(selfArr);
+            dto.OppSectors  = new List<int>(oppArr);
+
+            // この曲のポイント (難易度倍率込み)
+            var songPairs = new List<SectorPair>(5);
+            for (int sec = 0; sec < 5; sec++)
+                songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
+                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty));
+            var songOutcome = MatchScoring.Score(songPairs);
+            dto.SelfSongPoints = isA ? songOutcome.TotalPointsA : songOutcome.TotalPointsB;
+            dto.OppSongPoints  = isA ? songOutcome.TotalPointsB : songOutcome.TotalPointsA;
+
+            // 両者提出済みの全曲で累計を集計
+            var (cumA, cumB, bothCount) = AccumulateBothSubmitted(m);
+            dto.SelfCumulative = isA ? cumA : cumB;
+            dto.OppCumulative  = isA ? cumB : cumA;
+
+            // 8pt クリンチ判定: 2 曲目(index>=1)以降で、残り曲を全勝しても逆転不能なら早期決着。
+            // 簡易仕様: どちらかの累計が 8.0 以上に到達したら決着 (15pt 満点・過半数)。
+            bool lastSong = idx == m.Songs.Count - 1;
+            bool clinch   = idx >= 1 && (cumA >= 8.0 || cumB >= 8.0);
+            dto.Clinch    = clinch;
+            dto.MatchOver = clinch || (lastSong && bothCount == m.Songs.Count);
+
+            if (dto.MatchOver)
+            {
+                m.ClinchedAfterSongIndex = clinch && !lastSong ? idx : -1;
+                dto.Result = await FinalizePerSongAsync(m, bothCount);
+            }
+            return dto;
+        }
+
+        [HttpGet("match/{matchId}/song/{songIndex}/result")]
+        public async Task<ActionResult<SongResultDto>> SongResultGet(string matchId, int songIndex, [FromQuery] string userId)
+        {
+            if (string.IsNullOrEmpty(userId)) return BadRequest("userId required");
+            var m = _matches.TryGet(matchId);
+            if (m == null)
+            {
+                // ストアに無い → finalize 済みかも。DB から最終結果を返す (matchOver)。
+                var saved = await _db.Matches.AsNoTracking().FirstOrDefaultAsync(x => x.MatchId == matchId);
+                if (saved == null) return NotFound("match not found");
+                return new SongResultDto { SongIndex = songIndex, BothSubmitted = true, MatchOver = true, Result = BuildResultDto(saved) };
+            }
+
+            bool isA = userId == m.UserIdA;
+            bool isB = userId == m.UserIdB;
+            if (!isA && !isB) return Forbid();
+
+            int idx = songIndex;
+            var dto = new SongResultDto { SongIndex = idx };
+            if (m.PerSongScoresA != null && idx >= 0 && idx < m.PerSongScoresA.Length)
+            {
+                var mineArr = (isA ? m.PerSongScoresA : m.PerSongScoresB)[idx];
+                if (mineArr != null) dto.SelfSectors = new List<int>(mineArr);
+            }
+
+            if (!ActiveMatchStore.BothSubmittedSong(m, idx)) { dto.BothSubmitted = false; return dto; }
+
+            dto.BothSubmitted = true;
+            dto.SelfSectors = new List<int>((isA ? m.PerSongScoresA : m.PerSongScoresB)[idx]);
+            dto.OppSectors  = new List<int>((isA ? m.PerSongScoresB : m.PerSongScoresA)[idx]);
+
+            var songPairs = new List<SectorPair>(5);
+            for (int sec = 0; sec < 5; sec++)
+                songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
+                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty));
+            var so = MatchScoring.Score(songPairs);
+            dto.SelfSongPoints = isA ? so.TotalPointsA : so.TotalPointsB;
+            dto.OppSongPoints  = isA ? so.TotalPointsB : so.TotalPointsA;
+
+            var (cumA, cumB, _) = AccumulateBothSubmitted(m);
+            dto.SelfCumulative = isA ? cumA : cumB;
+            dto.OppCumulative  = isA ? cumB : cumA;
+
+            if (m.Finalized)
+            {
+                dto.MatchOver = true;
+                dto.Clinch    = m.ClinchedAfterSongIndex >= 0;
+                var saved = await _db.Matches.AsNoTracking().FirstOrDefaultAsync(x => x.MatchId == matchId);
+                if (saved != null) dto.Result = BuildResultDto(saved);
+            }
+            return dto;
+        }
+
+        // 両者提出済みの曲だけで A/B 累計ポイントを集計する。
+        private static (double a, double b, int count) AccumulateBothSubmitted(ActiveMatchStore.ActiveMatch m)
+        {
+            var pairs = new List<SectorPair>();
+            int count = 0;
+            for (int i = 0; i < m.Songs.Count; i++)
+            {
+                if (!ActiveMatchStore.BothSubmittedSong(m, i)) continue;
+                count++;
+                for (int sec = 0; sec < 5; sec++)
+                    pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
+                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty));
+            }
+            var o = MatchScoring.Score(pairs);
+            return (o.TotalPointsA, o.TotalPointsB, count);
+        }
+
         // ── Progress (in-match real-time) ──────────────────────────────────────
 
         public class ProgressUpdateDto
@@ -412,6 +598,46 @@ namespace RhythmGame.Server.Services
             };
         }
 
+        // ── User PVP stats (ロビー用) ────────────────────────────────────────────
+        // ロビー右パネルの TOTAL MATCH / MATCH WIN / WIN RATIO を埋める実データ。
+        // ティア/LP/シーズン/ラダー順位/難易度別スタッツは K のレーティング設計ドメインのため
+        // ここでは返さない (クライアントは UNRANKED / -- のプレースホルダー表示)。
+
+        public class UserPvpStatsDto
+        {
+            public string UserId      { get; set; } = "";
+            public string DisplayName { get; set; } = "";
+            public int    TotalMatches{ get; set; }
+            public int    Wins        { get; set; }
+            public int    Losses      { get; set; }
+            public int    Draws       { get; set; }
+            public double WinRatio    { get; set; }   // 0..1
+            public double Rating      { get; set; }   // Glicko-2 raw (ティア変換は K 側)
+        }
+
+        [HttpGet("user/{userId}/stats")]
+        public async Task<ActionResult<UserPvpStatsDto>> UserStats(string userId)
+        {
+            if (string.IsNullOrEmpty(userId)) return BadRequest("userId required");
+            var u = await _db.Users.AsNoTracking().FirstOrDefaultAsync(x => x.UserId == userId);
+            if (u == null)
+            {
+                // 未登録ユーザーは 0 戦績で返す (初回ロビー表示)。
+                return new UserPvpStatsDto { UserId = userId, DisplayName = userId };
+            }
+            return new UserPvpStatsDto
+            {
+                UserId       = u.UserId,
+                DisplayName  = u.DisplayName,
+                TotalMatches = u.TotalPvpMatches,
+                Wins         = u.PvpWins,
+                Losses       = u.PvpLosses,
+                Draws        = u.PvpDraws,
+                WinRatio     = u.TotalPvpMatches > 0 ? (double)u.PvpWins / u.TotalPvpMatches : 0.0,
+                Rating       = u.Rating,
+            };
+        }
+
         // ── Get ────────────────────────────────────────────────────────────────
 
         public class MatchResultDto
@@ -470,8 +696,43 @@ namespace RhythmGame.Server.Services
                 }
             }
 
-            var outcome = MatchScoring.Score(pairs);
+            var flatA = m.SubmissionA.SectorScores.SelectMany(a => a);
+            var flatB = m.SubmissionB.SectorScores.SelectMany(a => a);
+            return await FinalizeCoreAsync(m, MatchScoring.Score(pairs), m.Songs, flatA, flatB, removeFromStore: true);
+        }
 
+        // 完全同期 (曲ごと提出) の finalize。両者提出済みの曲だけを採点して確定する
+        // (8pt クリンチで 2 曲で終わる場合も対応)。
+        private async Task<MatchResultDto> FinalizePerSongAsync(ActiveMatchStore.ActiveMatch m, int bothCount)
+        {
+            var pairs       = new List<SectorPair>(bothCount * 5);
+            var playedSongs = new List<ActiveMatchStore.SongPick>(bothCount);
+            var flatA       = new List<int>(bothCount * 5);
+            var flatB       = new List<int>(bothCount * 5);
+            for (int i = 0; i < m.Songs.Count; i++)
+            {
+                if (!ActiveMatchStore.BothSubmittedSong(m, i)) continue;
+                playedSongs.Add(m.Songs[i]);
+                for (int sec = 0; sec < 5; sec++)
+                {
+                    pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
+                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty));
+                    flatA.Add(m.PerSongScoresA[i][sec]);
+                    flatB.Add(m.PerSongScoresB[i][sec]);
+                }
+            }
+            // per-song パスはストアに残す (相手側が GET で最終結果を取得できるように)。
+            return await FinalizeCoreAsync(m, MatchScoring.Score(pairs), playedSongs, flatA, flatB, removeFromStore: false);
+        }
+
+        // 採点結果からレーティング更新 + MatchEntity 永続化 + ストア除去を行う共通コア。
+        // playedSongs / flatA / flatB は実際に採点した曲のみ (クリンチ時は 2 曲)。
+        // removeFromStore=false の場合は Finalized=true でストアに残す (per-song の相手 GET 用)。
+        private async Task<MatchResultDto> FinalizeCoreAsync(
+            ActiveMatchStore.ActiveMatch m, MatchOutcome outcome,
+            List<ActiveMatchStore.SongPick> playedSongs, IEnumerable<int> flatA, IEnumerable<int> flatB,
+            bool removeFromStore)
+        {
             // 両ユーザーの BEFORE 状態でレーティング更新
             var userA = await _db.Users.FindAsync(m.UserIdA);
             var userB = await _db.Users.FindAsync(m.UserIdB);
@@ -512,10 +773,10 @@ namespace RhythmGame.Server.Services
                 MatchId          = m.MatchId,
                 UserIdA          = m.UserIdA,
                 UserIdB          = m.UserIdB,
-                SongIdsCsv       = string.Join(",", m.Songs.Select(s => s.SongId)),
-                DifficultiesCsv  = string.Join(",", m.Songs.Select(s => s.Difficulty)),
-                SectorScoresA    = string.Join(",", m.SubmissionA.SectorScores.SelectMany(a => a)),
-                SectorScoresB    = string.Join(",", m.SubmissionB.SectorScores.SelectMany(a => a)),
+                SongIdsCsv       = string.Join(",", playedSongs.Select(s => s.SongId)),
+                DifficultiesCsv  = string.Join(",", playedSongs.Select(s => s.Difficulty)),
+                SectorScoresA    = string.Join(",", flatA),
+                SectorScoresB    = string.Join(",", flatB),
                 TotalPointsAx1000 = (int)Math.Round(outcome.TotalPointsA * 1000),
                 TotalPointsBx1000 = (int)Math.Round(outcome.TotalPointsB * 1000),
                 OutcomeKind      = (int)outcome.Kind,
@@ -536,7 +797,7 @@ namespace RhythmGame.Server.Services
 
             m.Finalized        = true;
             m.CompletedMatchId = m.MatchId;
-            _matches.Remove(m.MatchId);
+            if (removeFromStore) _matches.Remove(m.MatchId);
 
             return BuildResultDto(entity);
         }

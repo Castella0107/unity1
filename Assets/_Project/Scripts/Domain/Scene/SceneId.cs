@@ -20,4 +20,9 @@ public enum SceneId
     PVPBanPhase,
     PVPResult,
     PVPMatchEnd,
+    // Per-song difficulty + play settings screen, shown before each PVP song (flow ⑦).
+    // Appended at the end so existing ordinals (used by enumValueIndex wiring) are unchanged.
+    PVPSongSetup,
+    // Online lobby (対戦待合). Between Title's Online menu and Matchmaking.
+    PVPLobby,
 }

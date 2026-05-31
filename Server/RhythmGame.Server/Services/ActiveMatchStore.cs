@@ -59,6 +59,14 @@ namespace RhythmGame.Server.Services
             public string         BanA            { get; set; } = "";
             public string         BanB            { get; set; } = "";
             public bool           DraftDone       { get; set; }            // Songs 確定済みなら true
+
+            // ── 完全同期 (曲ごと提出) 用 (想定契約・K のサーバー同期実装と要すり合わせ) ──
+            // 既存の all-at-once Submission とは別に、曲ごとに各自のセクタースコアを蓄積する。
+            // null = 未提出。サイズは Songs.Count、各要素は 5 セクター。
+            public int[][]        PerSongScoresA  { get; set; }
+            public int[][]        PerSongScoresB  { get; set; }
+            // 早期決着 (8pt クリンチ等) でこのインデックスまでで試合終了したか。-1 = 全曲。
+            public int            ClinchedAfterSongIndex { get; set; } = -1;
         }
 
         private readonly ConcurrentDictionary<string, ActiveMatch> _matches = new();
@@ -66,6 +74,25 @@ namespace RhythmGame.Server.Services
 
         /// <summary>ドラフトのフェーズ。</summary>
         public enum DraftPhase { Pick, Ban, Done }
+
+        // ── 完全同期 (曲ごと提出) ヘルパ ────────────────────────────────────────
+        // 想定契約。K のサーバー同期実装が固まったら統合する (additive で既存 submit を壊さない)。
+
+        /// <summary>曲ごとスコア配列を Songs.Count サイズで遅延初期化する。</summary>
+        public static void EnsurePerSong(ActiveMatch m)
+        {
+            int n = m.Songs?.Count ?? 0;
+            if (m.PerSongScoresA == null || m.PerSongScoresA.Length != n) m.PerSongScoresA = new int[n][];
+            if (m.PerSongScoresB == null || m.PerSongScoresB.Length != n) m.PerSongScoresB = new int[n][];
+        }
+
+        /// <summary>指定曲を両者とも提出済みか。</summary>
+        public static bool BothSubmittedSong(ActiveMatch m, int songIndex)
+        {
+            if (m.PerSongScoresA == null || m.PerSongScoresB == null) return false;
+            if (songIndex < 0 || songIndex >= m.PerSongScoresA.Length) return false;
+            return m.PerSongScoresA[songIndex] != null && m.PerSongScoresB[songIndex] != null;
+        }
 
         public ActiveMatch Create(string userIdA, string userIdB, List<SongPick> songs)
         {

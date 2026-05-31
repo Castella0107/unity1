@@ -168,6 +168,34 @@ namespace RhythmGame.Network
         public MatchResultDto  result;
     }
 
+    /// <summary>曲ごと提出リクエスト (完全同期)。</summary>
+    [Serializable]
+    public class SongSubmitRequestDto
+    {
+        public string userId;
+        public int    songIndex;
+        public string songId;
+        public string difficulty;
+        public string replayDataBase64;
+    }
+
+    /// <summary>曲ごと提出応答 (相手提出済みなら開示 + 累計 + クリンチ)。</summary>
+    [Serializable]
+    public class SongResultDto
+    {
+        public int    songIndex;
+        public bool   bothSubmitted;
+        public System.Collections.Generic.List<int> selfSectors;   // 提出者の 5 セクター
+        public System.Collections.Generic.List<int> oppSectors;    // 相手の 5 セクター (両者提出時)
+        public double selfSongPoints;
+        public double oppSongPoints;
+        public double selfCumulative;
+        public double oppCumulative;
+        public bool   clinch;
+        public bool   matchOver;
+        public MatchResultDto result;   // matchOver 時のみ
+    }
+
     /// <summary>マッチキュー参加/退出/状態取得リクエスト。</summary>
     [Serializable]
     public class QueueRequestDto
@@ -185,6 +213,20 @@ namespace RhythmGame.Network
         public string opponentId;
         public System.Collections.Generic.List<SongPickDto> songs;
         public int    queueDepth;
+    }
+
+    /// <summary>ユーザーの PVP 戦績 (ロビー右パネル用)。ティア/LP/順位は K ドメインのため含まない。</summary>
+    [Serializable]
+    public class UserPvpStatsDto
+    {
+        public string userId;
+        public string displayName;
+        public int    totalMatches;
+        public int    wins;
+        public int    losses;
+        public int    draws;
+        public double winRatio;   // 0..1
+        public double rating;     // Glicko-2 raw
     }
 
     /// <summary>ドラフト(PICK/BAN)の操作リクエスト(自分の userId + 対象 songId)。</summary>

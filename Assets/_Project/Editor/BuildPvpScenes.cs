@@ -30,9 +30,16 @@ public static class BuildPvpScenes
         BuildDraftScene("Assets/_Project/Scenes/PVPBanPhase.unity",
             PvpDraftScreenController.Phase.BanPhase, new Color(0.08f, 0.05f, 0.10f));
 
-        // PVPResult はフロー未配線 (Result/PVPMatchEnd 流用) のためプレースホルダーのまま。
-        BuildPlaceholderScene("Assets/_Project/Scenes/PVPResult.unity", "PVP RESULT",
-            "PVP match result (currently reuses Result / PVPMatchEnd)", SceneId.Title,
+        // オンラインロビー (対戦待合, フロー ②)。Title Online → ここ → START → Matchmaking。
+        BuildLobbyScene("Assets/_Project/Scenes/PVPLobby.unity",
+            new Color(0.10f, 0.04f, 0.06f));
+
+        // 各曲前の難易度選択 & プレイ設定画面 (フロー ⑦)。
+        BuildSongSetupScene("Assets/_Project/Scenes/PVPSongSetup.unity",
+            new Color(0.05f, 0.06f, 0.11f));
+
+        // PVPResult = 各曲完走後の「曲リザルト」画面 (フロー ⑩、セクター勝敗 + 累計 + クリンチ)。
+        BuildSongResultScene("Assets/_Project/Scenes/PVPResult.unity",
             new Color(0.05f, 0.06f, 0.11f));
 
         AssetDatabase.SaveAssets();
@@ -324,6 +331,12 @@ public static class BuildPvpScenes
         songsTMP.alignment = TextAlignmentOptions.Center;
         songsTMP.color = new Color(1, 1, 1, 0.85f);
 
+        // ── ロック状況 (YOU ● / OPP ○) 右上 ─────────────────────
+        var lockTMP = MakeTMP("LockStatusText", canvasGO, 24, "");
+        SetAnchored(lockTMP, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-300, -150), new Vector2(560, 40));
+        lockTMP.alignment = TextAlignmentOptions.Right;
+        lockTMP.richText = true;
+
         // ── タイルグリッド (phase 別) ───────────────────────────
         var tiles = new System.Collections.Generic.List<DraftTileView>();
         if (phase == PvpDraftScreenController.Phase.SongPick)
@@ -337,6 +350,16 @@ public static class BuildPvpScenes
             var grid = MakeGrid("CandidateGrid", canvasGO, new Vector2(0, 20),
                 new Vector2(960, 340), new Vector2(280, 320), new Vector2(40, 0), 3);
             for (int i = 0; i < 3; i++) tiles.Add(MakeDraftTile(grid, 26, 22));
+        }
+
+        // ── ラインナップカード (BanPhase のみ: 確定3曲を開示時に発表) ─────
+        // 候補グリッドと同じ中央領域に重ねて配置。選択中は隠れ、開示時に候補と入れ替えで表示する。
+        var lineupTiles = new System.Collections.Generic.List<DraftTileView>();
+        if (phase == PvpDraftScreenController.Phase.BanPhase)
+        {
+            var lgrid = MakeGrid("LineupGrid", canvasGO, new Vector2(0, 20),
+                new Vector2(900, 320), new Vector2(260, 300), new Vector2(40, 0), 3);
+            for (int i = 0; i < 3; i++) lineupTiles.Add(MakeDraftTile(lgrid, 24, 20));
         }
 
         // ── Primary (LOCK IN / START / TO SONG PICK) / Cancel ────
@@ -369,6 +392,7 @@ public static class BuildPvpScenes
         so.FindProperty("_revealText").objectReferenceValue    = revealTMP;
         so.FindProperty("_songsText").objectReferenceValue     = songsTMP;
         so.FindProperty("_primaryLabel").objectReferenceValue  = primaryLabel;
+        so.FindProperty("_lockStatusText").objectReferenceValue = lockTMP;
         so.FindProperty("_primaryButton").objectReferenceValue = primaryGO.GetComponent<Button>();
         so.FindProperty("_cancelButton").objectReferenceValue  = cancelGO.GetComponent<Button>();
 
@@ -377,9 +401,414 @@ public static class BuildPvpScenes
         for (int i = 0; i < tiles.Count; i++)
             tilesProp.GetArrayElementAtIndex(i).objectReferenceValue = tiles[i];
 
+        var lineupProp = so.FindProperty("_lineupTiles");
+        lineupProp.arraySize = lineupTiles.Count;
+        for (int i = 0; i < lineupTiles.Count; i++)
+            lineupProp.GetArrayElementAtIndex(i).objectReferenceValue = lineupTiles[i];
+
         so.ApplyModifiedPropertiesWithoutUndo();
 
         SaveAndRegister(scene, scenePath);
+    }
+
+    // オンラインロビー (対戦待合, フロー ②) を生成する。3パネル + START バー。
+    // 右パネルの TOTAL MATCH/MATCH WIN/WIN RATIO のみ実データ結線、その他(ティア/LP/TOP5/
+    // YOUR RANKING/難易度別表)は K ドメインのため baked プレースホルダー文言。
+    static void BuildLobbyScene(string scenePath, Color bg)
+    {
+        var scene = NewEmptyScene();
+        BuildBaseObjects(scene, bg);
+        var canvasGO = GameObject.Find("Canvas");
+
+        Color gold = new Color(0.97f, 0.78f, 0.25f, 1f);
+        Color dim  = new Color(1, 1, 1, 0.6f);
+        Color panel= new Color(1, 1, 1, 0.06f);
+
+        // ── ヘッダー: ONLINE / LADDER MATCH + LOBBY ──────────────────
+        var kicker = MakeTMP("Kicker", canvasGO, 26, "ONLINE   ·   LADDER MATCH");
+        SetAnchored(kicker, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(180, -64), new Vector2(700, 36));
+        kicker.alignment = TextAlignmentOptions.Left;
+        kicker.color = dim;
+        kicker.characterSpacing = 6f;
+
+        var lobbyTitle = MakeTMP("LobbyTitle", canvasGO, 72, "LOBBY");
+        SetAnchored(lobbyTitle, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(180, -130), new Vector2(700, 90));
+        lobbyTitle.alignment = TextAlignmentOptions.Left;
+        lobbyTitle.color = gold;
+        lobbyTitle.fontStyle = FontStyles.Bold;
+
+        // ── 左パネル: SEASON TOP5 + YOUR RANKING (placeholder) ──────
+        var leftBG = MakeImage("LeftPanel", canvasGO, panel);
+        SetRect(leftBG.rectTransform, Center, Center, new Vector2(-620, 40), new Vector2(560, 600));
+
+        var seasonTMP = MakeTMP("SeasonText", canvasGO, 26, "SEASON --");
+        SetAnchored(seasonTMP, Center, Center, new Vector2(-760, 290), new Vector2(280, 40));
+        seasonTMP.alignment = TextAlignmentOptions.Left;
+        seasonTMP.color = gold;
+        seasonTMP.fontStyle = FontStyles.Bold;
+
+        var top5Head = MakeTMP("Top5Head", canvasGO, 22, "TOP 5");
+        SetAnchored(top5Head, Center, Center, new Vector2(-500, 290), new Vector2(160, 40));
+        top5Head.alignment = TextAlignmentOptions.Right;
+        top5Head.color = dim;
+
+        // ランキング5行 (K ラダー API 待ちのプレースホルダー)
+        var rankRows = MakeTMP("RankRows", canvasGO, 26,
+            "1.   ----------\n\n2.   ----------\n\n3.   ----------\n\n4.   ----------\n\n5.   ----------");
+        SetAnchored(rankRows, Center, Center, new Vector2(-620, 70), new Vector2(520, 380));
+        rankRows.alignment = TextAlignmentOptions.TopLeft;
+        rankRows.color = dim;
+
+        var yourRankHead = MakeTMP("YourRankHead", canvasGO, 22, "YOUR RANKING");
+        SetAnchored(yourRankHead, Center, Center, new Vector2(-700, -160), new Vector2(400, 36));
+        yourRankHead.alignment = TextAlignmentOptions.Left;
+        yourRankHead.color = gold;
+        yourRankHead.characterSpacing = 4f;
+
+        var yourRankTMP = MakeTMP("YourRankingText", canvasGO, 28, "-.--%  OF TOP");
+        SetAnchored(yourRankTMP, Center, Center, new Vector2(-700, -210), new Vector2(400, 44));
+        yourRankTMP.alignment = TextAlignmentOptions.Left;
+        yourRankTMP.color = Color.white;
+
+        // ── 中央: 大ティアバッジ (placeholder) ──────────────────────
+        var centerTier = MakeTMP("CenterTierText", canvasGO, 56, "UNRANKED");
+        SetAnchored(centerTier, Center, Center, new Vector2(0, 40), new Vector2(620, 90));
+        centerTier.alignment = TextAlignmentOptions.Center;
+        centerTier.fontStyle = FontStyles.Bold;
+        centerTier.characterSpacing = 4f;
+
+        // ── 右パネル: LADDER TIER + 実データ3項目 + 難易度表(placeholder) ─
+        var rightBG = MakeImage("RightPanel", canvasGO, panel);
+        SetRect(rightBG.rectTransform, Center, Center, new Vector2(620, 40), new Vector2(620, 600));
+
+        var ladderHead = MakeTMP("LadderHead", canvasGO, 22, "LADDER TIER");
+        SetAnchored(ladderHead, Center, Center, new Vector2(620, 290), new Vector2(560, 36));
+        ladderHead.alignment = TextAlignmentOptions.Left;
+        ladderHead.color = gold;
+        ladderHead.characterSpacing = 4f;
+
+        var ladderTier = MakeTMP("LadderTierText", canvasGO, 44, "UNRANKED");
+        SetAnchored(ladderTier, Center, Center, new Vector2(620, 240), new Vector2(560, 60));
+        ladderTier.alignment = TextAlignmentOptions.Left;
+        ladderTier.fontStyle = FontStyles.Bold;
+
+        // TOTAL MATCH (real)
+        var tmHead = MakeTMP("TotalMatchHead", canvasGO, 20, "TOTAL MATCH");
+        SetAnchored(tmHead, Center, Center, new Vector2(490, 150), new Vector2(280, 30));
+        tmHead.alignment = TextAlignmentOptions.Left; tmHead.color = gold;
+        var tmVal = MakeTMP("TotalMatchText", canvasGO, 48, "0");
+        SetAnchored(tmVal, Center, Center, new Vector2(490, 100), new Vector2(280, 60));
+        tmVal.alignment = TextAlignmentOptions.Left; tmVal.fontStyle = FontStyles.Bold;
+
+        // MATCH WIN (real)
+        var mwHead = MakeTMP("MatchWinHead", canvasGO, 20, "MATCH WIN");
+        SetAnchored(mwHead, Center, Center, new Vector2(760, 150), new Vector2(280, 30));
+        mwHead.alignment = TextAlignmentOptions.Left; mwHead.color = gold;
+        var mwVal = MakeTMP("MatchWinText", canvasGO, 48, "0");
+        SetAnchored(mwVal, Center, Center, new Vector2(720, 100), new Vector2(120, 60));
+        mwVal.alignment = TextAlignmentOptions.Left; mwVal.fontStyle = FontStyles.Bold;
+        var wrVal = MakeTMP("WinRatioText", canvasGO, 26, "0.00%");
+        SetAnchored(wrVal, Center, Center, new Vector2(850, 108), new Vector2(180, 40));
+        wrVal.alignment = TextAlignmentOptions.Left; wrVal.color = dim;
+
+        // 難易度別スタッツ表 (placeholder; PVP難易度別集計は未追跡)
+        var statsTable = MakeTMP("StatsTable", canvasGO, 22,
+            "          ROUND   WIN   PERFECT   COMBO    RATE\n" +
+            "TOTAL       0       0       0        0      0.00%\n" +
+            "easy        0       0       0        0      0.00%\n" +
+            "normal      0       0       0        0      0.00%\n" +
+            "hard        0       0       0        0      0.00%\n" +
+            "extra       0       0       0        0      0.00%");
+        SetAnchored(statsTable, Center, Center, new Vector2(620, -110), new Vector2(580, 240));
+        statsTable.alignment = TextAlignmentOptions.TopLeft;
+        statsTable.color = dim;
+        statsTable.enableWordWrapping = false;
+
+        // ── START バー ───────────────────────────────────────────────
+        var startGO = MakeButton("StartButton", canvasGO, "");
+        var sRT = startGO.GetComponent<RectTransform>();
+        sRT.anchorMin = new Vector2(0f, 0f); sRT.anchorMax = new Vector2(1f, 0f); sRT.pivot = new Vector2(0.5f, 0f);
+        sRT.anchoredPosition = new Vector2(0, 60); sRT.sizeDelta = new Vector2(-200, 150);
+        var startImg = startGO.GetComponent<Image>();
+        if (startImg != null) startImg.color = new Color(0.12f, 0.18f, 0.30f, 0.55f);
+        // ボタン内ラベルを START / PRESS F5 に差し替え
+        var startLbl = startGO.GetComponentInChildren<TextMeshProUGUI>();
+        if (startLbl != null)
+        {
+            startLbl.text = "START";
+            startLbl.fontSize = 64;
+            startLbl.fontStyle = FontStyles.Bold;
+            startLbl.alignment = TextAlignmentOptions.Center;
+        }
+        var pressF5 = MakeTMP("PressF5", canvasGO, 24, "PRESS  F5");
+        SetAnchored(pressF5, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, 80), new Vector2(400, 36));
+        pressF5.alignment = TextAlignmentOptions.Center;
+        pressF5.color = dim;
+        pressF5.characterSpacing = 6f;
+        pressF5.raycastTarget = false;
+
+        var backGO = MakeButton("BackButton", canvasGO, "< MENU");
+        var bRT = backGO.GetComponent<RectTransform>();
+        bRT.anchorMin = bRT.anchorMax = new Vector2(1f, 0f); bRT.pivot = new Vector2(1f, 0f);
+        bRT.anchoredPosition = new Vector2(-40, 20); bRT.sizeDelta = new Vector2(220, 56);
+
+        // ── Controller 配線 ─────────────────────────────────────────
+        var ctrlGO = new GameObject("PvpLobbyController");
+        var ctrl = ctrlGO.AddComponent<PvpLobbyController>();
+        var so = new SerializedObject(ctrl);
+        so.FindProperty("_ladderTierText").objectReferenceValue  = ladderTier;
+        so.FindProperty("_totalMatchText").objectReferenceValue  = tmVal;
+        so.FindProperty("_matchWinText").objectReferenceValue    = mwVal;
+        so.FindProperty("_winRatioText").objectReferenceValue    = wrVal;
+        so.FindProperty("_centerTierText").objectReferenceValue  = centerTier;
+        so.FindProperty("_seasonText").objectReferenceValue      = seasonTMP;
+        so.FindProperty("_yourRankingText").objectReferenceValue = yourRankTMP;
+        so.FindProperty("_startButton").objectReferenceValue     = startGO.GetComponent<Button>();
+        so.FindProperty("_backButton").objectReferenceValue      = backGO.GetComponent<Button>();
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        SaveAndRegister(scene, scenePath);
+    }
+
+    // 各曲前の「難易度選択 & プレイ設定」画面 (フロー ⑦) を生成する。
+    // ジャケット+曲名 / 難易度4ボタン(easy..extra) / ノートスピード・判定/表示オフセットのステッパ /
+    // 相手難易度(同期待ち) / READY・CANCEL。PvpSongSetupController を baked-in 結線。
+    static void BuildSongSetupScene(string scenePath, Color bg)
+    {
+        var scene = NewEmptyScene();
+        BuildBaseObjects(scene, bg);
+        var canvasGO = GameObject.Find("Canvas");
+
+        Color cyan = new Color(0.17f, 0.85f, 0.90f, 1f);
+        Color red  = new Color(0.95f, 0.30f, 0.42f, 1f);
+        Color dim  = new Color(1, 1, 1, 0.7f);
+
+        // ── ヘッダー "SONG n / 3" + アクセント線 ──────────────────
+        var headerTMP = MakeTMP("Header", canvasGO, 54, "SONG 1 / 3");
+        SetAnchored(headerTMP, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -70), new Vector2(1400, 78));
+        headerTMP.alignment = TextAlignmentOptions.Center;
+        headerTMP.fontStyle = FontStyles.Bold;
+        headerTMP.characterSpacing = 6f;
+
+        var accent = MakeImage("HeaderAccent", canvasGO, cyan);
+        SetRect(accent.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -122), new Vector2(560, 4));
+
+        // ── ジャケット + 曲名 (左) ───────────────────────────────
+        var jacketImg = MakeImageRay("Jacket", canvasGO, Color.white, false);
+        SetRect(jacketImg.rectTransform, Center, Center, new Vector2(-520, 120), new Vector2(300, 300));
+        jacketImg.preserveAspect = true;
+        jacketImg.enabled = false;
+
+        var songTitleTMP = MakeTMP("SongTitleText", canvasGO, 34, "");
+        SetAnchored(songTitleTMP, Center, Center, new Vector2(-520, -60), new Vector2(360, 80));
+        songTitleTMP.alignment = TextAlignmentOptions.Center;
+        songTitleTMP.fontStyle = FontStyles.Bold;
+        songTitleTMP.overflowMode = TextOverflowModes.Ellipsis;
+
+        // ── 難易度 4 ボタン (easy/normal/hard/extra) ─────────────
+        var diffLabel = MakeTMP("DifficultyHeader", canvasGO, 24, "DIFFICULTY");
+        SetAnchored(diffLabel, Center, Center, new Vector2(220, 300), new Vector2(900, 36));
+        diffLabel.alignment = TextAlignmentOptions.Left;
+        diffLabel.color = dim;
+        diffLabel.characterSpacing = 6f;
+
+        string[] diffNames = { "EASY\nx0.75", "NORMAL\nx0.80", "HARD\nx0.90", "EXTRA\nx1.00" };
+        var diffButtons = new Button[4];
+        for (int i = 0; i < 4; i++)
+        {
+            var b = MakeButton("Diff_" + i, canvasGO, diffNames[i]);
+            var rt = b.GetComponent<RectTransform>();
+            rt.anchorMin = rt.anchorMax = Center; rt.pivot = Center;
+            rt.anchoredPosition = new Vector2(-20 + i * 200, 230);
+            rt.sizeDelta = new Vector2(180, 96);
+            diffButtons[i] = b.GetComponent<Button>();
+        }
+
+        var diffSelLabel = MakeTMP("DifficultyLabel", canvasGO, 26, "EXTRA   x1.00");
+        SetAnchored(diffSelLabel, Center, Center, new Vector2(220, 150), new Vector2(900, 40));
+        diffSelLabel.alignment = TextAlignmentOptions.Left;
+        diffSelLabel.color = cyan;
+        diffSelLabel.fontStyle = FontStyles.Bold;
+
+        // ── プレイ設定 3 ステッパ ────────────────────────────────
+        var setLabel = MakeTMP("SettingsHeader", canvasGO, 24, "PLAY SETTINGS");
+        SetAnchored(setLabel, Center, Center, new Vector2(220, 90), new Vector2(900, 36));
+        setLabel.alignment = TextAlignmentOptions.Left;
+        setLabel.color = dim;
+        setLabel.characterSpacing = 6f;
+
+        TextMeshProUGUI noteVal, judgeVal, visualVal;
+        Button noteDown, noteUp, judgeDown, judgeUp, visualDown, visualUp;
+        MakeStepper(canvasGO, "Note Speed",   new Vector2(220, 30),  out noteVal,   out noteDown,   out noteUp);
+        MakeStepper(canvasGO, "Audio Offset", new Vector2(220, -34), out judgeVal,  out judgeDown,  out judgeUp);
+        MakeStepper(canvasGO, "Visual Offset",new Vector2(220, -98), out visualVal, out visualDown, out visualUp);
+
+        // ── 相手難易度 (同期待ち) ───────────────────────────────
+        var oppTMP = MakeTMP("OppDiffText", canvasGO, 24, "OPP   —");
+        SetAnchored(oppTMP, Center, Center, new Vector2(-520, -180), new Vector2(360, 40));
+        oppTMP.alignment = TextAlignmentOptions.Center;
+        oppTMP.color = red;
+        oppTMP.fontStyle = FontStyles.Bold;
+
+        // ── status ───────────────────────────────────────────────
+        var statusTMP = MakeTMP("StatusText", canvasGO, 24, "");
+        SetAnchored(statusTMP, Center, Center, new Vector2(0, -250), new Vector2(1400, 40));
+        statusTMP.alignment = TextAlignmentOptions.Center;
+        statusTMP.color = dim;
+
+        // ── READY / CANCEL ───────────────────────────────────────
+        var readyGO = MakeButton("ReadyButton", canvasGO, "READY");
+        var rRT = readyGO.GetComponent<RectTransform>();
+        rRT.anchorMin = rRT.anchorMax = new Vector2(0.5f, 0f); rRT.pivot = new Vector2(0.5f, 0f);
+        rRT.anchoredPosition = new Vector2(200, 56); rRT.sizeDelta = new Vector2(360, 76);
+
+        var cancelGO = MakeButton("CancelButton", canvasGO, "CANCEL");
+        var cRT = cancelGO.GetComponent<RectTransform>();
+        cRT.anchorMin = cRT.anchorMax = new Vector2(0.5f, 0f); cRT.pivot = new Vector2(0.5f, 0f);
+        cRT.anchoredPosition = new Vector2(-200, 56); cRT.sizeDelta = new Vector2(360, 76);
+
+        // ── Controller 配線 ─────────────────────────────────────
+        var ctrlGO = new GameObject("PvpSongSetupController");
+        var ctrl = ctrlGO.AddComponent<PvpSongSetupController>();
+        var so = new SerializedObject(ctrl);
+        so.FindProperty("_headerText").objectReferenceValue     = headerTMP;
+        so.FindProperty("_songTitleText").objectReferenceValue  = songTitleTMP;
+        so.FindProperty("_jacket").objectReferenceValue         = jacketImg;
+        so.FindProperty("_difficultyLabel").objectReferenceValue= diffSelLabel;
+        so.FindProperty("_noteSpeedText").objectReferenceValue  = noteVal;
+        so.FindProperty("_judgeOffsetText").objectReferenceValue= judgeVal;
+        so.FindProperty("_visualOffsetText").objectReferenceValue = visualVal;
+        so.FindProperty("_oppDiffText").objectReferenceValue    = oppTMP;
+        so.FindProperty("_statusText").objectReferenceValue     = statusTMP;
+        so.FindProperty("_noteSpeedDown").objectReferenceValue  = noteDown;
+        so.FindProperty("_noteSpeedUp").objectReferenceValue    = noteUp;
+        so.FindProperty("_judgeOffsetDown").objectReferenceValue= judgeDown;
+        so.FindProperty("_judgeOffsetUp").objectReferenceValue  = judgeUp;
+        so.FindProperty("_visualOffsetDown").objectReferenceValue = visualDown;
+        so.FindProperty("_visualOffsetUp").objectReferenceValue = visualUp;
+        so.FindProperty("_readyButton").objectReferenceValue    = readyGO.GetComponent<Button>();
+        so.FindProperty("_cancelButton").objectReferenceValue   = cancelGO.GetComponent<Button>();
+
+        var diffProp = so.FindProperty("_difficultyButtons");
+        diffProp.arraySize = diffButtons.Length;
+        for (int i = 0; i < diffButtons.Length; i++)
+            diffProp.GetArrayElementAtIndex(i).objectReferenceValue = diffButtons[i];
+
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        SaveAndRegister(scene, scenePath);
+    }
+
+    // 各曲完走後の「曲リザルト」画面 (フロー ⑩) を生成する。
+    // ヘッダ "SONG n / 3 RESULT" / 曲名 / 自分・相手の獲得pt / セクター勝敗行 / 累計バー / クリンチ告知 / NEXT。
+    // PvpSongResultController を baked-in 結線。
+    static void BuildSongResultScene(string scenePath, Color bg)
+    {
+        var scene = NewEmptyScene();
+        BuildBaseObjects(scene, bg);
+        var canvasGO = GameObject.Find("Canvas");
+
+        Color cyan = new Color(0.17f, 0.85f, 0.90f, 1f);
+        Color red  = new Color(0.95f, 0.30f, 0.42f, 1f);
+        Color dim  = new Color(1, 1, 1, 0.7f);
+
+        var headerTMP = MakeTMP("Header", canvasGO, 54, "SONG 1 / 3   RESULT");
+        SetAnchored(headerTMP, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -70), new Vector2(1400, 78));
+        headerTMP.alignment = TextAlignmentOptions.Center;
+        headerTMP.fontStyle = FontStyles.Bold;
+        headerTMP.characterSpacing = 6f;
+
+        var accent = MakeImage("HeaderAccent", canvasGO, cyan);
+        SetRect(accent.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0, -122), new Vector2(560, 4));
+
+        var songTitleTMP = MakeTMP("SongTitleText", canvasGO, 30, "");
+        SetAnchored(songTitleTMP, Center, Center, new Vector2(0, 280), new Vector2(1400, 50));
+        songTitleTMP.alignment = TextAlignmentOptions.Center;
+        songTitleTMP.color = dim;
+
+        // 自分 / 相手の獲得 pt (左右)
+        var selfPtsTMP = MakeTMP("SelfPointsText", canvasGO, 44, "YOU  +0.0");
+        SetAnchored(selfPtsTMP, Center, Center, new Vector2(-340, 170), new Vector2(560, 70));
+        selfPtsTMP.alignment = TextAlignmentOptions.Center;
+        selfPtsTMP.color = cyan;
+        selfPtsTMP.fontStyle = FontStyles.Bold;
+
+        var oppPtsTMP = MakeTMP("OppPointsText", canvasGO, 44, "OPP  +0.0");
+        SetAnchored(oppPtsTMP, Center, Center, new Vector2(340, 170), new Vector2(560, 70));
+        oppPtsTMP.alignment = TextAlignmentOptions.Center;
+        oppPtsTMP.color = red;
+        oppPtsTMP.fontStyle = FontStyles.Bold;
+
+        // セクター勝敗行
+        var sectorsTMP = MakeTMP("SectorsText", canvasGO, 34, "");
+        SetAnchored(sectorsTMP, Center, Center, new Vector2(0, 40), new Vector2(1500, 60));
+        sectorsTMP.alignment = TextAlignmentOptions.Center;
+        sectorsTMP.fontStyle = FontStyles.Bold;
+        sectorsTMP.richText = true;
+
+        // 累計
+        var cumTMP = MakeTMP("CumulativeText", canvasGO, 30, "");
+        SetAnchored(cumTMP, Center, Center, new Vector2(0, -60), new Vector2(1500, 50));
+        cumTMP.alignment = TextAlignmentOptions.Center;
+        cumTMP.richText = true;
+
+        // クリンチ告知
+        var clinchTMP = MakeTMP("ClinchText", canvasGO, 34, "");
+        SetAnchored(clinchTMP, Center, Center, new Vector2(0, -140), new Vector2(1400, 56));
+        clinchTMP.alignment = TextAlignmentOptions.Center;
+        clinchTMP.color = new Color(1f, 0.85f, 0.2f, 1f);
+        clinchTMP.fontStyle = FontStyles.Bold;
+        clinchTMP.characterSpacing = 4f;
+
+        // NEXT
+        var nextGO = MakeButton("PrimaryButton", canvasGO, "NEXT SONG");
+        var nRT = nextGO.GetComponent<RectTransform>();
+        nRT.anchorMin = nRT.anchorMax = new Vector2(0.5f, 0f); nRT.pivot = new Vector2(0.5f, 0f);
+        nRT.anchoredPosition = new Vector2(0, 70); nRT.sizeDelta = new Vector2(420, 80);
+        var nextLabel = nextGO.GetComponentInChildren<TextMeshProUGUI>();
+
+        var ctrlGO = new GameObject("PvpSongResultController");
+        var ctrl = ctrlGO.AddComponent<PvpSongResultController>();
+        var so = new SerializedObject(ctrl);
+        so.FindProperty("_headerText").objectReferenceValue     = headerTMP;
+        so.FindProperty("_songTitleText").objectReferenceValue  = songTitleTMP;
+        so.FindProperty("_selfPointsText").objectReferenceValue = selfPtsTMP;
+        so.FindProperty("_oppPointsText").objectReferenceValue  = oppPtsTMP;
+        so.FindProperty("_sectorsText").objectReferenceValue    = sectorsTMP;
+        so.FindProperty("_cumulativeText").objectReferenceValue = cumTMP;
+        so.FindProperty("_clinchText").objectReferenceValue     = clinchTMP;
+        so.FindProperty("_primaryLabel").objectReferenceValue   = nextLabel;
+        so.FindProperty("_primaryButton").objectReferenceValue  = nextGO.GetComponent<Button>();
+        so.ApplyModifiedPropertiesWithoutUndo();
+
+        SaveAndRegister(scene, scenePath);
+    }
+
+    // ラベル + 値 + [-][+] の 1 行ステッパを生成する。値 TMP と両ボタンを out で返す。
+    static void MakeStepper(GameObject parent, string label, Vector2 pos,
+                            out TextMeshProUGUI valueText, out Button down, out Button up)
+    {
+        var lbl = MakeTMP("Step_" + label, parent, 22, label);
+        SetAnchored(lbl, Center, Center, new Vector2(pos.x - 110, pos.y), new Vector2(260, 40));
+        lbl.alignment = TextAlignmentOptions.Left;
+
+        var downGO = MakeButton(label + "_Down", parent, "<");
+        var dRT = downGO.GetComponent<RectTransform>();
+        dRT.anchorMin = dRT.anchorMax = Center; dRT.pivot = Center;
+        dRT.anchoredPosition = new Vector2(pos.x + 110, pos.y); dRT.sizeDelta = new Vector2(56, 48);
+        down = downGO.GetComponent<Button>();
+
+        var val = MakeTMP(label + "_Value", parent, 24, "-");
+        SetAnchored(val, Center, Center, new Vector2(pos.x + 200, pos.y), new Vector2(120, 44));
+        val.alignment = TextAlignmentOptions.Center;
+        val.fontStyle = FontStyles.Bold;
+        valueText = val;
+
+        var upGO = MakeButton(label + "_Up", parent, ">");
+        var uRT = upGO.GetComponent<RectTransform>();
+        uRT.anchorMin = uRT.anchorMax = Center; uRT.pivot = Center;
+        uRT.anchoredPosition = new Vector2(pos.x + 290, pos.y); uRT.sizeDelta = new Vector2(56, 48);
+        up = upGO.GetComponent<Button>();
     }
 
     // GridLayoutGroup コンテナを生成する (タイルは baked-in で子に追加)。

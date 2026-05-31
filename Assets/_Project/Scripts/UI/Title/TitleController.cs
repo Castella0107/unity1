@@ -168,7 +168,8 @@ public class TitleController : MonoBehaviour
                 SceneRouter.Instance.GoTo(SceneId.SongSelect);
                 break;
             case MenuId.Online:
-                SceneRouter.Instance.GoTo(SceneId.Matchmaking);
+                // オンラインロビー (対戦待合) を経由してマッチングへ。
+                SceneRouter.Instance.GoTo(SceneId.PVPLobby);
                 break;
             case MenuId.Config:
                 SceneRouter.Instance.GoTo(SceneId.Config);

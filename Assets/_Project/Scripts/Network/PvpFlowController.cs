@@ -41,6 +41,10 @@ namespace RhythmGame.Network
         List<string>      _replayPaths = new();
         bool              _submitting;
 
+        /// <summary>直近に完走した曲の結果 (完全同期: 相手セクター開示 + 累計 + クリンチ)。PVPResult 画面が読む。</summary>
+        public SongResultDto LastSongResult { get; private set; }
+        MatchResultDto _finalResult;
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         static void Bootstrap()
         {
@@ -78,6 +82,8 @@ namespace RhythmGame.Network
             _submitting = false;
             SidesResolved = false;
             SelfIsA       = false;
+            LastSongResult = null;
+            _finalResult   = null;
 
             Debug.Log($"[PvpFlow] StartMatch {matchId.Substring(0, 8)} vs {opponentId}, songs={_songs.Count} → Prematch");
             if (SceneRouter.Instance != null)
@@ -151,8 +157,27 @@ namespace RhythmGame.Network
                 return;
             }
             CurrentSongIndex = 0;
-            Debug.Log("[PvpFlow] BeginSongs → launching song 1");
-            LaunchCurrentSong();
+            Debug.Log("[PvpFlow] BeginSongs → song 1 setup");
+            GoToSongSetup();
+        }
+
+        /// <summary>
+        /// 各曲の本戦前に「難易度選択 & プレイ設定」画面 (PVPSongSetup, フロー ⑦) へ遷移する。
+        /// BeginSongs(1曲目) と OnSongCompleted(2・3曲目) から呼ばれる。設定確定後に
+        /// <see cref="LaunchCurrentSongWith"/> が GamePlay を起動する。
+        /// </summary>
+        void GoToSongSetup()
+        {
+            if (SceneRouter.Instance != null)
+            {
+                SceneRouter.Instance.GoTo(SceneId.PVPSongSetup);
+            }
+            else
+            {
+                // SceneRouter 不在のフォールバック: ドラフト難失/既定設定で即起動。
+                Debug.LogError("[PvpFlow] SceneRouter.Instance null — launching song with defaults");
+                LaunchCurrentSong();
+            }
         }
 
         /// <summary>試合開始前 (Prematch/SongPick/BanPhase) にユーザーが離脱したとき。状態を破棄して Title へ。</summary>
@@ -176,15 +201,107 @@ namespace RhythmGame.Network
             _replayPaths.Add(replayPath);
             Debug.Log($"[PvpFlow] Song {CurrentSongIndex + 1}/{_songs.Count} completed: {songId} → {Path.GetFileName(replayPath)}");
 
+            // 完全同期: この曲を即提出 → 相手提出を待って結果開示 → 曲リザルト画面 (フロー ⑩)。
+            _ = SubmitSongAndShowResultAsync(songId, replayPath);
+        }
+
+        // 完走した曲を提出し、相手の提出も揃ったら曲リザルト画面 (PVPResult, フロー ⑩) へ。
+        // 8pt クリンチ or 最終曲なら matchOver=true となり、リザルトの NEXT で PvpMatchEnd へ。
+        async Task SubmitSongAndShowResultAsync(string songId, string replayPath)
+        {
+            try
+            {
+                var net = NetworkClient.Instance;
+                if (net == null) { AbortMatch("NetworkClient not available"); return; }
+                if (!File.Exists(replayPath)) { AbortMatch("Replay file missing: " + replayPath); return; }
+
+                int    idx  = CurrentSongIndex;
+                string diff = string.IsNullOrEmpty(_songs[idx].difficulty) ? "extra" : _songs[idx].difficulty;
+                string b64  = Convert.ToBase64String(File.ReadAllBytes(replayPath));
+
+                var r = await net.SubmitSongAsync(MatchId, SelfUserId, idx, songId, diff, b64);
+                if (!r.Ok) { AbortMatch("Song submit failed: " + r.Error); return; }
+
+                var sr = r.Body;
+                if (sr != null && !sr.bothSubmitted)
+                {
+                    sr = await PollSongResultAsync(idx);
+                    if (sr == null) { AbortMatch("Opponent song submit timeout"); return; }
+                }
+
+                LastSongResult = sr;
+                if (sr != null && sr.matchOver)
+                {
+                    _finalResult = sr.result;
+                    if (_finalResult == null)   // poll 経路などで result 欠落時は GET で補完
+                    {
+                        var f = await NetworkClient.Instance.FetchMatchAsync(MatchId);
+                        if (f.Ok && f.Body != null && f.Body.outcomeKind >= 0) _finalResult = f.Body;
+                    }
+                }
+
+                // 曲リザルト画面へ (matchOver でも一旦結果を見せ、NEXT で MatchEnd へ)
+                if (SceneRouter.Instance != null)
+                    SceneRouter.Instance.GoTo(SceneId.PVPResult, null, TransitionStyle.FadeBlack);
+                else
+                    AfterSongResult();
+            }
+            catch (Exception e)
+            {
+                Debug.LogError("[PvpFlow] SubmitSongAndShowResult exception: " + e);
+                AbortMatch("Song submit exception: " + e.Message);
+            }
+        }
+
+        // 相手の同曲提出が揃うまで GET song-result を poll する (最大 180 秒)。
+        // 相手がまだその曲をプレイ中の場合があるため長めに待つ (相手の曲尺 + α)。
+        async Task<SongResultDto> PollSongResultAsync(int songIndex)
+        {
+            const int maxAttempts = 150;   // 150 × 1.2s = 180s
+            for (int i = 0; i < maxAttempts; i++)
+            {
+                await Task.Delay(1200);
+                if (!_alive()) return null;
+                var f = await NetworkClient.Instance.FetchSongResultAsync(MatchId, songIndex, SelfUserId);
+                if (!f.Ok || f.Body == null) continue;
+                if (f.Body.bothSubmitted || f.Body.matchOver) return f.Body;
+            }
+            return null;
+        }
+
+        // 試合がまだ生きているか (シーン破棄ではなく IsActive で判定)。
+        bool _alive() => IsActive;
+
+        /// <summary>
+        /// 曲リザルト画面 (PVPResult) の NEXT から呼ばれる。matchOver なら最終結果へ、
+        /// そうでなければ次曲の難易度 & 設定画面 (フロー ⑦) へ進む。
+        /// </summary>
+        public void AfterSongResult()
+        {
+            if (LastSongResult != null && LastSongResult.matchOver)
+            {
+                if (_finalResult != null) FinishToMatchEndScene(_finalResult);
+                else                      AbortMatch("Final result unavailable");
+                return;
+            }
+
             CurrentSongIndex++;
             if (CurrentSongIndex < _songs.Count)
             {
-                LaunchCurrentSong();
+                GoToSongSetup();
             }
             else
             {
-                _ = SubmitAndFinish();
+                // 最終曲なのに matchOver でない異常系: サーバーから最終結果を取り直す。
+                _ = FetchFinalAndFinishAsync();
             }
+        }
+
+        async Task FetchFinalAndFinishAsync()
+        {
+            var f = await NetworkClient.Instance.FetchMatchAsync(MatchId);
+            if (f.Ok && f.Body != null && f.Body.outcomeKind >= 0) FinishToMatchEndScene(f.Body);
+            else AbortMatch("Could not fetch final result");
         }
 
         /// <summary>明示キャンセル (Pause メニュー等から)。途中棄権扱い。</summary>
@@ -204,7 +321,33 @@ namespace RhythmGame.Network
 
         // ── Internal ────────────────────────────────────────────────────────────
 
+        /// <summary>
+        /// PVPSongSetup 画面の READY から呼ばれる。選択した難易度とプレイ設定で現在の曲の GamePlay を起動する。
+        /// 選んだ難易度を _songs[CurrentSongIndex] にも反映し、submit / 採点(難易度倍率)と一致させる。
+        /// </summary>
+        public void LaunchCurrentSongWith(string difficulty, float hiSpeed, int judgeOffset, int visualOffset)
+        {
+            if (CurrentSongIndex < 0 || CurrentSongIndex >= _songs.Count) return;
+            string diff = string.IsNullOrEmpty(difficulty) ? "extra" : difficulty;
+
+            // 確定難易度をマッチ状態へ反映(submit 時の曲順 DTO と finalize の倍率計算に効く)。
+            var cur = _songs[CurrentSongIndex];
+            _songs[CurrentSongIndex] = new SongPickDto { songId = cur.songId, difficulty = diff };
+
+            LaunchCurrentSong(diff, hiSpeed, judgeOffset, visualOffset);
+        }
+
         void LaunchCurrentSong()
+        {
+            // フォールバック(設定画面を経由しない場合): ドラフト難易度 + 既定設定で起動。
+            if (CurrentSongIndex < 0 || CurrentSongIndex >= _songs.Count) return;
+            var s = _songs[CurrentSongIndex];
+            LaunchCurrentSong(
+                string.IsNullOrEmpty(s.difficulty) ? "extra" : s.difficulty,
+                PlayerPrefs.GetFloat("HiSpeed", 4.5f), 0, 0);
+        }
+
+        void LaunchCurrentSong(string difficulty, float hiSpeed, int judgeOffset, int visualOffset)
         {
             if (CurrentSongIndex < 0 || CurrentSongIndex >= _songs.Count) return;
             var s = _songs[CurrentSongIndex];
@@ -212,10 +355,10 @@ namespace RhythmGame.Network
             var gp = new GamePlayParameters
             {
                 SongId        = s.songId,
-                Difficulty    = string.IsNullOrEmpty(s.difficulty) ? "extra" : s.difficulty,
-                HiSpeed       = PlayerPrefs.GetFloat("HiSpeed", 4.5f),
-                JudgeOffset   = 0,
-                VisualOffset  = 0,
+                Difficulty    = string.IsNullOrEmpty(difficulty) ? "extra" : difficulty,
+                HiSpeed       = hiSpeed,
+                JudgeOffset   = judgeOffset,
+                VisualOffset  = visualOffset,
                 Modifier      = "None",
                 IsReplay      = false,
                 IsPvp         = true,
@@ -471,6 +614,8 @@ namespace RhythmGame.Network
             CurrentSongIndex = 0;
             SidesResolved = false;
             SelfIsA       = false;
+            LastSongResult = null;
+            _finalResult   = null;
         }
     }
 }

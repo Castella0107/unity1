@@ -127,6 +127,7 @@ namespace RhythmGame.UI.Pvp
             // 即マッチング成立した場合
             if (join.Body.status == "matched")
             {
+                if (_canceled) return;
                 StartMatchFromQueueResponse(join.Body);
                 return;
             }
@@ -142,6 +143,7 @@ namespace RhythmGame.UI.Pvp
                 if (_canceled) break;
 
                 var s = await net.GetQueueStatusAsync(LocalIdentity.UserId);
+                if (_canceled) break;   // await 中に Cancel された応答は捨てる(Title 遷移と競合させない)
                 if (!s.Ok) continue;   // 一時的なポーリングエラーは UI を乱さず再試行
 
                 if (s.Body.status == "matched")
@@ -153,6 +155,7 @@ namespace RhythmGame.UI.Pvp
                 {
                     // キューから落ちていたら再参加
                     var rejoin = await net.JoinQueueAsync(LocalIdentity.UserId);
+                    if (_canceled) break;
                     if (rejoin.Ok && rejoin.Body.status == "matched")
                     {
                         StartMatchFromQueueResponse(rejoin.Body);
@@ -164,6 +167,7 @@ namespace RhythmGame.UI.Pvp
 
         void StartMatchFromQueueResponse(QueueResponseDto body)
         {
+            if (_canceled) return;   // Cancel 後に紛れ込んだ matched 応答は無視
             _animateSearch = false;
             _statusLine   = "MATCH FOUND";
             _opponentName = string.IsNullOrEmpty(body.opponentId) ? "OPPONENT" : body.opponentId;

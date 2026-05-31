@@ -34,6 +34,8 @@ public class SceneRouter : MonoBehaviour
         { SceneId.PVPBanPhase, "PVPBanPhase"  },
         { SceneId.PVPResult,   "PVPResult"    },
         { SceneId.PVPMatchEnd, "PVPMatchEnd"  },
+        { SceneId.PVPSongSetup,"PVPSongSetup" },
+        { SceneId.PVPLobby,    "PVPLobby"     },
     };
 
     // Scenes that show LoadingOverlay during transition

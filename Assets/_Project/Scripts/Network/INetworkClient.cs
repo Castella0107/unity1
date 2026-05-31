@@ -36,12 +36,19 @@ namespace RhythmGame.Network
         Task<NetworkClient.PvpSubmitResult> SubmitMatchAsync(string matchId, string userId, List<SubmitMatchSongDto> songs);
         /// <summary>確定済みマッチ結果を取得する。</summary>
         Task<NetworkClient.PvpFetchResult>  FetchMatchAsync(string matchId);
+        /// <summary>曲ごとにリプレイを提出する(完全同期)。相手も提出済みなら開示情報が返る。</summary>
+        Task<NetworkClient.PvpSongResult>   SubmitSongAsync(string matchId, string userId, int songIndex, string songId, string difficulty, string replayDataBase64);
+        /// <summary>曲ごと結果を取得する(相手提出待ちの poll 用)。</summary>
+        Task<NetworkClient.PvpSongResult>   FetchSongResultAsync(string matchId, int songIndex, string userId);
 
         /// <summary>試合中のリアルタイム進捗をサーバーへ送信する。</summary>
         Task<NetworkClient.PvpProgressResult> SendPvpProgressAsync(
             string matchId, string userId, int songIndex, int percentX1000, int score);
         /// <summary>試合中の相手進捗を取得する。</summary>
         Task<NetworkClient.PvpProgressResult> FetchPvpProgressAsync(string matchId);
+
+        /// <summary>ユーザーの PVP 戦績を取得する(ロビー右パネル用)。</summary>
+        Task<NetworkClient.PvpUserStatsResult> FetchPvpUserStatsAsync(string userId);
 
         /// <summary>マッチキューに参加する。</summary>
         Task<NetworkClient.QueueResult> JoinQueueAsync(string userId);
