@@ -118,11 +118,26 @@ namespace RhythmGame.UI.Pvp
         // サーバーの MatchScoring と同じ規則。>0=WIN / <0=LOSE / 0=真の引分。
         static int CompareSector(SongResultDto sr, int i)
         {
-            // 実効スコア = セクタースコア × 自分の難易度倍率(サーバー MatchScoring と同一規則)。
+            // 実効達成率 = (セクタースコア / セクター満点) × 自分の難易度倍率。満点があれば交差比較、
+            // 無ければ実効スコア比較にフォールバック(サーバー MatchScoring と同一規則)。
             int selfMul = Domain.Pvp.MatchScoring.MultiplierPercent(sr.selfDifficulty);
             int oppMul  = Domain.Pvp.MatchScoring.MultiplierPercent(sr.oppDifficulty);
-            long a = (long)((sr.selfSectors != null && i < sr.selfSectors.Count) ? sr.selfSectors[i] : 0) * selfMul;
-            long b = (long)((sr.oppSectors  != null && i < sr.oppSectors.Count)  ? sr.oppSectors[i]  : 0) * oppMul;
+            long selfScore = (sr.selfSectors != null && i < sr.selfSectors.Count) ? sr.selfSectors[i] : 0;
+            long oppScore  = (sr.oppSectors  != null && i < sr.oppSectors.Count)  ? sr.oppSectors[i]  : 0;
+            long selfMax = (sr.selfSectorMax != null && i < sr.selfSectorMax.Count) ? sr.selfSectorMax[i] : 0;
+            long oppMax  = (sr.oppSectorMax  != null && i < sr.oppSectorMax.Count)  ? sr.oppSectorMax[i]  : 0;
+
+            long a, b;
+            if (selfMax > 0 && oppMax > 0)
+            {
+                a = selfScore * selfMul * oppMax;   // (selfScore/selfMax × selfMul) vs (oppScore/oppMax × oppMul)
+                b = oppScore  * oppMul  * selfMax;
+            }
+            else
+            {
+                a = selfScore * selfMul;
+                b = oppScore  * oppMul;
+            }
             if (a != b) return a > b ? 1 : -1;
             long ta = (long)((sr.selfSectorTieBreaks != null && i < sr.selfSectorTieBreaks.Count) ? sr.selfSectorTieBreaks[i] : 0) * selfMul;
             long tb = (long)((sr.oppSectorTieBreaks  != null && i < sr.oppSectorTieBreaks.Count)  ? sr.oppSectorTieBreaks[i]  : 0) * oppMul;

@@ -164,7 +164,8 @@ public class PlayProgressAggregator
             (int[])_counts.Clone(),
             (int[])_sectorScores.Clone(),
             _currentSectorIdx,
-            (int[])_sectorTieBreaks.Clone());
+            (int[])_sectorTieBreaks.Clone(),
+            (int[])_sectorMaxScores.Clone());
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────

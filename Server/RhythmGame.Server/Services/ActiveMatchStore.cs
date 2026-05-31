@@ -72,6 +72,9 @@ namespace RhythmGame.Server.Services
             // 各プレイヤーが曲ごとに選んだ難易度(相手と異なり得る)。実効スコア = スコア × 難易度倍率 の比較に使う。
             public string[]       SongDiffA { get; set; }
             public string[]       SongDiffB { get; set; }
+            // セクター毎の理論満点(達成率% = スコア/満点 の分母)。各自の譜面に依存。PerSongScores と並行。
+            public int[][]        PerSongMaxA { get; set; }
+            public int[][]        PerSongMaxB { get; set; }
             // 早期決着 (8pt クリンチ等) でこのインデックスまでで試合終了したか。-1 = 全曲。
             public int            ClinchedAfterSongIndex { get; set; } = -1;
         }
@@ -95,6 +98,8 @@ namespace RhythmGame.Server.Services
             if (m.PerSongTieBreaksB == null || m.PerSongTieBreaksB.Length != n) m.PerSongTieBreaksB = new int[n][];
             if (m.SongDiffA == null || m.SongDiffA.Length != n) m.SongDiffA = new string[n];
             if (m.SongDiffB == null || m.SongDiffB.Length != n) m.SongDiffB = new string[n];
+            if (m.PerSongMaxA == null || m.PerSongMaxA.Length != n) m.PerSongMaxA = new int[n][];
+            if (m.PerSongMaxB == null || m.PerSongMaxB.Length != n) m.PerSongMaxB = new int[n][];
         }
 
         /// <summary>指定曲を両者とも提出済みか。</summary>

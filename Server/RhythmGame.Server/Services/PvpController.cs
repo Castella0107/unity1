@@ -358,6 +358,8 @@ namespace RhythmGame.Server.Services
             public List<int> OppSectorTieBreaks  { get; set; } = new();  // 相手の 5 セクターのタイブレーク値 (両者提出時のみ)
             public string SelfDifficulty { get; set; }   // 提出者の難易度(実効スコア比較用)
             public string OppDifficulty  { get; set; }   // 相手の難易度(両者提出時)
+            public List<int> SelfSectorMax { get; set; } = new();  // 提出者の 5 セクター理論満点(達成率% の分母)
+            public List<int> OppSectorMax  { get; set; } = new();  // 相手の 5 セクター理論満点(両者提出時)
             public double SelfSongPoints { get; set; }            // この曲の自分pt (難易度倍率込み, 両者提出時)
             public double OppSongPoints  { get; set; }
             public double SelfCumulative { get; set; }            // 提出済み曲の累計 (両者提出時)
@@ -388,6 +390,7 @@ namespace RhythmGame.Server.Services
             ActiveMatchStore.EnsurePerSong(m);
             var mine    = isA ? m.PerSongScoresA    : m.PerSongScoresB;
             var mineTie = isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB;
+            var mineMax = isA ? m.PerSongMaxA       : m.PerSongMaxB;
             if (mine[idx] != null) return BadRequest("song already submitted");
 
             // リプレイ検証 → セクタースコア抽出
@@ -406,6 +409,7 @@ namespace RhythmGame.Server.Services
             for (int k = 0; k < 5 && k < s.Length; k++) copy[k] = s[k];
             mine[idx]    = copy;
             mineTie[idx] = ExtractTieBreaks(vr.Snapshot);
+            mineMax[idx] = ExtractMaxScores(vr.Snapshot);
 
             // 各自が選んだ難易度を保存 (プレイヤー別。実効スコア = スコア × 難易度倍率 の比較に使う)。
             if (!string.IsNullOrEmpty(req.Difficulty))
@@ -417,6 +421,7 @@ namespace RhythmGame.Server.Services
             var dto = new SongResultDto { SongIndex = idx };
             dto.SelfSectors = new List<int>(copy);
             dto.SelfSectorTieBreaks = new List<int>(mineTie[idx]);
+            dto.SelfSectorMax = new List<int>(mineMax[idx]);
             dto.SelfDifficulty = (isA ? m.SongDiffA : m.SongDiffB)[idx];
 
             if (!ActiveMatchStore.BothSubmittedSong(m, idx))
@@ -433,15 +438,18 @@ namespace RhythmGame.Server.Services
             dto.OppSectors  = new List<int>(oppArr);
             dto.SelfSectorTieBreaks = new List<int>((isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)[idx] ?? new int[5]);
             dto.OppSectorTieBreaks  = new List<int>((isA ? m.PerSongTieBreaksB : m.PerSongTieBreaksA)[idx] ?? new int[5]);
+            dto.SelfSectorMax = new List<int>((isA ? m.PerSongMaxA : m.PerSongMaxB)[idx] ?? new int[5]);
+            dto.OppSectorMax  = new List<int>((isA ? m.PerSongMaxB : m.PerSongMaxA)[idx] ?? new int[5]);
             dto.SelfDifficulty = Diff(isA ? m.SongDiffA : m.SongDiffB, idx);
             dto.OppDifficulty  = Diff(isA ? m.SongDiffB : m.SongDiffA, idx);
 
-            // この曲のポイント (実効スコア比較 = スコア × 各自の難易度倍率)
+            // この曲のポイント (達成率% × 難易度倍率 で実効比較)
             var songPairs = new List<SectorPair>(5);
             for (int sec = 0; sec < 5; sec++)
                 songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
                     m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], Diff(m.SongDiffA, idx),
-                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec), Diff(m.SongDiffB, idx)));
+                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec), Diff(m.SongDiffB, idx),
+                    SectorMax(m.PerSongMaxA, idx, sec), SectorMax(m.PerSongMaxB, idx, sec)));
             var songOutcome = MatchScoring.Score(songPairs);
             dto.SelfSongPoints = isA ? songOutcome.TotalPointsA : songOutcome.TotalPointsB;
             dto.OppSongPoints  = isA ? songOutcome.TotalPointsB : songOutcome.TotalPointsA;
@@ -500,6 +508,8 @@ namespace RhythmGame.Server.Services
             dto.OppSectors  = new List<int>((isA ? m.PerSongScoresB : m.PerSongScoresA)[idx]);
             dto.SelfSectorTieBreaks = new List<int>((isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)[idx] ?? new int[5]);
             dto.OppSectorTieBreaks  = new List<int>((isA ? m.PerSongTieBreaksB : m.PerSongTieBreaksA)[idx] ?? new int[5]);
+            dto.SelfSectorMax = new List<int>((isA ? m.PerSongMaxA : m.PerSongMaxB)[idx] ?? new int[5]);
+            dto.OppSectorMax  = new List<int>((isA ? m.PerSongMaxB : m.PerSongMaxA)[idx] ?? new int[5]);
             dto.SelfDifficulty = Diff(isA ? m.SongDiffA : m.SongDiffB, idx);
             dto.OppDifficulty  = Diff(isA ? m.SongDiffB : m.SongDiffA, idx);
 
@@ -507,7 +517,8 @@ namespace RhythmGame.Server.Services
             for (int sec = 0; sec < 5; sec++)
                 songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
                     m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], Diff(m.SongDiffA, idx),
-                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec), Diff(m.SongDiffB, idx)));
+                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec), Diff(m.SongDiffB, idx),
+                    SectorMax(m.PerSongMaxA, idx, sec), SectorMax(m.PerSongMaxB, idx, sec)));
             var so = MatchScoring.Score(songPairs);
             dto.SelfSongPoints = isA ? so.TotalPointsA : so.TotalPointsB;
             dto.OppSongPoints  = isA ? so.TotalPointsB : so.TotalPointsA;
@@ -538,7 +549,8 @@ namespace RhythmGame.Server.Services
                 for (int sec = 0; sec < 5; sec++)
                     pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
                         m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], Diff(m.SongDiffA, i),
-                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec), Diff(m.SongDiffB, i)));
+                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec), Diff(m.SongDiffB, i),
+                        SectorMax(m.PerSongMaxA, i, sec), SectorMax(m.PerSongMaxB, i, sec)));
             }
             var o = MatchScoring.Score(pairs);
             return (o.TotalPointsA, o.TotalPointsB, count);
@@ -565,6 +577,18 @@ namespace RhythmGame.Server.Services
         // 各プレイヤーの曲難易度を null 安全に取得 (未保存は null = MultiplierPercent で extra/×1.0 扱い)。
         private static string Diff(string[] arr, int song)
             => (arr != null && song >= 0 && song < arr.Length) ? arr[song] : null;
+
+        // スナップショットから 5 セクターの理論満点を 0 詰めで取り出す (達成率% の分母)。
+        private static int[] ExtractMaxScores(PlayProgressSnapshot snap)
+        {
+            var src  = snap?.SectorMaxScores ?? new int[5];
+            var copy = new int[5];
+            for (int k = 0; k < 5 && k < src.Length; k++) copy[k] = src[k];
+            return copy;
+        }
+
+        // max[song][sector] を null 安全に取得 (未保存は 0 = 達成率比較フォールバック)。
+        private static int SectorMax(int[][] arr, int song, int sector) => Tie(arr, song, sector);
 
         // ── Progress (in-match real-time) ──────────────────────────────────────
 
@@ -768,7 +792,8 @@ namespace RhythmGame.Server.Services
                 {
                     pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
                         m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], Diff(m.SongDiffA, i),
-                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec), Diff(m.SongDiffB, i)));
+                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec), Diff(m.SongDiffB, i),
+                        SectorMax(m.PerSongMaxA, i, sec), SectorMax(m.PerSongMaxB, i, sec)));
                     flatA.Add(m.PerSongScoresA[i][sec]);
                     flatB.Add(m.PerSongScoresB[i][sec]);
                 }

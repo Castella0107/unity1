@@ -20,17 +20,23 @@ namespace Domain.Pvp
         public readonly string DifficultyA;
         /// <summary>Player B の難易度。各プレイヤーが自分の難易度を選べる(相手と異なり得る)。</summary>
         public readonly string DifficultyB;
-        /// <summary>Player A のタイブレーク値(Σ 2×PerfectPlus + Perfect)。実効スコア同点時に優劣を決める。</summary>
+        /// <summary>Player A のタイブレーク値(Σ 2×PerfectPlus + Perfect)。実効達成率同点時に優劣を決める。</summary>
         public readonly int    TieA;
         /// <summary>Player B のタイブレーク値(Σ 2×PerfectPlus + Perfect)。</summary>
         public readonly int    TieB;
+        /// <summary>Player A のセクター理論満点(達成率% の分母)。0/未指定なら実効スコア比較にフォールバック。</summary>
+        public readonly int    MaxA;
+        /// <summary>Player B のセクター理論満点。各自の譜面(難易度)に依存し A/B で異なり得る。</summary>
+        public readonly int    MaxB;
 
         /// <summary>
-        /// 楽曲ID・セクション・両者スコア・難易度・(任意)タイブレーク値を指定してセクター対戦ペアを生成する。
-        /// <paramref name="difficultyB"/> 省略時は <paramref name="difficultyA"/> を両者に適用(後方互換: 同一難易度)。
+        /// 楽曲ID・セクション・両者スコア・難易度・(任意)タイブレーク値・(任意)セクター満点を指定する。
+        /// <paramref name="difficultyB"/> 省略時は <paramref name="difficultyA"/> を両者に適用(後方互換)。
+        /// <paramref name="maxA"/>/<paramref name="maxB"/> を与えると達成率%(スコア/満点)× 倍率で比較、未指定なら実効スコア比較。
         /// </summary>
         public SectorPair(string songId, int sectorIndex, int scoreA, int scoreB,
-                          string difficultyA = null, int tieA = 0, int tieB = 0, string difficultyB = null)
+                          string difficultyA = null, int tieA = 0, int tieB = 0, string difficultyB = null,
+                          int maxA = 0, int maxB = 0)
         {
             SongId      = songId;
             SectorIndex = sectorIndex;
@@ -40,6 +46,8 @@ namespace Domain.Pvp
             DifficultyB = difficultyB ?? difficultyA;
             TieA        = tieA;
             TieB        = tieB;
+            MaxA        = maxA;
+            MaxB        = maxB;
         }
     }
 
@@ -161,11 +169,13 @@ namespace Domain.Pvp
         }
 
         /// <summary>
-        /// セクター対戦ペア列を採点する。各プレイヤーの「実効スコア = セクタースコア × 自分の難易度倍率」を
+        /// セクター対戦ペア列を採点する。各プレイヤーの「実効達成率 = (セクタースコア / セクター満点) × 自分の難易度倍率」を
         /// 比較してセクター勝敗を決め、勝敗ポイントは <b>フラット</b>(勝ち1.0/引分0.5/負け0.0、倍率を掛けない)。
-        /// 実効スコア同点はタイブレーク(Σ 2×PerfectPlus + Perfect、これも実効=各自の倍率を掛けて比較)で決着、
-        /// なお同点なら真の引分。合計ポイントの多い側が試合勝者。レーティング(Glicko-2)は素の勝敗を使う。
-        /// 例: 理論値 200000 どうしで A=easy / B=extra → 実効 150000 vs 200000 → B 勝ち。
+        /// 満点(MaxA/MaxB)が無い場合は実効スコア比較(スコア × 倍率)にフォールバック(後方互換)。
+        /// 同点はタイブレーク(Σ 2×PerfectPlus + Perfect、実効=各自の倍率を掛けて比較)で決着、なお同点なら真の引分。
+        /// 合計ポイントの多い側が試合勝者。レーティング(Glicko-2)は素の勝敗を使う。
+        /// 例: easy 900000/満点900000(=100%) vs extra 500000/満点500000(=100%) → 100%×0.75 &lt; 100%×1.0 → extra 勝ち
+        ///     (達成率比較なので、ノーツ分布が偏って一方のセクター満点が大きくても不公平にならない)。
         /// </summary>
         public static MatchOutcome Score(IReadOnlyList<SectorPair> sectors)
         {
@@ -177,16 +187,30 @@ namespace Domain.Pvp
             {
                 int multA = MultiplierPercent(sp.DifficultyA);
                 int multB = MultiplierPercent(sp.DifficultyB);
-                long effA = (long)sp.ScoreA * multA;   // 実効スコア(整数、浮動小数回避)
-                long effB = (long)sp.ScoreB * multB;
+
+                // 比較値: 満点があれば「達成率%(スコア/満点)× 倍率」を交差比較(割り算回避)、
+                //         無ければ「実効スコア(スコア × 倍率)」にフォールバック(後方互換)。
+                //   達成率比較: (ScoreA/MaxA × multA) vs (ScoreB/MaxB × multB)
+                //            ⇔ ScoreA × multA × MaxB  vs  ScoreB × multB × MaxA
+                long cmpA, cmpB;
+                if (sp.MaxA > 0 && sp.MaxB > 0)
+                {
+                    cmpA = (long)sp.ScoreA * multA * sp.MaxB;
+                    cmpB = (long)sp.ScoreB * multB * sp.MaxA;
+                }
+                else
+                {
+                    cmpA = (long)sp.ScoreA * multA;
+                    cmpB = (long)sp.ScoreB * multB;
+                }
 
                 double rawA, rawB;
                 SectorOutcome o;
-                if      (effA >  effB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
-                else if (effA <  effB) { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
+                if      (cmpA >  cmpB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
+                else if (cmpA <  cmpB) { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
                 else
                 {
-                    // 実効スコア同点 → タイブレーク (Σ 2×P+ + P も実効化して比較)。
+                    // 同点 → タイブレーク (Σ 2×P+ + P を実効化して比較)。
                     long tieA = (long)sp.TieA * multA;
                     long tieB = (long)sp.TieB * multB;
                     if      (tieA > tieB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }

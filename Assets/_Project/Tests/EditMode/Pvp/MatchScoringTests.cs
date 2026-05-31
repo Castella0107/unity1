@@ -150,6 +150,29 @@ namespace Domain.Pvp.Tests
         static SectorPair PairAB(string song, int idx, int a, int b, string diffA, string diffB)
             => new SectorPair(song, idx, a, b, diffA, 0, 0, diffB);
 
+        // 達成率比較用: A/B のスコア・難易度・セクター満点を指定。
+        static SectorPair PairMax(string song, int idx, int a, int b, string dA, string dB, int maxA, int maxB)
+            => new SectorPair(song, idx, a, b, dA, 0, 0, dB, maxA, maxB);
+
+        [Test]
+        public void Score_AchievementRate_HigherDifficultyWinsAtEqualPercent()
+        {
+            // ユーザー例: easy S1=900000(満点900000=100%) / extra S1=500000(満点500000=100%)。
+            //   生スコア×倍率 なら easy(675000) > extra(500000) で easy 勝ち(偏り問題)だが、
+            //   達成率%×倍率 なら 100%×0.75 < 100%×1.0 → extra 勝ち。
+            var r = MatchScoring.Score(new[] { PairMax("s", 0, 900000, 500000, "easy", "extra", 900000, 500000) });
+            Assert.AreEqual(SectorOutcome.BWins, r.Sectors[0].Outcome);  // B=extra 勝ち
+        }
+
+        [Test]
+        public void Score_AchievementRate_FixesNoteDistributionBias()
+        {
+            // 同難易度。A は満点900000のセクターを 450000(=50%)、B は満点100000を 100000(=100%)。
+            //   生スコアなら A(450000) > B(100000) だが、達成率では A50% < B100% → B 勝ち。
+            var r = MatchScoring.Score(new[] { PairMax("s", 0, 450000, 100000, "extra", "extra", 900000, 100000) });
+            Assert.AreEqual(SectorOutcome.BWins, r.Sectors[0].Outcome);
+        }
+
         [Test]
         public void DifficultyMultiplier_KnownValues()
         {

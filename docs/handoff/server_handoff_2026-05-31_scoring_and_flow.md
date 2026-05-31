@@ -30,15 +30,16 @@
 
 ### 1.1 ルール定義(確定仕様)
 
-1 試合 = 3 曲 × 5 セクター = 最大 15 セクター対戦。各セクターは両者の **実効スコア** を比較し、**勝者 +1.0pt / 引分 +0.5pt**。
+1 試合 = 3 曲 × 5 セクター = 最大 15 セクター対戦。各セクターは両者の **実効達成率** を比較し、**勝者 +1.0pt / 引分 +0.5pt**。
 
-> ⚠️ **採点ルール改定 (2026-05-31)**:難易度倍率の効き方を変更した。
-> - **実効スコア = セクタースコア × 自分の難易度倍率**(各プレイヤーが自分の難易度を選べる=A/B で異なり得る)。セクター勝敗は **実効スコアの大小**で判定。
-> - **勝敗ポイントはフラット**(勝1.0 / 分0.5 / 負0.0)。**倍率はポイントには掛けない**(従来は逆だった)。
-> - 例:理論値 200000 どうしで A=easy / B=extra → 実効 150000 vs 200000 → **B 勝ち**。
-> - 整数化:倍率は百分率整数(easy75 / normal80 / hard90 / extra100)を生スコアに掛けて long 比較(浮動小数回避)。
+> ⚠️ **採点ルール改定 (2026-05-31, 2段階)**:
+> - **実効達成率 = (セクタースコア / セクター理論満点) × 自分の難易度倍率**。各プレイヤーが自分の難易度を選べる(A/B で異なり得る)。セクター勝敗は **実効達成率の大小**で判定。
+>   - **なぜ達成率か**: 各自が別難易度=別譜面を弾くため、ノーツ分布が偏ると「満点の大きいセクター」の生スコアが大きくなり生スコア比較は不公平。達成率(自分の満点比)で正規化して解消。
+>   - 例: easy 900000/満点900000(=100%) vs extra 500000/満点500000(=100%) → `100%×0.75 < 100%×1.0` → **extra 勝ち**(生スコア×倍率なら 675000>500000 で easy 勝ちになる不公平を是正)。
+> - **勝敗ポイントはフラット**(勝1.0 / 分0.5 / 負0.0)。**倍率はポイントには掛けない**。
+> - **整数化(割り算回避)**: 倍率は百分率整数(easy75/normal80/hard90/extra100)。比較は交差積 `ScoreA × multA × MaxB` vs `ScoreB × multB × MaxA`(long)。満点が無い場合は `ScoreA × multA` vs `ScoreB × multB`(実効スコア)にフォールバック。
 
-**同点タイブレーク:** 実効スコアが **完全同点** のとき、引分にせず **タイブレーク値が大きい側がそのセクターを取る(1.0 / 0.0)**。タイブレーク値も実効化(× 自分の倍率)して比較。
+**同点タイブレーク:** 実効達成率が **完全同点** のとき、引分にせず **タイブレーク値が大きい側がそのセクターを取る(1.0 / 0.0)**。タイブレーク値も実効化(× 自分の倍率)して比較。
 
 ```
 タイブレーク値 TB = Σ(2 × PerfectPlus_count + 1 × Perfect_count)   ※そのセクター内のノーツ/ホールドティックを集計
@@ -75,7 +76,8 @@ else                        -> 引分(0.5 / 0.5)   ※スコアも TB も同値�
        └─ JudgmentRunner.Run → JudgmentEngine → PlayProgressAggregator
             └─ PlayProgressSnapshot を返す
                  ├─ SectorScores   : int[5]  (従来; スコアデルタ方式, Σ == CurrentScore)
-                 └─ SectorTieBreaks : int[5]  ★今回追加 (Σ 2×P+ + P, セクター毎)
+                 ├─ SectorTieBreaks : int[5]  ★追加 (Σ 2×P+ + P, セクター毎; 同点解決)
+                 └─ SectorMaxScores : int[5]  ★追加 (各セクターの理論満点; 達成率% の分母)
   └─ PvpController がスナップショットから SectorScores / SectorTieBreaks を保存
   └─ 両者提出後 finalize: SectorPair[15] を組み立て MatchScoring.Score → Outcome + Glicko2
 ```
@@ -94,8 +96,8 @@ else                        -> 引分(0.5 / 0.5)   ※スコアも TB も同値�
 
 #### `MatchScoring.Score`(`Assets/_Project/Scripts/Domain/Pvp/MatchScoring.cs`)
 
-- `SectorPair { SongId, SectorIndex, ScoreA, ScoreB, DifficultyA, DifficultyB, TieA, TieB }`(**難易度は A/B 別**。DifficultyB 省略時は DifficultyA を両者に=後方互換)。
-- `effA = ScoreA × MultiplierPercent(DifficultyA)`, `effB = ScoreB × MultiplierPercent(DifficultyB)`(long)。effA/effB の大小で `SectorOutcome` 決定 → 同点はタイブレーク(TieA/TieB も × 倍率)→ なお同点で Draw。
+- `SectorPair { SongId, SectorIndex, ScoreA, ScoreB, DifficultyA, DifficultyB, TieA, TieB, MaxA, MaxB }`(**難易度・満点は A/B 別**。DifficultyB 省略=DifficultyA、MaxA/MaxB=0 省略時は実効スコア比較フォールバック)。
+- 達成率比較(満点あり): `cmpA = ScoreA × multA × MaxB`, `cmpB = ScoreB × multB × MaxA`(交差積 long)。大小で `SectorOutcome` 決定 → 同点はタイブレーク(TieA/TieB も × 倍率)→ なお同点で Draw。満点無しは `ScoreA×multA` vs `ScoreB×multB`。
 - **`PointsA/PointsB = rawA/rawB ∈ {0, 0.5, 1.0}` フラット(倍率は掛けない)**。合計 → `MatchOutcomeKind`(A>B/A<B/==)。
 - `MultiplierPercent`: `easy 75 / normal 80 / hard 90 / extra 100 / 不明 100`(`DifficultyMultiplier` は /100.0 の表示用 double)。
 
@@ -105,7 +107,7 @@ else                        -> 引分(0.5 / 0.5)   ※スコアも TB も同値�
 
 - `ActiveMatchStore.cs`
   - `PlayerSubmission.SectorTieBreaks : int[][]`(all-at-once /submit 用、[songIndex][sector]）
-  - `ActiveMatch.PerSongTieBreaksA/B : int[][]`(完全同期 per-song 用)
+  - `ActiveMatch.PerSongTieBreaksA/B : int[][]`(完全同期 per-song 用)+ `PerSongMaxA/B : int[][]`(セクター満点)+ `SongDiffA/B : string[]`(プレイヤー別難易度)
   - `EnsurePerSong()` で両方を初期化
 - `PvpController.cs`
   - `ExtractTieBreaks(snapshot)` … `vr.Snapshot.SectorTieBreaks` を 5 件 0 詰めで取り出す
@@ -199,7 +201,8 @@ else                        -> 引分(0.5 / 0.5)   ※スコアも TB も同値�
 songIndex, bothSubmitted,
 selfSectors[5], oppSectors[5],
 selfSectorTieBreaks[5], oppSectorTieBreaks[5],   ★追加(同点解決用)
-selfDifficulty, oppDifficulty,                   ★追加(実効スコア比較用・プレイヤー別難易度)
+selfDifficulty, oppDifficulty,                   ★追加(プレイヤー別難易度)
+selfSectorMax[5], oppSectorMax[5],               ★追加(達成率% の分母=各自のセクター理論満点)
 selfSongPoints, oppSongPoints, selfCumulative, oppCumulative,
 clinch, matchOver, result(MatchResultDto)
 ```
@@ -229,7 +232,7 @@ ratingABefore/After, ratingBBefore/After, completedAtUnixMs
 - **表示スコア:** 0〜1,000,000。`ScoreCalculator`(マイクロポイント整数ベース)。
 - **判定窓 / ランク等:** `JudgmentRunner` / `JudgmentWindow`(PerfectPlus ±16ms 等)を仕様として参照。
 - **セクタースコア:** スコアデルタ方式 `sector[i] = score_at_end[i] - score_at_end[i-1]`(Σ == 表示スコア)。
-- **難易度倍率:** easy0.75 / normal0.80 / hard0.90 / extra1.00(整数化は ×100)。**実効スコア比較(=セクター勝敗判定)にのみ**作用。勝敗pt はフラット・Glicko も素の勝敗で、いずれにも倍率は掛けない。各プレイヤーが自分の難易度を選ぶ(A/B で異なり得る)。
+- **難易度倍率:** easy0.75 / normal0.80 / hard0.90 / extra1.00(整数化は ×100)。**実効達成率比較(=(スコア/満点)× 倍率、セクター勝敗判定)にのみ**作用。勝敗pt はフラット・Glicko も素の勝敗で、いずれにも倍率は掛けない。各プレイヤーが自分の難易度=別譜面を弾く前提で、達成率で正規化し分布偏りの不公平を排除。
 - **Glicko2:** τ=0.5 / Scale=173.7178 / ε=1e-6 / Illinois 上限100。各セクター=1試合、素の勝敗(1/0.5/0)を与える。A+B=1.0 を維持。レート差は ±0.01 許容。
 - **クリンチ(早期決着):** per-song 完全同期で、2 曲目(index≥1)以降に **どちらかの累計 ≥ 8.0pt** で決着(15pt 満点・過半数)、3 曲目をスキップ。`PvpController` の per-song submit 内で判定。**この累計計算も同点タイブレーク込み**であることに注意(§1.4-3)。
 - **chartHash 登録の注意:** サンプル譜面は `charts/extra.json` の **宣言値 chartHash**(`0000…0001`)で登録(再計算しない)。リプレイ検証は **リプレイ内包の chartHash で登録譜面を引く**ため、リプレイがどの曲のものかは問わず「内部的に valid なら通る」。Go の検証も「登録済みハッシュとの一致 + JudgmentRunner 再生」で同様。
