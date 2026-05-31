@@ -21,12 +21,15 @@ public sealed class PlayProgressSnapshot
     public int[] SectorScores    { get; }
     /// <summary>スナップショット時点のセクションインデックス。</summary>
     public int   CurrentSectorIdx { get; }
+    /// <summary>セクション別タイブレーク値(Σ 2×PerfectPlus + Perfect、5要素)。セクタースコア同点時の優劣決定に使う。</summary>
+    public int[] SectorTieBreaks  { get; }
 
     /// <summary>全フィールドを指定してスナップショットを生成する。</summary>
     public PlayProgressSnapshot(
         int currentScore, int currentCombo, int maxCombo,
         int fastCount, int lateCount,
-        int[] counts, int[] sectorScores, int currentSectorIdx)
+        int[] counts, int[] sectorScores, int currentSectorIdx,
+        int[] sectorTieBreaks = null)
     {
         CurrentScore     = currentScore;
         CurrentCombo     = currentCombo;
@@ -36,6 +39,7 @@ public sealed class PlayProgressSnapshot
         Counts           = counts;
         SectorScores     = sectorScores;
         CurrentSectorIdx = currentSectorIdx;
+        SectorTieBreaks  = sectorTieBreaks ?? new int[5];
     }
 
     /// <summary>PerfectPlus 判定数。</summary>

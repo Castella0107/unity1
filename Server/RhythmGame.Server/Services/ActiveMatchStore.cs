@@ -24,6 +24,7 @@ namespace RhythmGame.Server.Services
             public string  UserId         { get; set; } = "";
             public bool    Submitted      { get; set; }
             public int[][] SectorScores   { get; set; } // [songIndex][sectorIndex 0..4]
+            public int[][] SectorTieBreaks{ get; set; } // [songIndex][sectorIndex] タイブレーク値 (同点解決用)
             public string  Error          { get; set; } = "";
         }
 
@@ -65,6 +66,9 @@ namespace RhythmGame.Server.Services
             // null = 未提出。サイズは Songs.Count、各要素は 5 セクター。
             public int[][]        PerSongScoresA  { get; set; }
             public int[][]        PerSongScoresB  { get; set; }
+            // セクター毎タイブレーク値 (Σ 2×PerfectPlus + Perfect)。PerSongScores と並行。同点解決用。
+            public int[][]        PerSongTieBreaksA { get; set; }
+            public int[][]        PerSongTieBreaksB { get; set; }
             // 早期決着 (8pt クリンチ等) でこのインデックスまでで試合終了したか。-1 = 全曲。
             public int            ClinchedAfterSongIndex { get; set; } = -1;
         }
@@ -84,6 +88,8 @@ namespace RhythmGame.Server.Services
             int n = m.Songs?.Count ?? 0;
             if (m.PerSongScoresA == null || m.PerSongScoresA.Length != n) m.PerSongScoresA = new int[n][];
             if (m.PerSongScoresB == null || m.PerSongScoresB.Length != n) m.PerSongScoresB = new int[n][];
+            if (m.PerSongTieBreaksA == null || m.PerSongTieBreaksA.Length != n) m.PerSongTieBreaksA = new int[n][];
+            if (m.PerSongTieBreaksB == null || m.PerSongTieBreaksB.Length != n) m.PerSongTieBreaksB = new int[n][];
         }
 
         /// <summary>指定曲を両者とも提出済みか。</summary>

@@ -11,6 +11,7 @@ namespace Domain.Pvp.Tests
     {
         static SectorPair Pair(string song, int idx, int a, int b) => new SectorPair(song, idx, a, b);
         static SectorPair PairD(string song, int idx, int a, int b, string diff) => new SectorPair(song, idx, a, b, diff);
+        static SectorPair PairT(string song, int idx, int a, int b, int tieA, int tieB) => new SectorPair(song, idx, a, b, null, tieA, tieB);
 
         [Test]
         public void Score_AllAWins_GivesAFullPoints()
@@ -88,6 +89,59 @@ namespace Domain.Pvp.Tests
             var glickoResults = r.ToGlicko2ResultsForA(opponentRating: 1500, opponentRD: 200).ToList();
             Assert.AreEqual(15, glickoResults.Count);
             Assert.IsTrue(glickoResults.TrueForAll(g => g.Score == 1.0));
+        }
+
+        // ── Tie-break (スコア同点 → Σ 2×PerfectPlus + Perfect が多い側の勝ち) ──
+
+        [Test]
+        public void Score_ScoreTie_BrokenByTieBreak_AWins()
+        {
+            // スコア同点だが A のタイブレーク値が上 → A が 1.0 を取り引分を解消する。
+            var r = MatchScoring.Score(new[] { PairT("s", 0, 100, 100, tieA: 90, tieB: 80) });
+            Assert.AreEqual(1.0, r.TotalPointsA, 1e-9);
+            Assert.AreEqual(0.0, r.TotalPointsB, 1e-9);
+            Assert.AreEqual(SectorOutcome.AWins, r.Sectors[0].Outcome);
+            Assert.AreEqual(MatchOutcomeKind.AWins, r.Kind);
+        }
+
+        [Test]
+        public void Score_ScoreTie_BrokenByTieBreak_BWins()
+        {
+            var r = MatchScoring.Score(new[] { PairT("s", 0, 100, 100, tieA: 70, tieB: 88) });
+            Assert.AreEqual(0.0, r.TotalPointsA, 1e-9);
+            Assert.AreEqual(1.0, r.TotalPointsB, 1e-9);
+            Assert.AreEqual(SectorOutcome.BWins, r.Sectors[0].Outcome);
+            // Glicko も素の勝敗で B 勝ち (タイブレーク後も相補性 1.0 を維持)
+            var ga = r.ToGlicko2ResultsForA(1500, 200).ToList();
+            var gb = r.ToGlicko2ResultsForB(1500, 200).ToList();
+            Assert.AreEqual(0.0, ga[0].Score, 1e-9);
+            Assert.AreEqual(1.0, gb[0].Score, 1e-9);
+        }
+
+        [Test]
+        public void Score_ScoreTie_TieBreakAlsoEqual_StaysDraw()
+        {
+            // スコアもタイブレークも同点 → 真の引分 (0.5/0.5)。
+            var r = MatchScoring.Score(new[] { PairT("s", 0, 100, 100, tieA: 80, tieB: 80) });
+            Assert.AreEqual(0.5, r.TotalPointsA, 1e-9);
+            Assert.AreEqual(0.5, r.TotalPointsB, 1e-9);
+            Assert.AreEqual(SectorOutcome.Draw, r.Sectors[0].Outcome);
+        }
+
+        [Test]
+        public void Score_TieBreakIgnoredWhenScoresDiffer()
+        {
+            // スコアで決着する場合はタイブレーク値を見ない (B のタイブレークが上でも A 勝ち)。
+            var r = MatchScoring.Score(new[] { PairT("s", 0, 200, 100, tieA: 10, tieB: 999) });
+            Assert.AreEqual(SectorOutcome.AWins, r.Sectors[0].Outcome);
+        }
+
+        [Test]
+        public void Score_NoTieBreakData_ScoreTieStaysDraw_BackCompat()
+        {
+            // タイブレーク未指定 (0/0) の既存呼び出しは従来どおり引分 = 後方互換。
+            var r = MatchScoring.Score(new[] { Pair("s", 0, 100, 100) });
+            Assert.AreEqual(SectorOutcome.Draw, r.Sectors[0].Outcome);
         }
 
         // ── Difficulty multiplier (easy 0.75 / normal 0.80 / hard 0.90 / extra 1.00) ──

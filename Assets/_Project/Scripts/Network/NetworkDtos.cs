@@ -187,6 +187,8 @@ namespace RhythmGame.Network
         public bool   bothSubmitted;
         public System.Collections.Generic.List<int> selfSectors;   // 提出者の 5 セクター
         public System.Collections.Generic.List<int> oppSectors;    // 相手の 5 セクター (両者提出時)
+        public System.Collections.Generic.List<int> selfSectorTieBreaks;  // 提出者の 5 セクターのタイブレーク値 (同点表示解決用)
+        public System.Collections.Generic.List<int> oppSectorTieBreaks;   // 相手の 5 セクターのタイブレーク値 (両者提出時)
         public double selfSongPoints;
         public double oppSongPoints;
         public double selfCumulative;

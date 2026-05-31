@@ -32,6 +32,7 @@ namespace RhythmGame.UI.Pvp
         static readonly Color Red  = new Color(0.95f, 0.30f, 0.42f, 1f);
         const string CyanHex = "#2BD9E6";
         const string RedHex  = "#F24D6B";
+        const string GrayHex = "#9AA0A6";
 
         PvpFlowController Pvp => PvpFlowController.Instance;
 
@@ -97,22 +98,32 @@ namespace RhythmGame.UI.Pvp
 
         string BuildSectorLine(SongResultDto sr)
         {
-            var self = sr.selfSectors;
-            var opp  = sr.oppSectors;
             var sb = new StringBuilder();
             sb.Append("SECTORS   ");
             for (int i = 0; i < 5; i++)
             {
-                int a = (self != null && i < self.Count) ? self[i] : 0;
-                int b = (opp  != null && i < opp.Count)  ? opp[i]  : 0;
+                int cmp = CompareSector(sr, i);
                 string tag;
-                if      (a > b) tag = $"<color={CyanHex}>S{i + 1}◆</color>";   // ◆ WIN (cyan)
-                else if (a < b) tag = $"<color={RedHex}>S{i + 1}◇</color>";    // ◇ LOSE (red)
-                else            tag = $"S{i + 1}—";                            // — DRAW
+                // ASCII 語 + 色で勝敗を表示 (◆/◇ は LiberationSans SDF に無く □ tofu になるため不使用)。
+                if      (cmp > 0) tag = $"<color={CyanHex}>S{i + 1} WIN</color>";    // WIN (cyan)
+                else if (cmp < 0) tag = $"<color={RedHex}>S{i + 1} LOSE</color>";    // LOSE (red)
+                else              tag = $"<color={GrayHex}>S{i + 1} DRAW</color>";   // DRAW (gray, score & tie-break equal)
                 sb.Append(tag);
                 if (i < 4) sb.Append("   ");
             }
             return sb.ToString();
+        }
+
+        // セクター i の自分視点の優劣: スコア比較、同点ならタイブレーク値 (Σ 2×P+ + P) で比較。
+        // サーバーの MatchScoring と同じ規則。>0=WIN / <0=LOSE / 0=真の引分。
+        static int CompareSector(SongResultDto sr, int i)
+        {
+            int a = (sr.selfSectors != null && i < sr.selfSectors.Count) ? sr.selfSectors[i] : 0;
+            int b = (sr.oppSectors  != null && i < sr.oppSectors.Count)  ? sr.oppSectors[i]  : 0;
+            if (a != b) return a > b ? 1 : -1;
+            int ta = (sr.selfSectorTieBreaks != null && i < sr.selfSectorTieBreaks.Count) ? sr.selfSectorTieBreaks[i] : 0;
+            int tb = (sr.oppSectorTieBreaks  != null && i < sr.oppSectorTieBreaks.Count)  ? sr.oppSectorTieBreaks[i]  : 0;
+            return ta == tb ? 0 : (ta > tb ? 1 : -1);
         }
 
         void SetPrimary(string label)
@@ -146,13 +157,11 @@ namespace RhythmGame.UI.Pvp
             GUILayout.Space(4);
             GUILayout.Label($"This song:  YOU +{sr.selfSongPoints:0.0}   OPP +{sr.oppSongPoints:0.0}");
 
-            var self = sr.selfSectors; var opp = sr.oppSectors;
             var line = new StringBuilder("Sectors: ");
             for (int i = 0; i < 5; i++)
             {
-                int a = (self != null && i < self.Count) ? self[i] : 0;
-                int b = (opp  != null && i < opp.Count)  ? opp[i]  : 0;
-                line.Append(a > b ? "WIN " : a < b ? "LOSE " : "DRAW ");
+                int cmp = CompareSector(sr, i);
+                line.Append(cmp > 0 ? "WIN " : cmp < 0 ? "LOSE " : "DRAW ");
             }
             GUILayout.Label(line.ToString());
             GUILayout.Space(4);

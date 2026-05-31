@@ -18,15 +18,22 @@ namespace Domain.Pvp
         public readonly int    ScoreB;
         /// <summary>楽曲の難易度("easy"/"normal"/"hard"/"extra")。獲得ポイントの倍率に使う。null/不明は extra (×1.0) 扱い。</summary>
         public readonly string Difficulty;
+        /// <summary>Player A のタイブレーク値(Σ 2×PerfectPlus + Perfect)。スコア同点時に優劣を決める。0/未指定なら同点は引分のまま。</summary>
+        public readonly int    TieA;
+        /// <summary>Player B のタイブレーク値(Σ 2×PerfectPlus + Perfect)。</summary>
+        public readonly int    TieB;
 
-        /// <summary>楽曲ID・セクション・両者スコア・難易度を指定してセクター対戦ペアを生成する。</summary>
-        public SectorPair(string songId, int sectorIndex, int scoreA, int scoreB, string difficulty = null)
+        /// <summary>楽曲ID・セクション・両者スコア・難易度・(任意)タイブレーク値を指定してセクター対戦ペアを生成する。</summary>
+        public SectorPair(string songId, int sectorIndex, int scoreA, int scoreB,
+                          string difficulty = null, int tieA = 0, int tieB = 0)
         {
             SongId      = songId;
             SectorIndex = sectorIndex;
             ScoreA      = scoreA;
             ScoreB      = scoreB;
             Difficulty  = difficulty;
+            TieA        = tieA;
+            TieB        = tieB;
         }
     }
 
@@ -161,6 +168,10 @@ namespace Domain.Pvp
                 SectorOutcome o;
                 if      (sp.ScoreA >  sp.ScoreB) { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
                 else if (sp.ScoreA <  sp.ScoreB) { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
+                // スコア同点 → タイブレーク (Σ 2×PerfectPlus + Perfect が多い側の勝ち)。
+                // タイブレークも同点なら真の引分 (0.5/0.5)。TieA/TieB 未指定 (0/0) は従来どおり引分。
+                else if (sp.TieA >  sp.TieB)     { rawA = 1.0; rawB = 0.0; o = SectorOutcome.AWins; }
+                else if (sp.TieA <  sp.TieB)     { rawA = 0.0; rawB = 1.0; o = SectorOutcome.BWins; }
                 else                              { rawA = 0.5; rawB = 0.5; o = SectorOutcome.Draw;  }
 
                 double mult = DifficultyMultiplier(sp.Difficulty);

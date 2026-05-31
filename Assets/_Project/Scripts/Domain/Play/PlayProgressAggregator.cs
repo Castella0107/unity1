@@ -26,6 +26,12 @@ public class PlayProgressAggregator
     // from the chart's per-sector event counts. Denominator for the live "fill toward max"
     // sector % display. Purely additive — never feeds Counts/SectorScores/CurrentScore/Snapshot.
     readonly int[]           _sectorFullMaxScores = new int[5];
+    // Per-sector tie-break metric = Σ(2×PerfectPlus + 1×Perfect) within each sector.
+    // Used by MatchScoring to break an exact sector-score tie (確実に優劣をつける).
+    // Purely additive — never feeds _score/Counts/SectorScores/CurrentScore, so server
+    // bit-perfect is preserved. Attributed to the same sector as the event's score
+    // (incremented right after UpdateSectorIfNeeded, mirroring score attribution).
+    readonly int[]           _sectorTieBreaks = new int[5];
 
     int _currentCombo;
     int _maxCombo;
@@ -41,6 +47,8 @@ public class PlayProgressAggregator
     public IReadOnlyList<int> SectorScores  => _sectorScores;
     /// <summary>セクション別の理論満点(全 PerfectPlus 時のスコアデルタ)。達成率の分母。</summary>
     public IReadOnlyList<int> SectorMaxScores => _sectorMaxScores;
+    /// <summary>セクション別タイブレーク値(Σ 2×PerfectPlus + Perfect)。セクタースコア同点時の優劣決定に使う。</summary>
+    public IReadOnlyList<int> SectorTieBreaks => _sectorTieBreaks;
     /// <summary>セクション別の確定理論満点(そのセクションの全ノーツを Perfect+ で取った最終満点)。進行中セクターを 0% から満タンへ積み上げ表示する際の分母。</summary>
     public IReadOnlyList<int> SectorFullMaxScores => _sectorFullMaxScores;
     /// <summary>進行中セクションの確定理論満点(全ノーツ通過後の満点)。進行中の「満タンゲージ」表示の分母。</summary>
@@ -103,6 +111,7 @@ public class PlayProgressAggregator
         if (j == Judgment.Miss) { ApplyMiss(noteTimeMs); return; }
         UpdateSectorIfNeeded(noteTimeMs);
         _counts[(int)j]++;
+        TrackSectorTie(j);
         _score.Add(j);
         _maxScore.Add(Judgment.PerfectPlus);
         UpdateCombo(j);
@@ -114,6 +123,7 @@ public class PlayProgressAggregator
     {
         UpdateSectorIfNeeded(tickTimeMs);
         _counts[(int)j]++;
+        TrackSectorTie(j);
         _score.Add(j);
         _maxScore.Add(Judgment.PerfectPlus);
         UpdateCombo(j);
@@ -153,10 +163,21 @@ public class PlayProgressAggregator
             _lateCount,
             (int[])_counts.Clone(),
             (int[])_sectorScores.Clone(),
-            _currentSectorIdx);
+            _currentSectorIdx,
+            (int[])_sectorTieBreaks.Clone());
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
+
+    // Accumulate the per-sector tie-break metric (2×PerfectPlus + Perfect) into the
+    // current sector. Called after UpdateSectorIfNeeded so _currentSectorIdx matches
+    // the sector this event's score is attributed to. Miss/Great/Good contribute 0.
+    void TrackSectorTie(Judgment j)
+    {
+        if (_currentSectorIdx < 0 || _currentSectorIdx >= _sectorTieBreaks.Length) return;
+        if      (j == Judgment.PerfectPlus) _sectorTieBreaks[_currentSectorIdx] += 2;
+        else if (j == Judgment.Perfect)     _sectorTieBreaks[_currentSectorIdx] += 1;
+    }
 
     void UpdateCombo(Judgment j)
     {

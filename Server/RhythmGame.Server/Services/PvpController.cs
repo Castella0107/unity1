@@ -286,7 +286,8 @@ namespace RhythmGame.Server.Services
                 return BadRequest($"songs.Count must be {m.Songs.Count}");
 
             // 各曲を順番に検証 (順序はマッチ作成時の m.Songs 順に合わせる必要がある)
-            var sectorScores = new int[m.Songs.Count][];
+            var sectorScores   = new int[m.Songs.Count][];
+            var sectorTieBreaks = new int[m.Songs.Count][];
             for (int i = 0; i < m.Songs.Count; i++)
             {
                 var expected = m.Songs[i];
@@ -316,11 +317,13 @@ namespace RhythmGame.Server.Services
                 var s = vr.Snapshot.SectorScores ?? new int[5];
                 var copy = new int[5];
                 for (int k = 0; k < 5 && k < s.Length; k++) copy[k] = s[k];
-                sectorScores[i] = copy;
+                sectorScores[i]    = copy;
+                sectorTieBreaks[i] = ExtractTieBreaks(vr.Snapshot);
             }
 
-            mySub.Submitted    = true;
-            mySub.SectorScores = sectorScores;
+            mySub.Submitted       = true;
+            mySub.SectorScores    = sectorScores;
+            mySub.SectorTieBreaks = sectorTieBreaks;
 
             // 両者揃ったら finalize
             if (m.SubmissionA.Submitted && m.SubmissionB.Submitted)
@@ -351,6 +354,8 @@ namespace RhythmGame.Server.Services
             public bool   BothSubmitted  { get; set; }
             public List<int> SelfSectors { get; set; } = new();   // 提出者の 5 セクター (常に返す)
             public List<int> OppSectors  { get; set; } = new();   // 相手の 5 セクター (両者提出時のみ)
+            public List<int> SelfSectorTieBreaks { get; set; } = new();  // 提出者の 5 セクターのタイブレーク値 (同点表示解決用)
+            public List<int> OppSectorTieBreaks  { get; set; } = new();  // 相手の 5 セクターのタイブレーク値 (両者提出時のみ)
             public double SelfSongPoints { get; set; }            // この曲の自分pt (難易度倍率込み, 両者提出時)
             public double OppSongPoints  { get; set; }
             public double SelfCumulative { get; set; }            // 提出済み曲の累計 (両者提出時)
@@ -379,7 +384,8 @@ namespace RhythmGame.Server.Services
                 return BadRequest($"songId mismatch: expected={m.Songs[idx].SongId}, got={req.SongId}");
 
             ActiveMatchStore.EnsurePerSong(m);
-            var mine = isA ? m.PerSongScoresA : m.PerSongScoresB;
+            var mine    = isA ? m.PerSongScoresA    : m.PerSongScoresB;
+            var mineTie = isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB;
             if (mine[idx] != null) return BadRequest("song already submitted");
 
             // リプレイ検証 → セクタースコア抽出
@@ -396,7 +402,8 @@ namespace RhythmGame.Server.Services
             var s = vr.Snapshot.SectorScores ?? new int[5];
             var copy = new int[5];
             for (int k = 0; k < 5 && k < s.Length; k++) copy[k] = s[k];
-            mine[idx] = copy;
+            mine[idx]    = copy;
+            mineTie[idx] = ExtractTieBreaks(vr.Snapshot);
 
             // 各自が選んだ難易度を反映 (倍率計算に効く)。空でなければ採用。
             if (!string.IsNullOrEmpty(req.Difficulty))
@@ -404,6 +411,7 @@ namespace RhythmGame.Server.Services
 
             var dto = new SongResultDto { SongIndex = idx };
             dto.SelfSectors = new List<int>(copy);
+            dto.SelfSectorTieBreaks = new List<int>(mineTie[idx]);
 
             if (!ActiveMatchStore.BothSubmittedSong(m, idx))
             {
@@ -417,12 +425,15 @@ namespace RhythmGame.Server.Services
             var oppArr  = (isA ? m.PerSongScoresB : m.PerSongScoresA)[idx];
             dto.SelfSectors = new List<int>(selfArr);
             dto.OppSectors  = new List<int>(oppArr);
+            dto.SelfSectorTieBreaks = new List<int>((isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)[idx] ?? new int[5]);
+            dto.OppSectorTieBreaks  = new List<int>((isA ? m.PerSongTieBreaksB : m.PerSongTieBreaksA)[idx] ?? new int[5]);
 
             // この曲のポイント (難易度倍率込み)
             var songPairs = new List<SectorPair>(5);
             for (int sec = 0; sec < 5; sec++)
                 songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
-                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty));
+                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty,
+                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec)));
             var songOutcome = MatchScoring.Score(songPairs);
             dto.SelfSongPoints = isA ? songOutcome.TotalPointsA : songOutcome.TotalPointsB;
             dto.OppSongPoints  = isA ? songOutcome.TotalPointsB : songOutcome.TotalPointsA;
@@ -470,6 +481,8 @@ namespace RhythmGame.Server.Services
             {
                 var mineArr = (isA ? m.PerSongScoresA : m.PerSongScoresB)[idx];
                 if (mineArr != null) dto.SelfSectors = new List<int>(mineArr);
+                var mineTieArr = (isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)?[idx];
+                if (mineTieArr != null) dto.SelfSectorTieBreaks = new List<int>(mineTieArr);
             }
 
             if (!ActiveMatchStore.BothSubmittedSong(m, idx)) { dto.BothSubmitted = false; return dto; }
@@ -477,11 +490,14 @@ namespace RhythmGame.Server.Services
             dto.BothSubmitted = true;
             dto.SelfSectors = new List<int>((isA ? m.PerSongScoresA : m.PerSongScoresB)[idx]);
             dto.OppSectors  = new List<int>((isA ? m.PerSongScoresB : m.PerSongScoresA)[idx]);
+            dto.SelfSectorTieBreaks = new List<int>((isA ? m.PerSongTieBreaksA : m.PerSongTieBreaksB)[idx] ?? new int[5]);
+            dto.OppSectorTieBreaks  = new List<int>((isA ? m.PerSongTieBreaksB : m.PerSongTieBreaksA)[idx] ?? new int[5]);
 
             var songPairs = new List<SectorPair>(5);
             for (int sec = 0; sec < 5; sec++)
                 songPairs.Add(new SectorPair(m.Songs[idx].SongId, sec,
-                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty));
+                    m.PerSongScoresA[idx][sec], m.PerSongScoresB[idx][sec], m.Songs[idx].Difficulty,
+                    Tie(m.PerSongTieBreaksA, idx, sec), Tie(m.PerSongTieBreaksB, idx, sec)));
             var so = MatchScoring.Score(songPairs);
             dto.SelfSongPoints = isA ? so.TotalPointsA : so.TotalPointsB;
             dto.OppSongPoints  = isA ? so.TotalPointsB : so.TotalPointsA;
@@ -511,10 +527,29 @@ namespace RhythmGame.Server.Services
                 count++;
                 for (int sec = 0; sec < 5; sec++)
                     pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
-                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty));
+                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty,
+                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec)));
             }
             var o = MatchScoring.Score(pairs);
             return (o.TotalPointsA, o.TotalPointsB, count);
+        }
+
+        // スナップショットから 5 セクターのタイブレーク値 (Σ 2×P+ + P) を 0 詰めで取り出す。
+        private static int[] ExtractTieBreaks(PlayProgressSnapshot snap)
+        {
+            var src  = snap?.SectorTieBreaks ?? new int[5];
+            var copy = new int[5];
+            for (int k = 0; k < 5 && k < src.Length; k++) copy[k] = src[k];
+            return copy;
+        }
+
+        // tiebreak[song][sector] を null 安全に取得 (未保存/旧データは 0 = 引分のまま)。
+        private static int Tie(int[][] arr, int song, int sector)
+        {
+            if (arr == null || song < 0 || song >= arr.Length) return 0;
+            var row = arr[song];
+            if (row == null || sector < 0 || sector >= row.Length) return 0;
+            return row[sector];
         }
 
         // ── Progress (in-match real-time) ──────────────────────────────────────
@@ -692,7 +727,9 @@ namespace RhythmGame.Server.Services
                 for (int sec = 0; sec < 5; sec++)
                 {
                     pairs.Add(new SectorPair(m.Songs[songIdx].SongId, sec, sA[sec], sB[sec],
-                                             m.Songs[songIdx].Difficulty));
+                                             m.Songs[songIdx].Difficulty,
+                                             Tie(m.SubmissionA.SectorTieBreaks, songIdx, sec),
+                                             Tie(m.SubmissionB.SectorTieBreaks, songIdx, sec)));
                 }
             }
 
@@ -716,7 +753,8 @@ namespace RhythmGame.Server.Services
                 for (int sec = 0; sec < 5; sec++)
                 {
                     pairs.Add(new SectorPair(m.Songs[i].SongId, sec,
-                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty));
+                        m.PerSongScoresA[i][sec], m.PerSongScoresB[i][sec], m.Songs[i].Difficulty,
+                        Tie(m.PerSongTieBreaksA, i, sec), Tie(m.PerSongTieBreaksB, i, sec)));
                     flatA.Add(m.PerSongScoresA[i][sec]);
                     flatB.Add(m.PerSongScoresB[i][sec]);
                 }
