@@ -100,6 +100,10 @@ public class GamePlayController : MonoBehaviour
 
             StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud,
                                               _params?.HiSpeed ?? 0f);
+            // PVP: 相手情報ボックス・VS スコアバー・セクター勝敗タグを有効化(BindStageVisuals は
+            // 共有ゆえ isPvP:false 固定なので、ここで明示注入する)。
+            if (_params != null && _params.IsPvp && _hud != null)
+                _hud.SetPvpContext(_params.PvpOpponentId);
             if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameTabController.GetSavedComboBorder());
             // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
             int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);

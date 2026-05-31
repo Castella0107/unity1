@@ -6,6 +6,12 @@ using UnityEngine.UI;
 /// ゲームプレイ中の HUD を管理するコンポーネント。
 /// 左上の楽曲情報ボックス、上中央の判定カウント、左の縦スコアゲージ＋総合 RATE、
 /// および S1..S5 のセクター達成率(菱形マーカー)を表示する。PVP 用の次曲インジケーターも担当する。
+///
+/// PVP モードでは <see cref="SetPvpContext"/> で右上の相手情報ボックス・上中央の VS スコアバー・
+/// セクター勝敗タグを有効化する。相手名と静的レートは試合前に確定済みなので実データを表示するが、
+/// 相手の「ライブスコア」(VS バー右側・リード・セクター勝敗) は現バックエンド (リプレイ提出 →
+/// 両者提出後に開示) では取得できないため、プレースホルダー (------ / +--- / --) のまま。
+/// 相手ライブ化 (ゴースト or ライブ同期) が入ったら SetVsSplit / sector 勝敗を実データで駆動する。
 /// </summary>
 public class GameHud : MonoBehaviour
 {
@@ -31,6 +37,22 @@ public class GameHud : MonoBehaviour
     [SerializeField] Image[]           _sectorDiamonds = new Image[5];
     [SerializeField] TextMeshProUGUI[] _sectorPercents = new TextMeshProUGUI[5];
 
+    [Header("Opponent Info Box (top-right, PVP)")]
+    [SerializeField] GameObject      _opponentBox;
+    [SerializeField] TextMeshProUGUI _opponentName;
+    [SerializeField] TextMeshProUGUI _opponentRate;
+
+    [Header("VS Score Bar (top-center, PVP)")]
+    [SerializeField] GameObject      _vsBar;
+    [SerializeField] Image           _vsSelfFill;   // blue, fills from left
+    [SerializeField] Image           _vsOppFill;    // red, fills from right
+    [SerializeField] TextMeshProUGUI _vsSelfScore;
+    [SerializeField] TextMeshProUGUI _vsOppScore;
+    [SerializeField] TextMeshProUGUI _vsLead;       // "+590" lead margin (self − opp)
+
+    [Header("Sector Win/Lose Tags (PVP) — index 0 = S1")]
+    [SerializeField] TextMeshProUGUI[] _sectorOutcomes = new TextMeshProUGUI[5];
+
     [Header("Next Song Indicator (PVP Only)")]
     [SerializeField] GameObject      _nextIndicator;
     [SerializeField] RawImage        _nextJacket;
@@ -47,6 +69,7 @@ public class GameHud : MonoBehaviour
     ChartData    _chart;
     JacketLoader _jacketLoader;
     int          _shownSectorIdx = -1;   // highest sector index whose final value is locked in
+    bool         _isPvp;                  // SetPvpContext turns on the opponent box / VS bar / outcome tags
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -84,6 +107,15 @@ public class GameHud : MonoBehaviour
         }
 
         if (_nextIndicator != null) _nextIndicator.SetActive(isPvP);
+
+        // PVP-only elements default off; SetPvpContext (called by GamePlayController in PVP)
+        // turns them on. BindStageVisuals always passes isPvP:false, so the opponent box /
+        // VS bar stay hidden in solo play.
+        _isPvp = false;
+        if (_opponentBox != null) _opponentBox.SetActive(false);
+        if (_vsBar       != null) _vsBar.SetActive(false);
+        for (int i = 0; i < _sectorOutcomes.Length; i++)
+            if (_sectorOutcomes[i] != null) _sectorOutcomes[i].text = "";
     }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -108,6 +140,10 @@ public class GameHud : MonoBehaviour
         // Overall RATE = accuracy = score / max-so-far. At song end == score/10000.
         if (_rateValue != null)
             _rateValue.text = Rate(score, agg.CurrentMaxScore).ToString("F2") + "%";
+
+        // PVP: self side of the VS bar tracks the live score. Opponent side / lead /
+        // sector win-lose stay placeholders until live opponent data is supplied.
+        if (_isPvp && _vsSelfScore != null) _vsSelfScore.text = score.ToString("N0");
 
         UpdateSectorDiamonds(agg);
     }
@@ -144,7 +180,74 @@ public class GameHud : MonoBehaviour
         if (_sectorPercents[i] != null) _sectorPercents[i].text  = ratePct.ToString("F2") + "%";
     }
 
-    // ── PVP helper ────────────────────────────────────────────────────────────
+    // ── PVP helpers ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// PVP モードの HUD 要素 (右上の相手情報ボックス・上中央の VS スコアバー・セクター勝敗タグ) を
+    /// 有効化する。GamePlayController が IsPvp 時に Initialize の後で呼ぶ。相手名と静的レートは実データ、
+    /// 相手ライブスコア依存 (VS バー右側・リード・セクター勝敗) はプレースホルダー。
+    /// </summary>
+    public void SetPvpContext(string opponentId)
+    {
+        _isPvp = true;
+        if (_opponentBox != null) _opponentBox.SetActive(true);
+        if (_vsBar       != null) _vsBar.SetActive(true);
+
+        if (_opponentName != null) _opponentName.text = string.IsNullOrEmpty(opponentId) ? "OPPONENT" : opponentId;
+        if (_opponentRate != null) _opponentRate.text = "Rate ----";   // 取得まではプレースホルダー
+
+        // 相手ライブスコア未供給: VS バー右側 / リード / セクター勝敗はプレースホルダー。
+        if (_vsOppScore != null) _vsOppScore.text = "------";
+        if (_vsLead     != null) _vsLead.text     = "+---";
+        SetVsSplit(0.5f);   // 相手データが無い間は中立 (50/50)
+
+        int sectorCount = _meta != null && _meta.Sectors != null ? _meta.Sectors.Count : 0;
+        for (int i = 0; i < _sectorOutcomes.Length; i++)
+            if (_sectorOutcomes[i] != null) _sectorOutcomes[i].text = i < sectorCount ? "--" : "";
+
+        FetchOpponentRate(opponentId);
+    }
+
+    /// <summary>VS バーの綱引き比率を設定する(self の取り分 0..1)。相手ライブ化時に実スコア比で駆動。</summary>
+    void SetVsSplit(float selfShare)
+    {
+        selfShare = Mathf.Clamp01(selfShare);
+        if (_vsSelfFill != null) _vsSelfFill.fillAmount = selfShare;
+        if (_vsOppFill  != null) _vsOppFill.fillAmount  = 1f - selfShare;
+    }
+
+    static readonly Color ColLeadPos = new Color(0.20f, 0.85f, 0.95f, 1f);  // cyan: リード(self が上)
+    static readonly Color ColLeadNeg = new Color(0.95f, 0.25f, 0.25f, 1f);  // red: ビハインド(self が下)
+
+    /// <summary>
+    /// VS バーのリード差 (self − opp) を符号規則で表示する: 0 は色を付けず「0」、負は赤字、正はシアンで「+n」。
+    /// 相手ライブスコアが供給されたとき (ゴースト/ライブ同期) に Update から呼ぶ。現状は相手スコア不在の
+    /// ためプレースホルダー「+---」のまま (SetPvpContext)。
+    /// </summary>
+    void SetLead(int selfScore, int oppScore)
+    {
+        if (_vsLead == null) return;
+        int diff = selfScore - oppScore;
+        if (diff == 0)     { _vsLead.text = "0";             _vsLead.color = Color.white; }
+        else if (diff < 0) { _vsLead.text = diff.ToString(); _vsLead.color = ColLeadNeg; }   // "-590"
+        else               { _vsLead.text = "+" + diff;      _vsLead.color = ColLeadPos; }   // "+590"
+    }
+
+    // 相手の静的レート (試合前に確定) を取得して右上ボックスに表示する。取得失敗時はプレースホルダー据置。
+    async void FetchOpponentRate(string opponentId)
+    {
+        if (string.IsNullOrEmpty(opponentId)) return;
+        var net = RhythmGame.Network.NetworkClient.Instance;
+        if (net == null) return;
+        try
+        {
+            var r = await net.FetchPvpUserStatsAsync(opponentId);
+            if (_opponentRate == null) return;   // destroyed while awaiting
+            if (r != null && r.Ok && r.Body != null)
+                _opponentRate.text = "Rate " + Mathf.RoundToInt((float)r.Body.rating);
+        }
+        catch { /* プレースホルダーのまま */ }
+    }
 
     /// <summary>次曲のタイトルとジャケットを表示する(PVP の曲間表示用)。</summary>
     public void SetNextSong(string title, Texture2D jacket)

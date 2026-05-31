@@ -10,7 +10,9 @@ using UnityEngine.UI;
 /// GamePlay シーンのプレイ時 HUD を構築するエディターオンリーのヘルパー。
 /// 左上の楽曲情報ボックス・上中央の判定カウント・左の縦スコアゲージ＋総合 RATE＋
 /// セクター達成率(S1..S5 菱形)・下部キーガイド・3D レーンハイライトを生成し、
-/// GameHud / LaneKeyGuide / GamePlayController へ結線する。右側は PVP 用に空けておく。
+/// GameHud / LaneKeyGuide / GamePlayController へ結線する。
+/// PVP 用の右上 相手情報ボックス・上中央 VS スコアバー・セクター勝敗タグも生成する
+/// (既定は非アクティブ。GameHud.SetPvpContext が PVP 時に有効化する)。
 /// </summary>
 public static class HudSceneBuilder
 {
@@ -55,7 +57,8 @@ public static class HudSceneBuilder
         if (hudTextGO != null) hudTextGO.SetActive(false);
 
         foreach (var n in new[] { "TopBar", "SectorPanel", "BottomBar", "NextSongIndicator",
-                                  "SongInfoBox", "JudgmentCountsBar", "ScorePanel", "KeyGuide" })
+                                  "SongInfoBox", "JudgmentCountsBar", "VsScoreBar", "OpponentBox",
+                                  "ScorePanel", "KeyGuide" })
             DestroyByName(ct, n);
         DestroyExisting("LaneHighlights");
 
@@ -113,6 +116,58 @@ public static class HudSceneBuilder
             counts[i] = T(cnt, "0", 26, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
         }
 
+        // ── 2b. Opponent Info Box (top-right, PVP; default inactive) ────────────────
+        var oppBox = Child("OpponentBox", ct);
+        SR(oppBox, V(1,1), V(1,1), V(1,1), V(-20,-20), V(340,140));
+        Img(oppBox, CPanelBg);
+
+        var oppNameGO = Child("OpponentName", oppBox.transform);
+        SR(oppNameGO, V(.5f,1), V(.5f,1), V(.5f,1), V(0,-18), V(308,52));
+        var oppNameTMP = T(oppNameGO, "playername", 30, Color.white, TextAlignmentOptions.Top, FontStyles.Bold);
+        oppNameTMP.overflowMode = TextOverflowModes.Ellipsis; oppNameTMP.enableWordWrapping = false;
+
+        var oppRateGO = Child("OpponentRate", oppBox.transform);
+        SR(oppRateGO, V(1,0), V(1,0), V(1,0), V(-16,14), V(240,40));
+        var oppRateTMP = T(oppRateGO, "Rate ----", 24, new Color(1,1,1,.85f), TextAlignmentOptions.BottomRight, FontStyles.Bold);
+        oppBox.SetActive(false);
+
+        // ── 2c. VS Score Bar (top-center, below judgment counts; PVP, default inactive) ─
+        var vsBar = Child("VsScoreBar", ct);
+        SR(vsBar, V(0,1), V(0,1), V(0,1), V(600,-100), V(1020,48));
+        Img(vsBar, new Color(0,0,0,.55f));
+
+        var vsSelfGO = Child("VsSelfFill", vsBar.transform);
+        SR(vsSelfGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var vsSelfFill = vsSelfGO.AddComponent<Image>();
+        vsSelfFill.sprite = _uiSprite; vsSelfFill.type = Image.Type.Filled;
+        vsSelfFill.fillMethod = Image.FillMethod.Horizontal;
+        vsSelfFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+        vsSelfFill.fillAmount = 0.5f;
+        vsSelfFill.color = new Color(0.16f, 0.66f, 0.86f, 1f);   // cyan-blue (self)
+
+        var vsOppGO = Child("VsOppFill", vsBar.transform);
+        SR(vsOppGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var vsOppFill = vsOppGO.AddComponent<Image>();
+        vsOppFill.sprite = _uiSprite; vsOppFill.type = Image.Type.Filled;
+        vsOppFill.fillMethod = Image.FillMethod.Horizontal;
+        vsOppFill.fillOrigin = (int)Image.OriginHorizontal.Right;
+        vsOppFill.fillAmount = 0.5f;
+        vsOppFill.color = new Color(0.90f, 0.20f, 0.18f, 1f);     // red (opponent)
+
+        var vsSelfScoreGO = Child("VsSelfScore", vsBar.transform);
+        SR(vsSelfScoreGO, V(0,.5f), V(0,.5f), V(0,.5f), V(16,0), V(320,40));
+        var vsSelfScore = T(vsSelfScoreGO, "0", 26, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var vsOppScoreGO = Child("VsOppScore", vsBar.transform);
+        SR(vsOppScoreGO, V(1,.5f), V(1,.5f), V(1,.5f), V(-16,0), V(320,40));
+        var vsOppScore = T(vsOppScoreGO, "------", 26, Color.white, TextAlignmentOptions.MidlineRight, FontStyles.Bold);
+
+        // Lead margin (self − opp), centered just below the bar.
+        var vsLeadGO = Child("VsLead", vsBar.transform);
+        SR(vsLeadGO, V(.5f,0), V(.5f,0), V(.5f,1), V(0,-4), V(300,40));
+        var vsLead = T(vsLeadGO, "+---", 28, new Color(0.20f, 0.85f, 0.95f), TextAlignmentOptions.Top, FontStyles.Bold);
+        vsBar.SetActive(false);
+
         // ── 3. Score Panel (left) ──────────────────────────────────────────────────
         var panel = Child("ScorePanel", ct);
         SR(panel, V(0,1), V(0,1), V(0,1), V(20,-200), V(380,770));
@@ -151,6 +206,7 @@ public static class HudSceneBuilder
         // Sector diamonds — visual rows top→bottom are S5..S1; index by sector (0=S1).
         var diamonds = new Image[5];
         var percents = new TextMeshProUGUI[5];
+        var outcomes = new TextMeshProUGUI[5];   // PVP win/lose tag under each percent
         const float rowTop = -132f, rowStep = 112f;
         for (int row = 0; row < 5; row++)
         {
@@ -165,8 +221,12 @@ public static class HudSceneBuilder
             diamonds[sector] = diaImg;
 
             var pct = Child($"S{sector + 1}Percent", panel.transform);
-            SR(pct, V(0,1), V(0,1), V(0,1), V(110, y + 4), V(220,46));
+            SR(pct, V(0,1), V(0,1), V(0,1), V(110, y + 14), V(220,42));
             percents[sector] = T(pct, "--", 28, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+            var outc = Child($"S{sector + 1}Outcome", panel.transform);
+            SR(outc, V(0,1), V(0,1), V(0,1), V(110, y - 26), V(220,30));
+            outcomes[sector] = T(outc, "", 22, new Color(0.20f, 0.85f, 0.95f), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
         }
 
         // ── 4. NextSongIndicator (PVP, default inactive) ───────────────────────────
@@ -242,6 +302,16 @@ public static class HudSceneBuilder
         so.FindProperty("_rateValue").objectReferenceValue   = rateTMP;
         WireArray(so, "_sectorDiamonds", diamonds);
         WireArray(so, "_sectorPercents", percents);
+        WireArray(so, "_sectorOutcomes", outcomes);
+        so.FindProperty("_opponentBox").objectReferenceValue  = oppBox;
+        so.FindProperty("_opponentName").objectReferenceValue = oppNameTMP;
+        so.FindProperty("_opponentRate").objectReferenceValue = oppRateTMP;
+        so.FindProperty("_vsBar").objectReferenceValue        = vsBar;
+        so.FindProperty("_vsSelfFill").objectReferenceValue   = vsSelfFill;
+        so.FindProperty("_vsOppFill").objectReferenceValue    = vsOppFill;
+        so.FindProperty("_vsSelfScore").objectReferenceValue  = vsSelfScore;
+        so.FindProperty("_vsOppScore").objectReferenceValue   = vsOppScore;
+        so.FindProperty("_vsLead").objectReferenceValue       = vsLead;
         so.FindProperty("_nextIndicator").objectReferenceValue = nextGO;
         so.FindProperty("_nextJacket").objectReferenceValue    = nextRaw;
         so.FindProperty("_nextSongTitle").objectReferenceValue = nextTitleTMP;
