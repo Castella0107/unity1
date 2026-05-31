@@ -684,7 +684,7 @@ namespace RhythmGame.UI.Pvp
                         GUILayout.Label(_isBan ? "BAN 1 of 3:" : "PICK 1 song:");
                         if (_timerActive) GUILayout.Label($"time: {Mathf.Max(0, Mathf.CeilToInt(_timeLeft))}s");
                         foreach (var id in CurrentSet(_state))
-                            if (GUILayout.Button((id == _selectedSongId ? "▶ " : "   ") + Label(id)))
+                            if (GUILayout.Button((id == _selectedSongId ? "> " : "   ") + Label(id)))
                             { _selectedSongId = id; }
                         GUI.enabled = !string.IsNullOrEmpty(_selectedSongId);
                         if (GUILayout.Button("LOCK IN")) _ = LockInAsync();

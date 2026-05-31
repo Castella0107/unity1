@@ -163,7 +163,7 @@ public static class SongSelectSceneBuilder
         // Key hint (Enter plays / Esc back) — replaces the PLAY button
         var hintGO = Child("KeyHint", dt);
         SR(hintGO, V(0,0), V(1,0), V(.5f,0), V(0,16), V(-28, 30));
-        T(hintGO, "ENTER ▷ PLAY     ESC ◁ BACK", 16, new Color(.75f,.75f,.75f),
+        T(hintGO, "ENTER > PLAY     ESC < BACK", 16, new Color(.75f,.75f,.75f),
           TextAlignmentOptions.Center, FontStyles.Bold);
 
         // ─────────────────────────────────────────────────────────────────────

@@ -192,8 +192,8 @@ public static class BuildHistoryScene
             var jk = MakeRawImage("Jacket", songRow, 40, 40);
             Anchor(jk, 0, 0.5f, 0, 0.5f, new Vector2(70, 0), new Vector2(0.5f, 0.5f));
             jk.gameObject.AddComponent<Button>().targetGraphic = jk.GetComponent<RawImage>();
-            // cursor marker (▷) left of jacket
-            var cursor = MakeTMP("Cursor", songRow, 22, "▶");
+            // cursor marker (>) left of jacket
+            var cursor = MakeTMP("Cursor", songRow, 22, ">");
             AnchorBox(cursor, 0, 0.5f, 0, 0.5f, new Vector2(28, 0), new Vector2(0.5f, 0.5f), new Vector2(28, 28));
             cursor.alignment = TextAlignmentOptions.Center;
             cursor.gameObject.SetActive(false);

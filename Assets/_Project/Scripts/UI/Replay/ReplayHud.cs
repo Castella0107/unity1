@@ -37,6 +37,6 @@ public class ReplayHud : MonoBehaviour
         if (_speedText  != null)
             _speedText.text = string.Format("{0:F1}x", _controller.PlaybackSpeed);
         if (_statusText != null)
-            _statusText.text = _controller.IsPlaying ? "▶" : "❚❚";
+            _statusText.text = _controller.IsPlaying ? "PLAYING" : "PAUSED";
     }
 }

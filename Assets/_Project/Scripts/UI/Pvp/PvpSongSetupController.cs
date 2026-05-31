@@ -343,7 +343,7 @@ namespace RhythmGame.UI.Pvp
             for (int i = 0; i < Difficulties.Length; i++)
             {
                 GUI.enabled = _diffAvailable[i];
-                string mark = (i == _diffIndex) ? "▶ " : "   ";
+                string mark = (i == _diffIndex) ? "> " : "   ";
                 if (GUILayout.Button(mark + Difficulties[i])) OnDifficultyClicked(i);
             }
             GUI.enabled = true;
