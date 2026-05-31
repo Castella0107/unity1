@@ -97,7 +97,7 @@ public class HistoryPvpRowView
     /// <summary>選択状態に応じて背景色を切り替える。</summary>
     public void SetSelected(bool on) { if (_bg != null) _bg.color = on ? SelectedColor : IdleColor; }
 
-    /// <summary>キーボード操作時の曲カーソル(▷)を移動する。-1 で全て消灯。</summary>
+    /// <summary>キーボード操作時の曲カーソル(>)を移動する。-1 で全て消灯。</summary>
     public void SetSongCursor(int songIndex)
     {
         for (int j = 0; j < 3; j++)

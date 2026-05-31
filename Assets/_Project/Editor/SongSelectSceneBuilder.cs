@@ -47,6 +47,7 @@ public static class SongSelectSceneBuilder
         var esGO = new GameObject("EventSystem");
         esGO.AddComponent<EventSystem>();
         esGO.AddComponent<UnityEngine.InputSystem.UI.InputSystemUIInputModule>();
+        esGO.AddComponent<EventSystemGuard>();   // 重複 EventSystem 警告を防止(他シーンと統一)
 
         // ── Canvas ────────────────────────────────────────────────────────────
         var canvasGO = new GameObject("Canvas");

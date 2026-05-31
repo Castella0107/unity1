@@ -254,6 +254,7 @@ public static class BuildHistoryScene
         var esGO = new GameObject("EventSystem");
         esGO.AddComponent<EventSystem>();
         esGO.AddComponent<InputSystemUIInputModule>();
+        esGO.AddComponent<EventSystemGuard>();   // 重複 EventSystem 警告を防止(他シーンと統一)
 
         var canvasGO = new GameObject("Canvas");
         var canvas = canvasGO.AddComponent<Canvas>();
