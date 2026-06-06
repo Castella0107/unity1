@@ -45,7 +45,21 @@ namespace RhythmGame.UI.Pvp
             if (_primaryButton != null) _primaryButton.onClick.AddListener(OnPrimary);
             if (_clinchText    != null) _clinchText.text = "";
 
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space / Enter: 次へ");
+
             Render();
+        }
+
+        void Update()
+        {
+            // 試合進行中のため ESC は無効。Space/Enter（パッド A）で次へ進むのみ。
+            var kb  = UnityEngine.InputSystem.Keyboard.current;
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+            bool confirm = (kb != null && (kb.spaceKey.wasPressedThisFrame
+                                        || kb.enterKey.wasPressedThisFrame
+                                        || kb.numpadEnterKey.wasPressedThisFrame))
+                        || (pad != null && RhythmGame.Input.GamepadLayout.ConfirmPressed(pad));
+            if (confirm) OnPrimary();
         }
 
         void OnPrimary()

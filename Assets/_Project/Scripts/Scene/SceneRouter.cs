@@ -88,6 +88,10 @@ public class SceneRouter : MonoBehaviour
         // _isTransitioning already set synchronously in GoTo()
         ParameterStore.SetPending(parameters);
 
+        // 横断オーバーレイは画面を跨いで残さない（各画面が Start で再設定する）
+        RhythmGame.UI.Common.ShortcutHintOverlay.Clear();
+        RhythmGame.UI.Common.ConfirmDialog.ForceClose();
+
         string targetLabel;
         if (!SceneNames.TryGetValue(target, out targetLabel))
         {

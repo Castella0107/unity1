@@ -57,14 +57,9 @@ public class ResultController : MonoBehaviour
     [SerializeField] Button _toSelectButton;
     [SerializeField] Button _toTitleButton;
 
-    [Header("Input")]
-    [SerializeField] InputActionAsset _inputAsset;
-
     [Header("Animation")]
     [SerializeField] float _countupDuration = 1.5f;
 
-    InputAction      _submitAction;
-    InputAction      _cancelAction;
     ResultParameters _params;
     string           _serverStatusFallback;   // shown via OnGUI when _serverStatusText is unassigned
 
@@ -73,23 +68,6 @@ public class ResultController : MonoBehaviour
     void Awake()
     {
         Application.runInBackground = true;
-        var map = _inputAsset.FindActionMap("UI", throwIfNotFound: true);
-        _submitAction = map.FindAction("Submit", throwIfNotFound: true);
-        _cancelAction = map.FindAction("Cancel", throwIfNotFound: true);
-    }
-
-    void OnEnable()
-    {
-        _submitAction.Enable();
-        _cancelAction.Enable();
-        _submitAction.performed += OnSubmitKey;
-        _cancelAction.performed += OnCancelKey;
-    }
-
-    void OnDisable()
-    {
-        _submitAction.performed -= OnSubmitKey;
-        _cancelAction.performed -= OnCancelKey;
     }
 
     void Start()
@@ -97,6 +75,8 @@ public class ResultController : MonoBehaviour
         _retryButton.onClick.AddListener(OnRetry);
         _toSelectButton.onClick.AddListener(OnToSelect);
         _toTitleButton.onClick.AddListener(OnToTitle);
+
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space: リトライ      Enter: 選曲へ      ESC: タイトル");
 
         _params = ParameterStore.GetPending<ResultParameters>();
 
@@ -110,15 +90,23 @@ public class ResultController : MonoBehaviour
         if (IsTestPlayMode) WriteTestPlayResult(view.Record);
     }
 
-    void OnSubmitKey(InputAction.CallbackContext _) => OnRetry();
-    void OnCancelKey(InputAction.CallbackContext _) => OnToTitle();
-
     void Update()
     {
-        if (Keyboard.current == null) return;
-        if (Keyboard.current.rKey.wasPressedThisFrame) OnRetry();
-        if (Keyboard.current.sKey.wasPressedThisFrame) OnToSelect();
-        if (Keyboard.current.tKey.wasPressedThisFrame) OnToTitle();
+        var kb = Keyboard.current;
+        if (kb != null)
+        {
+            if (kb.spaceKey.wasPressedThisFrame)                                      OnRetry();
+            else if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) OnToSelect();
+            else if (kb.escapeKey.wasPressedThisFrame)                                OnToTitle();
+        }
+
+        var pad = Gamepad.current;
+        if (pad != null)
+        {
+            if (RhythmGame.Input.GamepadLayout.ConfirmPressed(pad)) OnRetry();   // A = Space 相当
+            else if (RhythmGame.Input.GamepadLayout.BackPressed(pad)) OnToTitle(); // B = ESC 相当
+            else if (pad.buttonNorth.wasPressedThisFrame) OnToSelect();           // Y = 選曲へ
+        }
     }
 
     // ── Apply view ────────────────────────────────────────────────────────────

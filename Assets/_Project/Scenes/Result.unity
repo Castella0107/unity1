@@ -277,10 +277,10 @@ MonoBehaviour:
   _maxComboText: {fileID: 1984311955}
   _fastCountText: {fileID: 1818011424}
   _lateCountText: {fileID: 873214407}
+  _serverStatusText: {fileID: 0}
   _retryButton: {fileID: 147458118}
   _toSelectButton: {fileID: 956616809}
   _toTitleButton: {fileID: 548170893}
-  _inputAsset: {fileID: -944628639613478452, guid: 501ae1f9f46012e409d45a052a280b5b, type: 3}
   _countupDuration: 1.5
 --- !u!1 &18822202
 GameObject:
@@ -3912,7 +3912,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: RETRY  (R)
+  m_text: RETRY  (Space)
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
@@ -4245,7 +4245,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: SONG SELECT  (S)
+  m_text: SONG SELECT  (Enter)
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
   m_sharedMaterial: {fileID: 2180264, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}

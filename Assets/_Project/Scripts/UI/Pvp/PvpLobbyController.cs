@@ -46,6 +46,8 @@ namespace RhythmGame.UI.Pvp
             if (_startButton != null) _startButton.onClick.AddListener(OnStart);
             if (_backButton  != null) _backButton.onClick.AddListener(OnBack);
 
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space: START (RANKED MATCH)      ESC: タイトルへ");
+
             // プレースホルダー初期値 (K ドメイン)
             if (_ladderTierText != null) _ladderTierText.text = "UNRANKED";
             if (_centerTierText != null) _centerTierText.text = "UNRANKED";
@@ -74,9 +76,20 @@ namespace RhythmGame.UI.Pvp
 
         void Update()
         {
-            // F5 で開始 (モック準拠)。Input System 専用プロジェクトなので Keyboard.current を使う。
+            // Space=START / ESC=タイトルへ（未マッチなので確認ダイアログなし）。Input System 専用。
             var kb = UnityEngine.InputSystem.Keyboard.current;
-            if (kb != null && kb.f5Key.wasPressedThisFrame) OnStart();
+            if (kb != null)
+            {
+                if (kb.spaceKey.wasPressedThisFrame)  OnStart();
+                if (kb.escapeKey.wasPressedThisFrame) OnBack();
+            }
+
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+            if (pad != null)
+            {
+                if (RhythmGame.Input.GamepadLayout.ConfirmPressed(pad)) OnStart();
+                if (RhythmGame.Input.GamepadLayout.BackPressed(pad))    OnBack();
+            }
         }
 
         void OnStart()

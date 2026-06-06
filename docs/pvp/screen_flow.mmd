@@ -1,0 +1,69 @@
+flowchart TD
+    Boot["Bootstrap → _Persistent ロード"]
+    Title["Title<br/>(メインメニュー / カルーセル)"]
+
+    SongSel["SongSelect<br/>(選曲・難易度・速度)"]
+    PlayS["GamePlay (ソロ)<br/>(ESC=ポーズ)"]
+    Result["Result<br/>(スコア / リトライ)"]
+    Hist["History<br/>(戦績・リプレイ)"]
+    Conf["Config<br/>(7タブ設定)"]
+    Replay["GamePlay (リプレイ再生)"]
+
+    Lobby["PVPLobby<br/>(オンラインロビー)"]
+    MM["Matchmaking<br/>(検索 → MATCH FOUND)"]
+    Pre["PVPPrematch<br/>(導入 READY)"]
+    Pick["PVPSongPick<br/>(PICK / 20曲ブラインド)"]
+    Ban["PVPBanPhase<br/>(BAN → MATCH LINEUP)"]
+
+    subgraph Loop["各曲ループ ×3"]
+        direction TB
+        Setup["PVPSongSetup<br/>(難易度＋プレイ設定)"]
+        PlayP["GamePlay (PVP)<br/>(ESC長押し6秒=リタイア)"]
+        SongRes["PVPSongResult<br/>(セクター勝敗＋累計)"]
+        Setup -->|Space=READY| PlayP -->|完走| SongRes
+        SongRes -->|Space=NEXT| Setup
+    end
+
+    End["PVPMatchEnd<br/>(WIN/LOSE/DRAW + レート変動)"]
+
+    Boot --> Title
+
+    Title -->|FREE PLAY| SongSel
+    Title -->|ONLINE| Lobby
+    Title -->|CONFIG| Conf
+    Title -->|HISTORY| Hist
+    Title -->|EXIT / ESC| Exit(("終了"))
+
+    SongSel -->|Space=Play| PlayS --> Result
+    Result -->|Space=リトライ| PlayS
+    Result -->|Enter=選曲へ| SongSel
+    Result -->|ESC=タイトル| Title
+    SongSel -.->|ESC| Title
+
+    Hist -->|Submit=リプレイ| Replay --> Hist
+    Hist -.->|ESC| Title
+    Conf -.->|ESC| Title
+
+    Lobby -->|Space=START| MM
+    MM -->|MATCH FOUND（自動）| Pre
+    Pre -->|自動| Pick
+    Pick -->|両者 PICK 確定| Ban
+    Ban -->|Space=START MATCH| Loop
+    Loop -->|3曲完走| End
+    Loop -. "2曲目後に8pt到達" .-> End
+
+    Lobby -.->|ESC| Title
+    MM -.->|ESC=キャンセル確認| Lobby
+    Pre -.->|ESC=辞退確認（不戦敗）| Title
+    Pick -.->|ESC=辞退確認| Title
+    Ban -.->|ESC=辞退確認| Title
+    Setup -.->|ESC=辞退確認| Title
+
+    End -->|Enter=TO LOBBY| Lobby
+    End -->|Space=REMATCH| MM
+    End -->|ESC/TO TITLE| Title
+
+    classDef solo fill:#143,stroke:#2BD9E6,color:#fff;
+    classDef pvp  fill:#413,stroke:#F7C740,color:#fff;
+    class SongSel,PlayS,Result,Hist,Conf,Replay solo;
+    class Lobby,MM,Pre,Pick,Ban,Setup,PlayP,SongRes,End pvp;

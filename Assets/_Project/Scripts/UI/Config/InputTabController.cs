@@ -16,6 +16,9 @@ public class InputTabController : MonoBehaviour
 
     [Header("Controller")]
     [SerializeField] Toggle _controllerEnabledToggle;
+    // ON = 任天堂配置（右=決定 / 下=戻る） / OFF = Xbox 配置（A=決定 / B=戻る）。
+    // シーンに未配置でも可（その場合は既定 Xbox 配置のまま）。
+    [SerializeField] Toggle _nintendoLayoutToggle;
 
     [Header("Test Area")]
     [SerializeField] Image[] _testKeyHighlights;   // 6 images, same lane order
@@ -54,6 +57,19 @@ public class InputTabController : MonoBehaviour
             PlayerPrefs.SetInt("ControllerEnabled", v ? 1 : 0);
             PlayerPrefs.Save();
         });
+
+        // ゲームパッドの決定/戻る配置（Xbox ⇄ 任天堂）。トグル未配置ならスキップ。
+        if (_nintendoLayoutToggle != null)
+        {
+            _nintendoLayoutToggle.SetIsOnWithoutNotify(
+                RhythmGame.Input.GamepadLayout.Current == RhythmGame.Input.GamepadLayout.Layout.Nintendo);
+            _nintendoLayoutToggle.onValueChanged.AddListener(v =>
+            {
+                RhythmGame.Input.GamepadLayout.Current = v
+                    ? RhythmGame.Input.GamepadLayout.Layout.Nintendo
+                    : RhythmGame.Input.GamepadLayout.Layout.Xbox;
+            });
+        }
     }
 
     void SetupButtons()

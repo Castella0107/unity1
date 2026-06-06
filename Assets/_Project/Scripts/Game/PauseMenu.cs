@@ -29,6 +29,12 @@ public class PauseMenu : MonoBehaviour
     int   _selectedIndex;
     Button[] _buttons;
 
+    // PVP 対戦中はポーズ不可。ESC 長押し（6秒）でリタイア（不戦敗）。
+    bool        _isPvp;
+    float       _retireHold;
+    const float RetireHoldSec = 6f;
+    bool        _retiring;
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Start()
@@ -41,13 +47,25 @@ public class PauseMenu : MonoBehaviour
         if (_resumeButton  != null) _resumeButton.onClick.AddListener(OnResume);
         if (_restartButton != null) _restartButton.onClick.AddListener(OnRestart);
         if (_quitButton    != null) _quitButton.onClick.AddListener(OnQuit);
+
+        var prm = ParameterStore.GetCurrent<GamePlayParameters>();
+        _isPvp = prm != null && prm.IsPvp;
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+            _isPvp ? "ESC（長押し6秒）: リタイア（不戦敗）" : "ESC: ポーズ");
     }
 
     void Update()
     {
         if (Keyboard.current == null) return;
 
-        // Toggle pause
+        // PVP: ポーズ不可。ESC を 6 秒長押しでリタイア。
+        if (_isPvp)
+        {
+            HandlePvpRetire();
+            return;
+        }
+
+        // Toggle pause (solo)
         if (Keyboard.current.escapeKey.wasPressedThisFrame)
         {
             if (_isPaused) OnResume();
@@ -75,6 +93,34 @@ public class PauseMenu : MonoBehaviour
             Keyboard.current.numpadEnterKey.wasPressedThisFrame)
         {
             _buttons[_selectedIndex].onClick.Invoke();
+        }
+    }
+
+    // ── PVP リタイア（ESC 長押し）────────────────────────────────────────────
+    void HandlePvpRetire()
+    {
+        if (_retiring) return;
+
+        if (Keyboard.current.escapeKey.isPressed)
+        {
+            _retireHold += Time.unscaledDeltaTime;
+            int remain = Mathf.Max(1, Mathf.CeilToInt(RetireHoldSec - _retireHold));
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set($"リタイア中… ESC を押し続ける（{remain}）");
+
+            if (_retireHold >= RetireHoldSec)
+            {
+                _retiring = true;
+                _conductor?.Stop();
+                RhythmGame.UI.Common.ShortcutHintOverlay.Clear();
+                var pvp = RhythmGame.Network.PvpFlowController.Instance;
+                if (pvp != null) pvp.AbortMatch("Retired");
+                else SceneRouter.Instance?.GoTo(SceneId.Title);
+            }
+        }
+        else if (_retireHold > 0f)
+        {
+            _retireHold = 0f;
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set("ESC（長押し6秒）: リタイア（不戦敗）");
         }
     }
 

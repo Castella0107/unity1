@@ -123,9 +123,34 @@ public class SongSelectController : MonoBehaviour
 
     void Update()
     {
-        // F4: 並び替え切替 (Input System)
         var kb = Keyboard.current;
-        if (kb != null && kb.f4Key.wasPressedThisFrame) CycleSort();
+        if (kb != null)
+        {
+            if (kb.f4Key.wasPressedThisFrame) CycleSort();
+
+            // HiSpeed 調整: [ / ] で ±0.5（↑↓は曲選択のまま）
+            if (kb.leftBracketKey.wasPressedThisFrame)  StepHiSpeed(-0.5f);
+            if (kb.rightBracketKey.wasPressedThisFrame) StepHiSpeed(+0.5f);
+
+            // Modifier 切替: M で None → Mirror → Random 循環
+            if (kb.mKey.wasPressedThisFrame) CycleModifier();
+        }
+    }
+
+    // [ / ] で HiSpeed を 0.5 刻みで増減する。
+    void StepHiSpeed(float delta)
+    {
+        if (_hiSpeedSlider == null) return;
+        _hiSpeedSlider.value = Mathf.Clamp(_hiSpeedSlider.value + delta,
+                                           _hiSpeedSlider.minValue, _hiSpeedSlider.maxValue);
+        // onValueChanged 経由で _hiSpeedValue も更新される
+    }
+
+    // M で Modifier (None/Mirror/Random) を循環切替する。
+    void CycleModifier()
+    {
+        if (_modifierDropdown == null || _modifierDropdown.options.Count == 0) return;
+        _modifierDropdown.value = (_modifierDropdown.value + 1) % _modifierDropdown.options.Count;
     }
 
     async void Start()
@@ -136,6 +161,9 @@ public class SongSelectController : MonoBehaviour
         _btnExtra.onClick.AddListener(()  => SetDifficulty(Difficulty.Extra));
         _backButton.onClick.AddListener(OnBack);
         if (_sortButton != null) _sortButton.onClick.AddListener(CycleSort);
+
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+            "↑↓: 曲選択   ←→: 難易度   Space: Play   [ ]: 速度   M: Modifier   F4: ソート   ESC: 戻る");
 
         // HiSpeed (0.5〜20: 低速は縛りプレイ用に残す)
         _hiSpeedSlider.minValue = 0.5f;

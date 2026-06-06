@@ -104,6 +104,8 @@ public class HistoryController : MonoBehaviour
     async void Start()
     {
         SetupUI();
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+            "↑↓: 行   Tab: Ladder/Free   1-4: 難易度   Space: リプレイ   ESC: 戻る");
         await LoadAllData();
         SwitchMode(Mode.Free);
     }
@@ -423,4 +425,29 @@ public class HistoryController : MonoBehaviour
     }
 
     void OnCancel(InputAction.CallbackContext ctx) => SceneRouter.Instance.GoTo(SceneId.Title);
+
+    void Update()
+    {
+        var kb = Keyboard.current;
+        if (kb != null)
+        {
+            // Tab: Ladder / Free 切替
+            if (kb.tabKey.wasPressedThisFrame)
+                SwitchMode(_mode == Mode.Free ? Mode.Ladder : Mode.Free);
+
+            // 数字キー 1-4: 難易度フィルター（Free モード時）
+            if (_mode == Mode.Free)
+            {
+                if (kb.digit1Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[0]);
+                if (kb.digit2Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[1]);
+                if (kb.digit3Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[2]);
+                if (kb.digit4Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[3]);
+            }
+        }
+
+        var pad = Gamepad.current;
+        if (pad != null &&
+            (RhythmGame.Input.GamepadLayout.NextTabPressed(pad) || RhythmGame.Input.GamepadLayout.PrevTabPressed(pad)))
+            SwitchMode(_mode == Mode.Free ? Mode.Ladder : Mode.Free);
+    }
 }

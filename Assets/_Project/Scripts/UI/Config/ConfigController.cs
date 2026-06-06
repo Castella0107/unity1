@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
@@ -92,6 +93,9 @@ public class ConfigController : MonoBehaviour
         _backButton.onClick.AddListener(OnBack);
         BuildTabBar();
         SwitchTab(ConfigTab.Audio);
+
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+            "←→ / Tab / LB RB: タブ切替   ↑↓: 項目   Space: 決定   ESC: 戻る");
     }
 
     // ── Tab bar ───────────────────────────────────────────────────────────────
@@ -121,6 +125,8 @@ public class ConfigController : MonoBehaviour
 
         foreach (var kvp in _panelMap)
             if (kvp.Value != null) kvp.Value.SetActive(kvp.Key == tab);
+
+        FocusFirstSelectable(tab);
     }
 
     /// <summary>タブ名(文字列)でタブを切り替える。子コントローラーからのタブ間遷移に使う。</summary>
@@ -135,8 +141,51 @@ public class ConfigController : MonoBehaviour
     void OnNavigate(InputAction.CallbackContext ctx)
     {
         var v = ctx.ReadValue<Vector2>();
-        if      (v.y >  0.5f) SwitchTab((ConfigTab)(((int)_currentTab - 1 + Tabs.Length) % Tabs.Length));
-        else if (v.y < -0.5f) SwitchTab((ConfigTab)(((int)_currentTab + 1)                % Tabs.Length));
+
+        // 横方向はタブ切替。ただしスライダー等「←→で値が変わる項目」を選択中はそちらに譲る。
+        if (Mathf.Abs(v.x) > 0.5f && Mathf.Abs(v.x) > Mathf.Abs(v.y))
+        {
+            if (FocusedConsumesHorizontal()) return;
+            if (v.x > 0f) StepTab(+1);
+            else          StepTab(-1);
+        }
+        // 縦方向（項目フォーカス移動）は EventSystem の Selectable ナビゲーションに任せる。
+    }
+
+    void StepTab(int dir)
+    {
+        SwitchTab((ConfigTab)(((int)_currentTab + dir + Tabs.Length) % Tabs.Length));
+    }
+
+    // 現在フォーカス中の UI が横入力を消費する（Slider 等）かどうか。
+    static bool FocusedConsumesHorizontal()
+    {
+        var go = EventSystem.current != null ? EventSystem.current.currentSelectedGameObject : null;
+        if (go == null) return false;
+        return go.GetComponent<Slider>() != null || go.GetComponent<Scrollbar>() != null;
+    }
+
+    void Update()
+    {
+        var kb = Keyboard.current;
+        if (kb != null && (kb.tabKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame)) StepTab(+1);
+        if (kb != null && kb.qKey.wasPressedThisFrame) StepTab(-1);
+
+        var pad = Gamepad.current;
+        if (pad != null)
+        {
+            if (RhythmGame.Input.GamepadLayout.NextTabPressed(pad)) StepTab(+1);
+            if (RhythmGame.Input.GamepadLayout.PrevTabPressed(pad)) StepTab(-1);
+        }
+    }
+
+    // タブ切替時、新パネル内の最初の操作可能項目へフォーカスを移す（キーボード/パッドで項目操作可に）。
+    void FocusFirstSelectable(ConfigTab tab)
+    {
+        if (EventSystem.current == null) return;
+        if (!_panelMap.TryGetValue(tab, out var panel) || panel == null) return;
+        var sel = panel.GetComponentInChildren<Selectable>(false);
+        EventSystem.current.SetSelectedGameObject(sel != null ? sel.gameObject : null);
     }
 
     void OnCancel(InputAction.CallbackContext ctx) => OnBack();

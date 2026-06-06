@@ -92,6 +92,52 @@ namespace RhythmGame.UI.Pvp
 
         void OnDisable() => _alive = false;
 
+        void Update()
+        {
+            if (RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+
+            var kb  = UnityEngine.InputSystem.Keyboard.current;
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+
+            bool confirm = (kb != null && (kb.spaceKey.wasPressedThisFrame
+                                        || kb.enterKey.wasPressedThisFrame
+                                        || kb.numpadEnterKey.wasPressedThisFrame))
+                        || (pad != null && RhythmGame.Input.GamepadLayout.ConfirmPressed(pad));
+            bool back    = (kb != null && kb.escapeKey.wasPressedThisFrame)
+                        || (pad != null && RhythmGame.Input.GamepadLayout.BackPressed(pad));
+
+            if (back)    { RequestCancel(); return; }
+            if (confirm) { OnReady();       return; }
+
+            if (kb != null)
+            {
+                bool shift = kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
+                bool ctrl  = kb.leftCtrlKey.isPressed  || kb.rightCtrlKey.isPressed;
+                bool alt    = kb.leftAltKey.isPressed   || kb.rightAltKey.isPressed;
+                int  dir   = kb.rightArrowKey.wasPressedThisFrame ?  1
+                           : kb.leftArrowKey.wasPressedThisFrame  ? -1 : 0;
+
+                if (dir != 0)
+                {
+                    if (shift)      StepNoteSpeed(dir);     // Shift+←→: ノーツ速度
+                    else if (ctrl)  StepJudgeOffset(dir);   // Ctrl+←→ : 判定オフセット
+                    else if (alt)   StepVisualOffset(dir);  // Alt+←→  : 表示オフセット
+                    else            StepDifficulty(dir);    // ←→      : 難易度
+                }
+            }
+        }
+
+        // ←→ で存在する難易度のみを循環して切り替える。
+        void StepDifficulty(int dir)
+        {
+            int i = _diffIndex;
+            for (int step = 0; step < Difficulties.Length; step++)
+            {
+                i = (i + dir + Difficulties.Length) % Difficulties.Length;
+                if (_diffAvailable[i]) { OnDifficultyClicked(i); return; }
+            }
+        }
+
         void WireButtons()
         {
             if (_difficultyButtons != null)
@@ -110,7 +156,20 @@ namespace RhythmGame.UI.Pvp
             if (_visualOffsetDown != null) _visualOffsetDown.onClick.AddListener(() => StepVisualOffset(-1));
             if (_visualOffsetUp   != null) _visualOffsetUp.onClick.AddListener(() => StepVisualOffset(+1));
             if (_readyButton      != null) _readyButton.onClick.AddListener(OnReady);
-            if (_cancelButton     != null) _cancelButton.onClick.AddListener(OnCancel);
+            if (_cancelButton     != null) _cancelButton.onClick.AddListener(RequestCancel);
+
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+                "←→: 難易度   Shift+←→: 速度   Ctrl+←→: 判定   Alt+←→: 表示   Space: READY   ESC: 辞退");
+        }
+
+        // 試合中の離脱は不戦敗。確認ダイアログを挟む。
+        void RequestCancel()
+        {
+            var pvp = Pvp;
+            if (pvp == null || !pvp.IsActive) { OnCancel(); return; }
+            RhythmGame.UI.Common.ConfirmDialog.Show(
+                "対戦を辞退しますか？（不戦敗扱い）", "辞退する", "もどる",
+                onConfirm: OnCancel);
         }
 
         async Task InitAsync()

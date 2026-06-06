@@ -85,6 +85,7 @@ public class TitleController : MonoBehaviour
         _currentIndex = 0;
         _menuItemText.text = _menus[_currentIndex].label;
         _menuItemContainer.localRotation = Quaternion.identity;
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set("←→: 項目   Space: 決定   ESC: 終了");
         StartCoroutine(PulseArrows());
     }
 
@@ -92,7 +93,7 @@ public class TitleController : MonoBehaviour
 
     private void OnNavigate(InputAction.CallbackContext ctx)
     {
-        if (_isFlipping) return;
+        if (_isFlipping || RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
         var v = ctx.ReadValue<Vector2>();
         if      (v.x >  0.5f) Flip(+1);
         else if (v.x < -0.5f) Flip(-1);
@@ -100,13 +101,13 @@ public class TitleController : MonoBehaviour
 
     private void OnSubmit(InputAction.CallbackContext ctx)
     {
-        if (_isFlipping) return;
+        if (_isFlipping || RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
         Decide();
     }
 
     private void OnCancel(InputAction.CallbackContext ctx)
     {
-        if (_isFlipping) return;
+        if (_isFlipping || RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
         ConfirmExit();
     }
 
@@ -184,6 +185,13 @@ public class TitleController : MonoBehaviour
     }
 
     private void ConfirmExit()
+    {
+        RhythmGame.UI.Common.ConfirmDialog.Show(
+            "ゲームを終了しますか？", "終了する", "もどる",
+            onConfirm: QuitGame);
+    }
+
+    private void QuitGame()
     {
         Debug.Log("[Title] EXIT");
 #if UNITY_EDITOR

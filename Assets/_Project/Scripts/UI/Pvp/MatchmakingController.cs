@@ -2,6 +2,7 @@ using System.Threading.Tasks;
 using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace RhythmGame.UI.Pvp
@@ -40,7 +41,9 @@ namespace RhythmGame.UI.Pvp
             JacketBackgroundController.Instance?.SetFallback();
 
             if (_cancelButton != null)
-                _cancelButton.onClick.AddListener(OnCancelPressed);
+                _cancelButton.onClick.AddListener(ShowCancelConfirm);
+
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set("ESC: マッチング検索をキャンセル");
 
             if (_youNameText != null)     _youNameText.text     = LocalIdentity.UserId;
             if (_opponentNameText != null) _opponentNameText.text = _opponentName;
@@ -66,6 +69,15 @@ namespace RhythmGame.UI.Pvp
 
         void Update()
         {
+            // ESC: 検索キャンセル確認ダイアログ
+            if (!RhythmGame.UI.Common.ConfirmDialog.IsOpen)
+            {
+                var kb = Keyboard.current;
+                if (kb != null && kb.escapeKey.wasPressedThisFrame) ShowCancelConfirm();
+                var pad = Gamepad.current;
+                if (pad != null && RhythmGame.Input.GamepadLayout.BackPressed(pad)) ShowCancelConfirm();
+            }
+
             if (!_animateSearch) return;
 
             _elapsed += Time.unscaledDeltaTime;
@@ -80,6 +92,14 @@ namespace RhythmGame.UI.Pvp
                 int dots = ((int)(_elapsed * 2f)) % 4;   // ~2回/秒でドットが増減
                 _statusText.text = SearchBase + new string('.', dots);
             }
+        }
+
+        // 検索キャンセルは誤操作防止のため確認ダイアログを挟む。
+        void ShowCancelConfirm()
+        {
+            RhythmGame.UI.Common.ConfirmDialog.Show(
+                "マッチング検索をやめますか？", "やめる", "つづける",
+                onConfirm: OnCancelPressed);
         }
 
         void OnCancelPressed()
@@ -100,7 +120,7 @@ namespace RhythmGame.UI.Pvp
             }
             catch { }
             if (SceneRouter.Instance != null)
-                SceneRouter.Instance.GoTo(SceneId.Title);
+                SceneRouter.Instance.GoTo(SceneId.PVPLobby);
         }
 
         async Task RunMatchmakingLoop()
@@ -210,7 +230,7 @@ namespace RhythmGame.UI.Pvp
             GUILayout.Label(_songsLine);
             GUILayout.Space(12);
             if (GUILayout.Button("Cancel"))
-                OnCancelPressed();
+                ShowCancelConfirm();
             GUILayout.EndArea();
         }
     }

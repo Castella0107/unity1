@@ -35,12 +35,34 @@ namespace RhythmGame.UI.Pvp
             ApplyToUi();
 
             if (_backToTitleButton != null)
-                _backToTitleButton.onClick.AddListener(() =>
-                {
-                    if (SceneRouter.Instance != null)
-                        SceneRouter.Instance.GoTo(SceneId.Title);
-                });
+                _backToTitleButton.onClick.AddListener(OnToTitle);
+
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+                "Space: REMATCH      Enter: TO LOBBY      ESC: TO TITLE");
         }
+
+        void Update()
+        {
+            var kb  = UnityEngine.InputSystem.Keyboard.current;
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+
+            if (kb != null)
+            {
+                if (kb.spaceKey.wasPressedThisFrame)                                          OnRematch();
+                else if (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame) OnToLobby();
+                else if (kb.escapeKey.wasPressedThisFrame)                                    OnToTitle();
+            }
+            if (pad != null)
+            {
+                if (RhythmGame.Input.GamepadLayout.ConfirmPressed(pad)) OnRematch();   // A = Space 相当
+                else if (RhythmGame.Input.GamepadLayout.BackPressed(pad)) OnToTitle();  // B = ESC 相当
+                else if (pad.buttonNorth.wasPressedThisFrame) OnToLobby();              // Y = ロビーへ
+            }
+        }
+
+        void OnToTitle()  => SceneRouter.Instance?.GoTo(SceneId.Title);
+        void OnToLobby()  => SceneRouter.Instance?.GoTo(SceneId.PVPLobby);
+        void OnRematch()  => SceneRouter.Instance?.GoTo(SceneId.Matchmaking);  // 再マッチング（試合は ResetState 済）
 
         void BuildText()
         {
@@ -151,11 +173,9 @@ namespace RhythmGame.UI.Pvp
             GUILayout.Space(8);
             GUILayout.Label(_ratings);
             GUILayout.Space(16);
-            if (GUILayout.Button("Back to Title"))
-            {
-                if (SceneRouter.Instance != null)
-                    SceneRouter.Instance.GoTo(SceneId.Title);
-            }
+            if (GUILayout.Button("REMATCH  (Space)"))  OnRematch();
+            if (GUILayout.Button("TO LOBBY  (Enter)")) OnToLobby();
+            if (GUILayout.Button("TO TITLE  (Esc)"))   OnToTitle();
             GUILayout.EndArea();
         }
     }

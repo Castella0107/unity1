@@ -117,3 +117,6 @@ InitTestScene*.unity*
 
 # Unity crash/recovery scene dumps
 /[Aa]ssets/_[Rr]ecovery/
+
+# 譜面エディタは独立リポジトリ (Tools/ChartEditor/.git)
+/Tools/

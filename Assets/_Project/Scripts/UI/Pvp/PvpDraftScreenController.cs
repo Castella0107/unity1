@@ -73,6 +73,15 @@ namespace RhythmGame.UI.Pvp
         bool  _timerActive;
         float _timeLeft;
 
+        // キーボード/パッドのカーソル選択（Selecting 中）
+        readonly List<int> _navIndices = new List<int>();   // 操作可能タイルの _tiles インデックス
+        int   _cursorPos;                                   // _navIndices 内の現在位置
+        int   _columns = 5;                                 // SongPick=5列 / BanPhase=3列
+
+        // Prematch の自動進行
+        bool  _introAuto;
+        float _introDeadline;
+
         PvpFlowController Pvp => PvpFlowController.Instance;
 
         void Start()
@@ -86,7 +95,7 @@ namespace RhythmGame.UI.Pvp
             _isBan = _phase == Phase.BanPhase;
 
             if (_primaryButton != null) _primaryButton.onClick.AddListener(OnPrimary);
-            if (_cancelButton  != null) _cancelButton.onClick.AddListener(OnCancel);
+            if (_cancelButton  != null) _cancelButton.onClick.AddListener(RequestCancel);
 
             // タイルのクリックを index で配線
             if (_tiles != null)
@@ -139,6 +148,10 @@ namespace RhythmGame.UI.Pvp
                     if (_infoText   != null) _infoText.text   = "BEST OF 3     3 SONGS x 5 SECTORS";
                     if (_statusText != null) _statusText.text = "Ready when you are.";
                     SetPrimary("TO SONG PICK", true);
+                    // READY 不要: 導入演出後に自動で PICK へ（Space/Enter で即スキップ可）。
+                    _introAuto     = true;
+                    _introDeadline = Time.time + 2.5f;
+                    RhythmGame.UI.Common.ShortcutHintOverlay.Set("まもなく PICK へ…    Space: すぐ進む    ESC: 辞退");
                     break;
 
                 case Phase.SongPick:
@@ -147,6 +160,9 @@ namespace RhythmGame.UI.Pvp
                         _infoText.text = _isBan
                             ? "Ban 1 of the 3 candidates. Lowest survivor becomes song 3."
                             : "Pick 1 song from the season pool (20).";
+                    _columns = _isBan ? 3 : 5;
+                    RhythmGame.UI.Common.ShortcutHintOverlay.Set(
+                        "矢印: 選択    Space/Enter: ロック / 次へ    ESC: 辞退（不戦敗）");
                     await DraftFlowAsync();
                     break;
             }
@@ -199,7 +215,29 @@ namespace RhythmGame.UI.Pvp
             _timerActive = SelectSeconds > 0f;
             if (!_timerActive && _timerText != null) _timerText.text = "";
 
+            // キーボード/パッド用カーソルの対象（操作可能タイル）を収集し、先頭にカーソルを置く。
+            _navIndices.Clear();
+            if (_tiles != null)
+                for (int i = 0; i < _tiles.Length; i++)
+                    if (_tiles[i] != null && !string.IsNullOrEmpty(_tiles[i].SongId))
+                        _navIndices.Add(i);
+            _cursorPos = 0;
+            // 事前選択はしない（未選択のままタイムアウトしたら AutoLock がランダム選択する仕様を維持）。
+
             UpdateLockStatus();
+        }
+
+        // 矢印/パッドでカーソルを移動し、移動先タイルを仮選択する。
+        void MoveCursor(int dx, int dy)
+        {
+            if (_step != Step.Selecting || _navIndices.Count == 0) return;
+            int pos = _cursorPos;
+            if (dx != 0) pos += dx;
+            if (dy != 0) pos += dy * _columns;
+            pos = Mathf.Clamp(pos, 0, _navIndices.Count - 1);
+            if (pos == _cursorPos) return;
+            _cursorPos = pos;
+            OnTileClicked(_navIndices[_cursorPos]);
         }
 
         void OnTileClicked(int index)
@@ -515,6 +553,16 @@ namespace RhythmGame.UI.Pvp
         // ── タイマー ─────────────────────────────────────────────────────────────
         void Update()
         {
+            HandleInput();
+
+            // Prematch: 導入演出後に自動で PICK へ
+            if (_step == Step.Intro && _introAuto && Time.time >= _introDeadline)
+            {
+                _introAuto = false;
+                OnPrimary();
+                return;
+            }
+
             if (!_timerActive || _step != Step.Selecting) return;
             _timeLeft -= Time.unscaledDeltaTime;
             if (_timerText != null)
@@ -546,7 +594,63 @@ namespace RhythmGame.UI.Pvp
             if (!string.IsNullOrEmpty(_selectedSongId)) _ = LockInAsync();
         }
 
-        // ── キャンセル ───────────────────────────────────────────────────────────
+        // ── 入力（キーボード / ゲームパッド）───────────────────────────────────────
+        void HandleInput()
+        {
+            if (RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+
+            var kb  = UnityEngine.InputSystem.Keyboard.current;
+            var pad = UnityEngine.InputSystem.Gamepad.current;
+
+            bool confirm = (kb != null && (kb.spaceKey.wasPressedThisFrame
+                                        || kb.enterKey.wasPressedThisFrame
+                                        || kb.numpadEnterKey.wasPressedThisFrame))
+                        || (pad != null && RhythmGame.Input.GamepadLayout.ConfirmPressed(pad));
+            bool back    = (kb != null && kb.escapeKey.wasPressedThisFrame)
+                        || (pad != null && RhythmGame.Input.GamepadLayout.BackPressed(pad));
+
+            if (back) { RequestCancel(); return; }
+
+            if (_step == Step.Selecting)
+            {
+                if (kb != null)
+                {
+                    if (kb.leftArrowKey.wasPressedThisFrame)  MoveCursor(-1, 0);
+                    if (kb.rightArrowKey.wasPressedThisFrame) MoveCursor(+1, 0);
+                    if (kb.upArrowKey.wasPressedThisFrame)    MoveCursor(0, -1);
+                    if (kb.downArrowKey.wasPressedThisFrame)  MoveCursor(0, +1);
+                }
+                if (pad != null)
+                {
+                    if (pad.dpad.left.wasPressedThisFrame)  MoveCursor(-1, 0);
+                    if (pad.dpad.right.wasPressedThisFrame) MoveCursor(+1, 0);
+                    if (pad.dpad.up.wasPressedThisFrame)     MoveCursor(0, -1);
+                    if (pad.dpad.down.wasPressedThisFrame)   MoveCursor(0, +1);
+                }
+                if (confirm)
+                {
+                    // 未選択で確定したらカーソル位置のタイルを選択してからロック。
+                    if (string.IsNullOrEmpty(_selectedSongId) && _navIndices.Count > 0)
+                        OnTileClicked(_navIndices[_cursorPos]);
+                    OnPrimary();
+                }
+            }
+            else if (_step == Step.Intro || _step == Step.Reveal || _step == Step.NoMatch)
+            {
+                if (confirm) { _introAuto = false; OnPrimary(); }
+            }
+        }
+
+        // ── キャンセル / 辞退 ───────────────────────────────────────────────────────
+        // 試合成立後の離脱は不戦敗。確認ダイアログを挟む（NoMatch 時は単に Title へ）。
+        void RequestCancel()
+        {
+            if (_step == Step.NoMatch) { OnCancel(); return; }
+            RhythmGame.UI.Common.ConfirmDialog.Show(
+                "対戦を辞退しますか？（不戦敗扱い）", "辞退する", "もどる",
+                onConfirm: OnCancel);
+        }
+
         void OnCancel()
         {
             var pvp = Pvp;

@@ -67,27 +67,104 @@ public sealed class EditorState
         _nextNoteId = max + 1;
     }
 
-    // ── Snap helpers ────────────────────────────────────────────────────────
+    // ── Snap helpers (tempo-map aware) ───────────────────────────────────────
 
     /// <summary>
-    /// BPMとSnap分母から1スナップ単位(ms)を返す。
+    /// BPM 区間 (テンポマップの1セグメント)。StartMs を起点に Bpm の拍格子が貼られる。
+    /// </summary>
+    public readonly struct BpmSegment
+    {
+        /// <summary>区間開始時刻(ms)。拍/小節格子の起点。</summary>
+        public readonly double StartMs;
+        /// <summary>この区間の BPM。</summary>
+        public readonly double Bpm;
+        public BpmSegment(double startMs, double bpm) { StartMs = startMs; Bpm = bpm; }
+    }
+
+    /// <summary>
+    /// Chart.Events の "bpm" イベントから、時刻昇順の BPM 区間列を構築する。
+    /// 先頭区間は ChartOffsetMs (Beat1) を起点に基準 BPM。ChartOffsetMs より後の
+    /// bpm イベントごとに新しい区間が始まり、その時刻が拍/小節の格子起点になる
+    /// (= BPM変化点で格子を貼り直す)。
+    /// </summary>
+    public List<BpmSegment> BuildBpmSegments()
+    {
+        var segs = new List<BpmSegment>();
+
+        // 基準 BPM: ChartOffsetMs 以前にある最後の bpm イベント、無ければ this.Bpm。
+        double baseBpm = Bpm > 0.0 ? Bpm : 120.0;
+        List<TempoEvent> bpmEvents = null;
+        if (Chart != null && Chart.Events != null)
+        {
+            bpmEvents = new List<TempoEvent>();
+            for (int i = 0; i < Chart.Events.Count; i++)
+            {
+                var e = Chart.Events[i];
+                if (e != null && e.Type == "bpm" && e.Bpm > 0.0) bpmEvents.Add(e);
+            }
+            bpmEvents.Sort((a, b) => a.TimeMs.CompareTo(b.TimeMs));
+            for (int i = 0; i < bpmEvents.Count; i++)
+                if (bpmEvents[i].TimeMs <= ChartOffsetMs + 0.001) baseBpm = bpmEvents[i].Bpm;
+        }
+
+        segs.Add(new BpmSegment(ChartOffsetMs, baseBpm));
+        if (bpmEvents != null)
+        {
+            for (int i = 0; i < bpmEvents.Count; i++)
+            {
+                var e = bpmEvents[i];
+                if (e.TimeMs <= ChartOffsetMs + 0.001) continue;   // 基準として消化済み
+                var last = segs[segs.Count - 1];
+                if (Math.Abs(e.TimeMs - last.StartMs) < 0.001)
+                    segs[segs.Count - 1] = new BpmSegment(e.TimeMs, e.Bpm);   // 同時刻重複は最後を採用
+                else
+                    segs.Add(new BpmSegment(e.TimeMs, e.Bpm));
+            }
+        }
+        return segs;
+    }
+
+    /// <summary>指定時刻が属する BPM 区間を返す。</summary>
+    public BpmSegment SegmentAt(double timeMs)
+    {
+        var segs = BuildBpmSegments();
+        var cur = segs[0];
+        for (int i = 0; i < segs.Count; i++)
+        {
+            if (timeMs >= segs[i].StartMs - 0.001) cur = segs[i];
+            else break;
+        }
+        return cur;
+    }
+
+    /// <summary>指定時刻における実効 BPM を返す。</summary>
+    public double LocalBpmAt(double timeMs) => SegmentAt(timeMs).Bpm;
+
+    /// <summary>
+    /// 指定時刻におけるスナップ単位(ms)。その時刻の区間 BPM を用いる。
     /// 記譜規約: 1/N = 全音符の 1/N (= 4/4 における 4 拍を SnapDenominator で分割)。
     /// 例: SnapDenominator=4 → 四分音符 = 1拍、=16 → 十六分音符 = 1/4拍、=12 → 三連 = 1/3拍。
     /// </summary>
-    public double SnapStepMs()
+    public double SnapStepMsAt(double timeMs)
     {
-        if (Bpm <= 0.0) return 0.0;
-        double beatMs = 60000.0 / Bpm;
+        double bpm = LocalBpmAt(timeMs);
+        if (bpm <= 0.0) return 0.0;
+        double beatMs = 60000.0 / bpm;
         return (4.0 * beatMs) / SnapDenominator;
     }
 
-    /// <summary>任意の時刻を最も近いスナップ位置に丸める。</summary>
+    /// <summary>現在ヘッド時刻におけるスナップ単位(ms)。</summary>
+    public double SnapStepMs() => SnapStepMsAt(CurrentTimeMs);
+
+    /// <summary>任意の時刻を、その区間の格子に沿って最寄りのスナップ位置へ丸める。</summary>
     public double SnapTime(double timeMs)
     {
-        double step = SnapStepMs();
+        var seg = SegmentAt(timeMs);
+        if (seg.Bpm <= 0.0) return timeMs;
+        double step = (4.0 * (60000.0 / seg.Bpm)) / SnapDenominator;
         if (step <= 0.0) return timeMs;
-        double rel = timeMs - ChartOffsetMs;
-        double snapped = Math.Round(rel / step) * step + ChartOffsetMs;
+        double rel = timeMs - seg.StartMs;
+        double snapped = Math.Round(rel / step) * step + seg.StartMs;
         if (snapped < 0.0) snapped = 0.0;
         if (snapped > AudioDurationMs) snapped = AudioDurationMs;
         return snapped;
