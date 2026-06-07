@@ -19,8 +19,19 @@ public static class BuildPvpStandalone
     [MenuItem("Tools/PVP/Build (Win64)")]
     public static void BuildWin64Menu() => BuildWin64();
 
+    /// <summary>開発ビルド (Development、出力先 Build/PVP-dev)。クラッシュ調査用。</summary>
+    [MenuItem("Tools/PVP/Build Dev (Win64)")]
+    public static void BuildWin64Dev() => Build(BuildOptions.Development, "PVP-dev");
+
     /// <summary>PVP本体の Windows64 スタンドアロンをビルドする(batch: -executeMethod BuildPvpStandalone.BuildWin64)。</summary>
     public static void BuildWin64()
+    {
+        string ver = PlayerSettings.bundleVersion;
+        if (string.IsNullOrEmpty(ver)) ver = "0.0.0";
+        Build(BuildOptions.None, $"{ProductName}-{ver}");
+    }
+
+    static void Build(BuildOptions buildOptions, string folderName)
     {
         var scenes = CollectEnabledScenes();
         if (scenes.Length == 0)
@@ -30,9 +41,7 @@ public static class BuildPvpStandalone
             return;
         }
 
-        string ver = PlayerSettings.bundleVersion;
-        if (string.IsNullOrEmpty(ver)) ver = "0.0.0";
-        string outDir = Path.Combine(Directory.GetCurrentDirectory(), "Build", $"{ProductName}-{ver}");
+        string outDir = Path.Combine(Directory.GetCurrentDirectory(), "Build", folderName);
         Directory.CreateDirectory(outDir);
         string outExe = Path.Combine(outDir, ExeName);
 
@@ -42,7 +51,7 @@ public static class BuildPvpStandalone
             locationPathName = outExe,
             target           = BuildTarget.StandaloneWindows64,
             targetGroup      = BuildTargetGroup.Standalone,
-            options          = BuildOptions.None,
+            options          = buildOptions,
         };
 
         Debug.Log($"[Build] Output: {outExe}");

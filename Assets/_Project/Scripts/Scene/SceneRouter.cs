@@ -76,6 +76,38 @@ public class SceneRouter : MonoBehaviour
         StartCoroutine(GoToRoutine(target, parameters ?? EmptyParameters.Instance, style));
     }
 
+    // ── デバッグ: --goto-after-title=<SceneId名> ─────────────────────────────
+    // 通常起動 (Login→Title) を経てから対象シーンへ自動遷移する。
+    // ビルド限定クラッシュの再現用 (実フロー: Title の描画・フォント・アンロードを経由させる)。
+    SceneId? _debugGotoAfterTitle;
+    float    _debugGotoTimer;
+    bool     _debugGotoParsed;
+
+    void Update()
+    {
+        if (!_debugGotoParsed)
+        {
+            _debugGotoParsed = true;
+            foreach (var a in System.Environment.GetCommandLineArgs())
+            {
+                if (!a.StartsWith("--goto-after-title=")) continue;
+                if (System.Enum.TryParse<SceneId>(a.Substring("--goto-after-title=".Length), true, out var id))
+                    _debugGotoAfterTitle = id;
+            }
+        }
+        if (_debugGotoAfterTitle.HasValue && CurrentScene == SceneId.Title && !_isTransitioning)
+        {
+            _debugGotoTimer += Time.unscaledDeltaTime;
+            if (_debugGotoTimer >= 2f)   // Title を 2 秒描画させてから遷移
+            {
+                var target = _debugGotoAfterTitle.Value;
+                _debugGotoAfterTitle = null;
+                Debug.Log("[SceneRouter] Debug goto-after-title → " + target);
+                GoTo(target);
+            }
+        }
+    }
+
     /// <summary>
     /// 進行中の遷移が終わってから指定シーンへ遷移する。
     /// シーン Start 直後の非同期処理(即マッチ成立・自動ログイン等)が前の遷移と競合して

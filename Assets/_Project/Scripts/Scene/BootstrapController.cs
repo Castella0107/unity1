@@ -63,12 +63,18 @@ public class BootstrapController : MonoBehaviour
 
         // Navigate to Title or directly to GamePlay (TestPlay CLI: --chart <path> [--difficulty <diff>])
         var testPlayParams = TryBuildTestPlayParams();
+        var gotoScene      = TryParseGotoArg();   // デバッグ: --goto=<SceneId名> で直行
         if (testPlayParams != null)
         {
             Debug.Log("[Bootstrap] TestPlay mode: --chart=" + ChartLoader.OverrideBasePath
                       + " songId=" + testPlayParams.SongId
                       + " difficulty=" + testPlayParams.Difficulty);
             SceneRouter.Instance.GoTo(SceneId.GamePlay, testPlayParams, TransitionStyle.None);
+        }
+        else if (gotoScene.HasValue)
+        {
+            Debug.Log("[Bootstrap] Debug goto: --goto=" + gotoScene.Value);
+            SceneRouter.Instance.GoTo(gotoScene.Value, null, TransitionStyle.None);
         }
         else
         {
@@ -85,6 +91,21 @@ public class BootstrapController : MonoBehaviour
 
         // Bootstrap can now be safely unloaded (Title is the active scene)
         SceneManager.UnloadSceneAsync("Bootstrap");
+    }
+
+    // デバッグ起動引数 --goto=<SceneId名> を解析する (例: PVP.exe --goto=Config)。
+    // ビルドのみで再現する画面クラッシュの切り分け用。無効値は通常起動。
+    static SceneId? TryParseGotoArg()
+    {
+        var args = System.Environment.GetCommandLineArgs();
+        foreach (var a in args)
+        {
+            if (!a.StartsWith("--goto=")) continue;
+            string name = a.Substring("--goto=".Length);
+            if (System.Enum.TryParse<SceneId>(name, true, out var id)) return id;
+            Debug.LogWarning("[Bootstrap] --goto: 不明なシーン名 " + name);
+        }
+        return null;
     }
 
     // ── TestPlay CLI ──────────────────────────────────────────────────────────
