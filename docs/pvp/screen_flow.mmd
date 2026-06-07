@@ -8,6 +8,8 @@ flowchart TD
     Hist["History<br/>(戦績・リプレイ)"]
     Conf["Config<br/>(7タブ設定)"]
     Replay["GamePlay (リプレイ再生)"]
+    PData["プレイヤーデータ<br/>(ポップアップ)"]
+    Rank["楽曲別ランキング<br/>(選択曲のランキング)"]
 
     Lobby["PVPLobby<br/>(オンラインロビー)"]
     MM["Matchmaking<br/>(検索 → MATCH FOUND)"]
@@ -40,17 +42,24 @@ flowchart TD
     Result -->|ESC=タイトル| Title
     SongSel -.->|ESC| Title
 
+    SongSel -->|プレイヤーデータをクリック| PData
+    PData -.->|閉じる| SongSel
+    SongSel -->|R=ランキング| Rank
+    Rank -.->|ESC| SongSel
+
     Hist -->|Submit=リプレイ| Replay --> Hist
     Hist -.->|ESC| Title
-    Conf -.->|ESC| Title
+    SongSel -.->|F2=Config| Conf
+    Lobby -.->|F2=Config| Conf
+    Conf -.->|ESC=呼び出し元へ戻る| Title
 
     Lobby -->|Space=START| MM
     MM -->|MATCH FOUND（自動）| Pre
     Pre -->|自動| Pick
     Pick -->|両者 PICK 確定| Ban
     Ban -->|Space=START MATCH| Loop
-    Loop -->|3曲完走| End
-    Loop -. "2曲目後に8pt到達" .-> End
+    Loop -->|3曲目完了| End
+    Loop -. "2曲目後に8pt到達（クリンチ）" .-> End
 
     Lobby -.->|ESC| Title
     MM -.->|ESC=キャンセル確認| Lobby
@@ -65,5 +74,5 @@ flowchart TD
 
     classDef solo fill:#143,stroke:#2BD9E6,color:#fff;
     classDef pvp  fill:#413,stroke:#F7C740,color:#fff;
-    class SongSel,PlayS,Result,Hist,Conf,Replay solo;
+    class SongSel,PlayS,Result,Hist,Conf,Replay,PData,Rank solo;
     class Lobby,MM,Pre,Pick,Ban,Setup,PlayP,SongRes,End pvp;
