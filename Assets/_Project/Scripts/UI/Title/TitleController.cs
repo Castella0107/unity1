@@ -1,29 +1,32 @@
-using System;
 using System.Collections;
+using System.Threading.Tasks;
+using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.SceneManagement;
-using UnityEngine.UI;
 
 /// <summary>
-/// カルーセル形式のタイトルメニューを管理するコントローラー。
-/// ← / →（A/D / 矢印キー）で Y 軸カードフリップアニメーション付きのメニュー切り替え、Enter / Space で決定、Esc でキャンセル / 終了を行う。
+/// タイトル画面コントローラー (ユーザー提供モック準拠の縦メニュー形式、2026-06-07 リデザイン)。
+/// レイアウト: 左上=タイトルロゴ / 左下=縦メニュー(選択中は拡大+エンブレム+説明文) / 右上=プレイヤーチップ。
+/// 背景は BGA 未制作のため真っ暗(プレースホルダー)。
+/// ↑↓(W/S)で項目移動、Space/Enter で決定、ESC で終了確認。
 /// </summary>
-// Carousel-style Title menu.
-// ← / → (A/D / Arrow keys) flips between menu items with a Y-axis card-flip animation.
-// Enter / Space: decide.  Esc: cancel / exit.
 public class TitleController : MonoBehaviour
 {
-    [Header("Menu")]
-    [SerializeField] RectTransform   _menuItemContainer;
-    [SerializeField] TextMeshProUGUI _menuItemText;
-    [SerializeField] TextMeshProUGUI _arrowLeft;
-    [SerializeField] TextMeshProUGUI _arrowRight;
+    [Header("Menu (baked-in 5 items)")]
+    [SerializeField] TextMeshProUGUI[] _itemLabels;   // 項目ラベル
+    [SerializeField] TextMeshProUGUI[] _itemDescs;    // 選択中のみ表示する説明文
+    [SerializeField] GameObject[]      _itemIcons;    // 選択中エンブレム(◉+✦)
+    [SerializeField] GameObject[]      _itemDots;     // 非選択の小ドット
 
-    [Header("Animation")]
-    [SerializeField] float           _flipDuration = 0.35f;
-    [SerializeField] AnimationCurve  _flipCurve    = AnimationCurve.EaseInOut(0, 0, 1, 1);
+    [Header("History 子メニュー (Ladder Match / Free Play)")]
+    [SerializeField] GameObject        _childRoot;     // 子ボタン列のルート(初期非表示)
+    [SerializeField] TextMeshProUGUI[] _childLabels;
+    [SerializeField] TextMeshProUGUI[] _childDescs;
+
+    [Header("Player Chip (右上)")]
+    [SerializeField] TextMeshProUGUI _playerNameText;
+    [SerializeField] TextMeshProUGUI _playerRatingText;
 
     [Header("Input")]
     [SerializeField] InputActionAsset _inputAsset;
@@ -32,18 +35,32 @@ public class TitleController : MonoBehaviour
     /// <summary>タイトルメニューの項目種別を表す列挙型。</summary>
     private enum MenuId { FreePlay, Online, Config, History, Exit }
 
-    private static readonly (MenuId id, string label)[] _menus =
+    private static readonly (MenuId id, string label, string desc)[] _menus =
     {
-        (MenuId.FreePlay, "FREE PLAY"),
-        (MenuId.Online,   "ONLINE"),
-        (MenuId.Config,   "CONFIG"),
-        (MenuId.History,  "HISTORY"),
-        (MenuId.Exit,     "EXIT"),
+        (MenuId.FreePlay, "Free Play", "ソロでお好きな曲をプレイするモードです。"),
+        (MenuId.Online,   "Online",    "オンライン対戦(RANKED MATCH)のロビーへ進みます。"),
+        (MenuId.Config,   "Config",    "ゲームの各種設定を変更します。"),
+        (MenuId.History,  "History",   "戦績とリプレイを確認します。(→ で種類を選択)"),
+        (MenuId.Exit,     "Exit",      "ゲームを終了します。"),
     };
+
+    // History の子ボタン (モック準拠: 親の右に展開する子メニュー)。
+    // mode は HistoryParameters.Mode に渡す ("Ladder" / "Free")。
+    private static readonly (string label, string desc, string mode)[] _historyChildren =
+    {
+        ("Ladder Match", "ラダーマッチ(オンライン対戦)の履歴とリプレイを確認します。", "Ladder"),
+        ("Free Play",    "フリープレイ(ソロ)のベスト記録とリプレイを確認します。",     "Free"),
+    };
+
+    static readonly Color SelectedColor   = Color.white;
+    static readonly Color UnselectedColor = new Color(1f, 1f, 1f, 0.45f);
+    const float SelectedFontSize   = 36f;
+    const float UnselectedFontSize = 26f;
 
     // ── State ──────────────────────────────────────────────────────────────
     private int  _currentIndex;
-    private bool _isFlipping;
+    private bool _inSubmenu;
+    private int  _childIndex;
 
     // ── Input Actions ──────────────────────────────────────────────────────
     private InputAction _navigateAction;
@@ -81,76 +98,161 @@ public class TitleController : MonoBehaviour
 
     private void Start()
     {
-        JacketBackgroundController.Instance?.SetFallback();
+        // BGA 未制作のため背景は真っ暗のまま (JacketBackground は出さない)
+        JacketBackgroundController.Instance?.SetCanvasEnabled(false);
+
+        // ラベル/説明文はコントローラーのデータが正本 (シーンは空テキストで焼かれる)
+        for (int i = 0; i < _menus.Length; i++)
+        {
+            if (_itemLabels != null && i < _itemLabels.Length && _itemLabels[i] != null)
+                _itemLabels[i].text = _menus[i].label;
+            if (_itemDescs != null && i < _itemDescs.Length && _itemDescs[i] != null)
+                _itemDescs[i].text = _menus[i].desc;
+        }
+        for (int i = 0; i < _historyChildren.Length; i++)
+        {
+            if (_childLabels != null && i < _childLabels.Length && _childLabels[i] != null)
+                _childLabels[i].text = _historyChildren[i].label;
+            if (_childDescs != null && i < _childDescs.Length && _childDescs[i] != null)
+                _childDescs[i].text = _historyChildren[i].desc;
+        }
+        if (_childRoot != null) _childRoot.SetActive(false);
+
+        if (_playerNameText != null) _playerNameText.text = LocalIdentity.UserId;
+        if (_playerRatingText != null) _playerRatingText.text = "RATING ----";
+        _ = LoadPlayerRatingAsync();
+
         _currentIndex = 0;
-        _menuItemText.text = _menus[_currentIndex].label;
-        _menuItemContainer.localRotation = Quaternion.identity;
-        RhythmGame.UI.Common.ShortcutHintOverlay.Set("←→: 項目   Space: 決定   ESC: 終了");
-        StartCoroutine(PulseArrows());
+        RefreshSelection();
+
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set("↑↓: 項目   Space: 決定   ESC: 終了");
+        StartCoroutine(PulseSelectedIcon());
+    }
+
+    async Task LoadPlayerRatingAsync()
+    {
+        var net = NetworkClient.Instance;
+        if (net == null || _playerRatingText == null) return;
+        var r = await net.FetchPvpUserStatsAsync(LocalIdentity.UserId);
+        if (this == null || _playerRatingText == null) return;
+        if (r.Ok && r.Body != null)
+            _playerRatingText.text = $"RATING {r.Body.rating:F0}";
     }
 
     // ── Input callbacks ────────────────────────────────────────────────────
 
     private void OnNavigate(InputAction.CallbackContext ctx)
     {
-        if (_isFlipping || RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+        if (RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
         var v = ctx.ReadValue<Vector2>();
-        if      (v.x >  0.5f) Flip(+1);
-        else if (v.x < -0.5f) Flip(-1);
+
+        if (_inSubmenu)
+        {
+            // 子メニュー内: ↑↓=子選択 / ←=親に戻る
+            if      (v.y >  0.5f) MoveChild(-1);
+            else if (v.y < -0.5f) MoveChild(+1);
+            else if (v.x < -0.5f) CloseSubmenu();
+            return;
+        }
+
+        if      (v.y >  0.5f) Move(-1);   // 上
+        else if (v.y < -0.5f) Move(+1);   // 下
+        else if (v.x >  0.5f && _menus[_currentIndex].id == MenuId.History)
+            OpenSubmenu();                // → で子メニュー展開 (History のみ)
     }
 
     private void OnSubmit(InputAction.CallbackContext ctx)
     {
-        if (_isFlipping || RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+        if (RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+        if (_inSubmenu) { DecideChild(); return; }
         Decide();
     }
 
     private void OnCancel(InputAction.CallbackContext ctx)
     {
-        if (_isFlipping || RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+        if (RhythmGame.UI.Common.ConfirmDialog.IsOpen) return;
+        if (_inSubmenu) { CloseSubmenu(); return; }
         ConfirmExit();
     }
 
-    // ── Flip animation ─────────────────────────────────────────────────────
+    // ── Selection ──────────────────────────────────────────────────────────
 
-    private void Flip(int direction)
+    private void Move(int dir)
     {
-        StartCoroutine(FlipRoutine(direction));
+        _currentIndex = (_currentIndex + dir + _menus.Length) % _menus.Length;
+        RefreshSelection();
     }
 
-    private IEnumerator FlipRoutine(int direction)
+    private void RefreshSelection()
     {
-        _isFlipping = true;
-        float half = _flipDuration * 0.5f;
-
-        // First half: rotate 0 → ±90°
-        float t = 0f;
-        while (t < half)
+        for (int i = 0; i < _menus.Length; i++)
         {
-            t += Time.deltaTime;
-            float k     = _flipCurve.Evaluate(Mathf.Clamp01(t / half));
-            float angle = direction > 0 ? Mathf.Lerp(0f, -90f, k) : Mathf.Lerp(0f, 90f, k);
-            _menuItemContainer.localRotation = Quaternion.Euler(0f, angle, 0f);
-            yield return null;
+            bool sel = i == _currentIndex;
+            if (_itemLabels != null && i < _itemLabels.Length && _itemLabels[i] != null)
+            {
+                _itemLabels[i].fontSize  = sel ? SelectedFontSize : UnselectedFontSize;
+                _itemLabels[i].color     = sel ? SelectedColor : UnselectedColor;
+                _itemLabels[i].fontStyle = sel ? FontStyles.Bold : FontStyles.Normal;
+            }
+            // 説明文は半透明黒帯(DescBg=親GO)ごと切り替える
+            if (_itemDescs != null && i < _itemDescs.Length && _itemDescs[i] != null)
+                _itemDescs[i].transform.parent.gameObject.SetActive(sel && !_inSubmenu);
+            if (_itemIcons != null && i < _itemIcons.Length && _itemIcons[i] != null)
+                _itemIcons[i].SetActive(sel);
+            if (_itemDots != null && i < _itemDots.Length && _itemDots[i] != null)
+                _itemDots[i].SetActive(!sel);
         }
+    }
 
-        // Swap text at the folded-away point
-        _currentIndex = (_currentIndex + direction + _menus.Length) % _menus.Length;
-        _menuItemText.text = _menus[_currentIndex].label;
+    // ── History 子メニュー ──────────────────────────────────────────────────
 
-        // Second half: rotate ∓90° → 0 (unfold from the other side)
-        t = 0f;
-        while (t < half)
+    private void OpenSubmenu()
+    {
+        _inSubmenu  = true;
+        _childIndex = 0;
+        if (_childRoot != null) _childRoot.SetActive(true);
+        RefreshSelection();        // 親の説明文を隠す
+        RefreshChildSelection();
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set("↑↓: 種類   Space: 決定   ESC / ←: 戻る");
+    }
+
+    private void CloseSubmenu()
+    {
+        _inSubmenu = false;
+        if (_childRoot != null) _childRoot.SetActive(false);
+        RefreshSelection();        // 親の説明文を戻す
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set("↑↓: 項目   Space: 決定   ESC: 終了");
+    }
+
+    private void MoveChild(int dir)
+    {
+        _childIndex = (_childIndex + dir + _historyChildren.Length) % _historyChildren.Length;
+        RefreshChildSelection();
+    }
+
+    private void RefreshChildSelection()
+    {
+        for (int i = 0; i < _historyChildren.Length; i++)
         {
-            t += Time.deltaTime;
-            float k     = _flipCurve.Evaluate(Mathf.Clamp01(t / half));
-            float angle = direction > 0 ? Mathf.Lerp(90f, 0f, k) : Mathf.Lerp(-90f, 0f, k);
-            _menuItemContainer.localRotation = Quaternion.Euler(0f, angle, 0f);
-            yield return null;
+            bool sel = i == _childIndex;
+            if (_childLabels != null && i < _childLabels.Length && _childLabels[i] != null)
+            {
+                _childLabels[i].fontSize  = sel ? 28f : 22f;
+                _childLabels[i].color     = sel ? SelectedColor : UnselectedColor;
+                _childLabels[i].fontStyle = sel ? FontStyles.Bold : FontStyles.Normal;
+            }
+            if (_childDescs != null && i < _childDescs.Length && _childDescs[i] != null)
+                _childDescs[i].transform.parent.gameObject.SetActive(sel);
         }
+    }
 
-        _menuItemContainer.localRotation = Quaternion.identity;
-        _isFlipping = false;
+    private void DecideChild()
+    {
+        if (SceneRouter.Instance == null) return;
+        SceneRouter.Instance.GoTo(SceneId.History, new HistoryParameters
+        {
+            Mode = _historyChildren[_childIndex].mode,
+        });
     }
 
     // ── Decision ───────────────────────────────────────────────────────────
@@ -176,7 +278,7 @@ public class TitleController : MonoBehaviour
                 SceneRouter.Instance.GoTo(SceneId.Config);
                 break;
             case MenuId.History:
-                SceneRouter.Instance.GoTo(SceneId.History);
+                OpenSubmenu();   // 子ボタン (Ladder Match / Free Play) を展開
                 break;
             case MenuId.Exit:
                 ConfirmExit();
@@ -201,17 +303,22 @@ public class TitleController : MonoBehaviour
 #endif
     }
 
-    // ── Arrow pulse animation ──────────────────────────────────────────────
+    // ── Selected icon pulse ────────────────────────────────────────────────
 
-    private IEnumerator PulseArrows()
+    private IEnumerator PulseSelectedIcon()
     {
         while (true)
         {
-            float alpha = Mathf.Lerp(0.4f, 1.0f, (Mathf.Sin(Time.time * 3f) + 1f) * 0.5f);
-            Color c = _arrowLeft.color;
-            c.a = alpha;
-            _arrowLeft.color  = c;
-            _arrowRight.color = c;
+            if (_itemIcons != null && _currentIndex < _itemIcons.Length && _itemIcons[_currentIndex] != null)
+            {
+                float alpha = Mathf.Lerp(0.55f, 1.0f, (Mathf.Sin(Time.time * 3f) + 1f) * 0.5f);
+                foreach (var g in _itemIcons[_currentIndex].GetComponentsInChildren<UnityEngine.UI.Graphic>())
+                {
+                    var c = g.color;
+                    c.a = alpha;
+                    g.color = c;
+                }
+            }
             yield return null;
         }
     }

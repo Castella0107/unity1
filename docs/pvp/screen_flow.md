@@ -44,7 +44,7 @@ flowchart TD
     SongSel["SongSelect<br/>(選曲・難易度・速度)"]
     PlayS["GamePlay (ソロ)<br/>(ESC=ポーズ)"]
     Result["Result<br/>(スコア / リトライ)"]
-    Hist["History<br/>(戦績・リプレイ)"]
+    Hist["History<br/>(Ladder/Free 固定モードの独立表示)"]
     Conf["Config<br/>(5タブ設定・未保存変更は確認)"]
     Replay["GamePlay (リプレイ再生)"]
     PData["プレイヤーデータ<br/>(ポップアップ)"]
@@ -74,7 +74,7 @@ flowchart TD
     Title -->|FREE PLAY| SongSel
     Title -->|ONLINE| Lobby
     Title -->|CONFIG| Conf
-    Title -->|HISTORY| Hist
+    Title -->|"HISTORY → 子選択 (Ladder Match / Free Play)"| Hist
     Title -->|EXIT / ESC| Exit(("終了"))
 
     SongSel -->|Space=Play| PlayS --> Result
@@ -129,13 +129,13 @@ flowchart TD
 
 | 画面 | 移動・選択 | 決定 / 前進 | ESC | その他ショートカット | ボタン |
 |---|---|---|---|---|---|
-| **Title** | ←→ / A D：項目送り (済) | Space / Enter：決定 (済) | **終了確認ダイアログ** (新, 現状は即終了) | — | FREE PLAY / ONLINE / CONFIG / HISTORY / EXIT |
+| **Title** | **↑↓ / W S：項目選択 (済・2026-06-07 縦メニュー化)** | Space / Enter：決定 (済) | 終了確認ダイアログ (済)／**子メニュー中は親に戻る (済)** | **History 選択中 → / Space＝子メニュー展開（Ladder Match / Free Play）(済)** | Free Play / Online / Config / History(子2) / Exit |
 | **SongSelect** | ↑↓：曲選択 (済) / ←→：難易度 (済) | **Space** / Enter：Play (済) | Title へ戻る (済) | **HiSpeed = `[` / `]`（±0.5）(済)** / **Modifier 切替キー (済)** / F4：ソート (済) / **F2：Config (済)** / **R：楽曲別ランキング (済)** / **プレイヤーデータをクリック：ポップアップ (済)** / **O：PLAY OPTIONS（簡易コンフィグポップアップ）(済 2026-06-07)** | 難易度4種 / Play / Back / HiSpeed / Offset / Modifier / プレイヤーデータ / ランキング |
 | **プレイヤーデータ（ポップアップ）(新)** | — | — | 閉じる → SongSelect | クリック（閉じるボタン / 領域外）でも閉じる | 閉じる |
 | **楽曲別ランキング (新)** | ↑↓：ランキングスクロール | — | SongSelect へ戻る | 選択中の曲のランキングを表示 | Back |
 | **GamePlay (ソロ)** | (ポーズ時) ↑↓ / W S (済) | (ポーズ時) Enter (済) | **ポーズ ON/OFF** (済) | — | (ポーズ) Resume / Restart / Quit |
 | **Result** | — | **Space＝リトライ (新)** | **タイトルへ (新)** | **Enter＝選曲へ (新)** ／ R・S・T は**廃止**、下部に操作説明を表示 | リトライ / 選曲へ / タイトル |
-| **History** | ↑↓：行 (済) / ←→：曲カーソル(Ladder) (済) | Submit (Space/Enter)：リプレイ再生 (済) | Title へ戻る (済) | **Tab：Ladder/Free 切替 (新)** / **数字キー：難易度フィルター (新)** | Back / Ladder・Free / 難易度 / 各行 |
+| **History** | ↑↓：行 (済) / ←→：曲カーソル(Ladder) (済) | Submit (Space/Enter)：リプレイ再生 (済) | Title へ戻る (済) | **Tab切替は廃止 (2026-06-07 独立画面化)** — モードはタイトルの子ボタンで固定起動（`HistoryParameters.Mode`）/ 数字キー：難易度フィルター(Freeのみ) (済) | Back / 難易度 / 各行 |
 | **Config** | **←→ / L・R Shift（LB/RB）：タブ切替 (済)** / **↑↓：項目選択 (済)** | **←→ / Space：値変更 (済)** | **呼び出し元へ戻る（Title / SongSelect / PVPLobby）(済)** | **5タブ：ゲームプレイ / キー設定 / グラフィック / オーディオ / アカウント設定 (2026-06-07 モック適用で7タブから統合)**。**F9＝全設定リセット(確認あり)**。入口は Title / SongSelect(F2) / PVPLobby(F2) の3箇所 (済) | リセット / 閉じる / 各タブ / 各設定 |
 | **リプレイ再生** | — | — | History へ戻る (済) | 1 / 2 / 4：再生速度 (済) | — |
 
@@ -213,7 +213,7 @@ flowchart TD
 | 区分 | シーン (SceneId) | 役割 | 操作実装 |
 |----|------------------|------|------|
 | 起動 | Bootstrap / _Persistent | 起動・常駐（SceneRouter） | 済 |
-| ソロ | Title | メインメニュー（カルーセル）| キー済 / ESC=終了確認は要追加 |
+| ソロ | Title | **メインメニュー（縦メニュー・KALPA風モック適用）** | **2026-06-07 全面再構築**（`Tools/Build Title Scene`）。↑↓選択・終了確認済 |
 | ソロ | SongSelect | 選曲・難易度・速度 | 基本キー済 / HiSpeed・Modifier キー要追加 |
 | ソロ | GamePlay | プレイ（ポーズ）| 済 |
 | ソロ | Result | スコア・リトライ | キー再設計要（Space/Enter/ESC、R/S/T廃止）|
@@ -337,3 +337,21 @@ SongSelect から **O キー** で開くポップアップ。フルの Config（
 **操作**: ↑↓=項目（W/S可）/ ←→=変更（A/D可）/ 行クリック=選択 / ◀▶クリック=変更 / **O・ESC・◀ボタン=閉じる** / パッド対応（D-pad+B）。表示中は SongSelect の入力を抑止。すべて即時反映（適用ボタンなし）。
 
 **SongSelect 詳細ペインの整理（同日追記）**: ポップアップと重複する **SPEED スライダーと MODIFIER ドロップダウンを詳細ペインから撤去**。空いたスペースでジャケットを拡大（300→396px）し曲名等の上側表示を再配置。現在値は読み取り専用の1行 **「SPEED x.x　MODIFIER XXX（O: 変更）」** で表示（`[ ]` / M キーの変更も即反映、ポップアップを閉じた時も同期）。値の正本は `PlayOptionsController.HiSpeed / ModifierIdx`（PlayerPrefs "HiSpeed" / 新キー "ModifierIdx"、**Modifier はこれで初めて永続化**）。OFFSET（曲別）はポップアップに無いため詳細ペインに残置。
+
+---
+
+## 12. Title 画面リデザイン（2026-06-07・ユーザー提供モック(KALPA風)適用）
+
+カルーセル(カードフリップ)メニューを廃止し、モック準拠の構成に全面再構築。シーン焼きは **`Tools/Build Title Scene`**（`Editor/BuildTitleScene.cs`、旧 `WireTitleScene.cs` は削除）。
+
+- **背景**: BGA 未制作のため**真っ暗**（プレースホルダー。BGA 導入時に Background を差し替え）。`JacketBackgroundController` はタイトルでは非表示化。
+- **左上**: タイトルロゴ — 金リングの円形エンブレム（△▽✕）+ タイトル文字 **「MUSICGAME」(仮名称・正式タイトル決定時に差し替え)** + サブタイトル。
+- **左下**: 縦メニュー5項目（Free Play / Online / Config / History / Exit）。**選択中=拡大+金エンブレム(✦・脈動アニメ)+説明文（半透明黒帯）**、非選択=縮小・減光+小ドット。ラベル/説明文の正本は `TitleController._menus`。
+- **右上**: プレイヤーチップ（名前 + PVP レーティング。`GET /api/pvp/user/{id}/stats`、オフライン時は "RATING ----"）。
+- **操作**: **↑↓（W/S）=項目選択**（旧←→から変更）/ Space・Enter=決定 / ESC=終了確認。遷移先は従来通り（Free Play→SongSelect / Online→PVPLobby / Config / History / Exit）。
+- 付随: Result.unity の Canvas に残っていた missing script 残骸を1件除去。
+
+### 12-1. History 子ボタン + History 独立画面化（同日・ユーザー提供モック(みんなで推理風)適用）
+
+- **Title の History に子メニュー**: History 選択中に **Space または →** で右側に子ボタン2つを展開 — **Ladder Match**（ラダーマッチ履歴）/ **Free Play**（フリープレイ履歴）。↑↓で選択、Space で決定、**ESC / ← で親メニューに戻る**。選択中の子には説明文（黒帯）。データ正本は `TitleController._historyChildren`。
+- **History の独立画面化**: `HistoryParameters.Mode`（"Ladder"/"Free"）で固定モード起動。**画面内の Ladder/Free タブ・Tab キー・LB/RB 切替は廃止**（タブボタンは非表示化）。ヒントもモード別表記に変更。シーンは無改変（コントローラーのみ）、Title は `Tools/Build Title Scene` で焼き直し。

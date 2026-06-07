@@ -136,6 +136,16 @@ public sealed class SongRankingParameters : ISceneParameters
 }
 
 /// <summary>
+/// History シーンへ渡すパラメータ。タイトルの子ボタン(Ladder Match / Free Play)から
+/// 固定モードで起動し、画面内のモード切替なしの独立画面として表示する。
+/// </summary>
+public sealed class HistoryParameters : ISceneParameters
+{
+    /// <summary>表示モード ("Ladder" = ラダーマッチ履歴 / "Free" = フリープレイ履歴)。</summary>
+    public string Mode { get; set; }
+}
+
+/// <summary>
 /// リザルトシーンへ渡すパラメータ。プレイ結果ビューと元の GamePlay パラメータを保持し、
 /// リトライ時に同一設定で再開できるようにする。
 /// </summary>

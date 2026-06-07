@@ -131,7 +131,6 @@ GameObject:
   - component: {fileID: 15989802}
   - component: {fileID: 15989801}
   - component: {fileID: 15989800}
-  - component: {fileID: 15989799}
   - component: {fileID: 15989804}
   m_Layer: 0
   m_Name: Canvas
@@ -140,24 +139,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &15989799
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 15989798}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: af986b065615dc1498a3590344e80650, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::ResultController
-  _titleText: {fileID: 0}
-  _scoreText: {fileID: 0}
-  _rankText: {fileID: 0}
-  _statsText: {fileID: 0}
-  _badgeText: {fileID: 0}
-  _backButton: {fileID: 0}
 --- !u!114 &15989800
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -5,7 +5,7 @@ flowchart TD
     SongSel["SongSelect<br/>(選曲・難易度・速度)"]
     PlayS["GamePlay (ソロ)<br/>(ESC=ポーズ)"]
     Result["Result<br/>(スコア / リトライ)"]
-    Hist["History<br/>(戦績・リプレイ)"]
+    Hist["History<br/>(Ladder/Free 固定モードの独立表示)"]
     Conf["Config<br/>(5タブ設定・未保存変更は確認)"]
     Replay["GamePlay (リプレイ再生)"]
     PData["プレイヤーデータ<br/>(ポップアップ)"]
@@ -34,7 +34,7 @@ flowchart TD
     Title -->|FREE PLAY| SongSel
     Title -->|ONLINE| Lobby
     Title -->|CONFIG| Conf
-    Title -->|HISTORY| Hist
+    Title -->|"HISTORY → 子選択 (Ladder Match / Free Play)"| Hist
     Title -->|EXIT / ESC| Exit(("終了"))
 
     SongSel -->|Space=Play| PlayS --> Result
