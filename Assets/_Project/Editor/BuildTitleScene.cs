@@ -39,6 +39,7 @@ public static class BuildTitleScene
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = Color.black;
         camGO.AddComponent<AudioListener>();
+        camGO.AddComponent<AudioListenerGuard>();   // _Persistent と重複時に無効化 (警告スパム防止)
 
         // ── EventSystem ───────────────────────────────────────────────────────
         var esGO = new GameObject("EventSystem");
@@ -70,7 +71,7 @@ public static class BuildTitleScene
         var (nameTMP, ratingTMP) = BuildPlayerChip(ct);
 
         // ── 左下: 縦メニュー ──────────────────────────────────────────────────
-        var labels = new TextMeshProUGUI[MenuCount];
+        var labels = new MenuOutlineLabel[MenuCount];
         var descs  = new TextMeshProUGUI[MenuCount];
         var icons  = new GameObject[MenuCount];
         var dots   = new GameObject[MenuCount];
@@ -96,7 +97,7 @@ public static class BuildTitleScene
             inner.sprite = ring.sprite; inner.color = Color.black; inner.raycastTarget = false;
             var starGO = Child("Star", iconGO.transform);
             SR(starGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-            var starTMP = T(starGO, "✦", 22, Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+            var starTMP = T(starGO, "◆", 22, Gold, TextAlignmentOptions.Center, FontStyles.Bold);   // ✦はフォント未収載のため◆
             starTMP.raycastTarget = false;
             iconGO.SetActive(i == 0);
             icons[i] = iconGO;
@@ -109,11 +110,8 @@ public static class BuildTitleScene
             dotGO.SetActive(i != 0);
             dots[i] = dotGO;
 
-            // ラベル (テキストは TitleController が Start で設定)
-            var lblGO = Child("Label", rowGO.transform);
-            SR(lblGO, V(0,1), V(0,1), V(0,1), V(LabelX, 0), V(560, 44));
-            labels[i] = T(lblGO, "", 26, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-            labels[i].raycastTarget = false;
+            // ラベル (中抜きグラデ文字。テキストは TitleController が Start で設定)
+            labels[i] = MakeOutlineLabel(rowGO.transform, V(LabelX, 0), V(560, 48), 27f);
 
             // 説明文 (選択中のみ表示・半透明黒帯)
             var descBgGO = Child("DescBg", rowGO.transform);
@@ -131,7 +129,7 @@ public static class BuildTitleScene
         // History は _menus の index 3 (FreePlay/Online/Config/History/Exit)
         const int HistoryIndex = 3;
         const int ChildCount   = 2;
-        var childLabels = new TextMeshProUGUI[ChildCount];
+        var childLabels = new MenuOutlineLabel[ChildCount];
         var childDescs  = new TextMeshProUGUI[ChildCount];
 
         var childRoot = Child("HistoryChildren", menuGO.transform);
@@ -148,10 +146,7 @@ public static class BuildTitleScene
             SR(lineGO, V(0,1), V(0,1), V(0,.5f), V(-26, -20), V(20, 2));
             var lineImg = lineGO.AddComponent<Image>(); lineImg.color = GoldDim; lineImg.raycastTarget = false;
 
-            var lblGO = Child("Label", rowGO.transform);
-            SR(lblGO, V(0,1), V(0,1), V(0,1), V(4, 0), V(480, 36));
-            childLabels[i] = T(lblGO, "", 22, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-            childLabels[i].raycastTarget = false;
+            childLabels[i] = MakeOutlineLabel(rowGO.transform, V(4, 0), V(480, 40), 23f);
 
             var descBgGO = Child("DescBg", rowGO.transform);
             SR(descBgGO, V(0,1), V(0,1), V(0,1), V(6, -38), V(520, 30));
@@ -214,7 +209,7 @@ public static class BuildTitleScene
         inner.sprite = ring.sprite; inner.color = Color.black; inner.raycastTarget = false;
         var markGO = Child("Mark", emblemGO.transform);
         SR(markGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        var markTMP = T(markGO, "△▽✕", 26, Gold, TextAlignmentOptions.Center, FontStyles.Bold);
+        var markTMP = T(markGO, "△▽×", 26, Gold, TextAlignmentOptions.Center, FontStyles.Bold);   // ✕はフォント未収載のため×
         markTMP.raycastTarget = false;
 
         // タイトル (仮名称 — 正式タイトル決定時に差し替え)
@@ -249,6 +244,34 @@ public static class BuildTitleScene
         var rateTMP = T(rateGO, "RATING ----", 14, Gold, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
         return (nameTMP, rateTMP);
+    }
+
+    // ── 中抜きグラデ文字 (MenuOutlineLabel: Back=グラデ塗り / Front=黒で内側抜き) ──
+    static MenuOutlineLabel MakeOutlineLabel(Transform parent, Vector2 pos, Vector2 size, float fontSize)
+    {
+        var rootGO = Child("Label", parent);
+        SR(rootGO, V(0,1), V(0,1), V(0,1), pos, size);
+        rootGO.transform.localScale = new Vector3(0.85f, 1.12f, 1f);   // リファレンス準拠の縦長コンデンス
+        var label = rootGO.AddComponent<MenuOutlineLabel>();
+
+        TextMeshProUGUI Layer(string name, Color color)
+        {
+            var go = Child(name, rootGO.transform);
+            SR(go, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+            var tmp = T(go, "", fontSize, color, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+            tmp.characterSpacing = 6f;
+            tmp.raycastTarget = false;
+            return tmp;
+        }
+
+        var back  = Layer("Back",  Color.white);   // 色はランタイムで頂点グラデに置き換わる
+        var front = Layer("Front", Color.black);   // _FaceDilate 負値はランタイムで設定
+
+        var so = new SerializedObject(label);
+        SetRef(so, "_back",  back);
+        SetRef(so, "_front", front);
+        so.ApplyModifiedProperties();
+        return label;
     }
 
     // ── Micro helpers ─────────────────────────────────────────────────────────

@@ -14,15 +14,15 @@ using UnityEngine.InputSystem;
 public class TitleController : MonoBehaviour
 {
     [Header("Menu (baked-in 5 items)")]
-    [SerializeField] TextMeshProUGUI[] _itemLabels;   // 項目ラベル
-    [SerializeField] TextMeshProUGUI[] _itemDescs;    // 選択中のみ表示する説明文
-    [SerializeField] GameObject[]      _itemIcons;    // 選択中エンブレム(◉+✦)
-    [SerializeField] GameObject[]      _itemDots;     // 非選択の小ドット
+    [SerializeField] MenuOutlineLabel[] _itemLabels;   // 項目ラベル(中抜きグラデ文字)
+    [SerializeField] TextMeshProUGUI[]  _itemDescs;    // 選択中のみ表示する説明文
+    [SerializeField] GameObject[]       _itemIcons;    // 選択中エンブレム(◉+✦)
+    [SerializeField] GameObject[]       _itemDots;     // 非選択の小ドット
 
     [Header("History 子メニュー (Ladder Match / Free Play)")]
-    [SerializeField] GameObject        _childRoot;     // 子ボタン列のルート(初期非表示)
-    [SerializeField] TextMeshProUGUI[] _childLabels;
-    [SerializeField] TextMeshProUGUI[] _childDescs;
+    [SerializeField] GameObject         _childRoot;    // 子ボタン列のルート(初期非表示)
+    [SerializeField] MenuOutlineLabel[] _childLabels;
+    [SerializeField] TextMeshProUGUI[]  _childDescs;
 
     [Header("Player Chip (右上)")]
     [SerializeField] TextMeshProUGUI _playerNameText;
@@ -52,10 +52,8 @@ public class TitleController : MonoBehaviour
         ("Free Play",    "フリープレイ(ソロ)のベスト記録とリプレイを確認します。",     "Free"),
     };
 
-    static readonly Color SelectedColor   = Color.white;
-    static readonly Color UnselectedColor = new Color(1f, 1f, 1f, 0.45f);
-    const float SelectedFontSize   = 36f;
-    const float UnselectedFontSize = 26f;
+    const float SelectedFontSize   = 38f;
+    const float UnselectedFontSize = 27f;
 
     // ── State ──────────────────────────────────────────────────────────────
     private int  _currentIndex;
@@ -105,14 +103,14 @@ public class TitleController : MonoBehaviour
         for (int i = 0; i < _menus.Length; i++)
         {
             if (_itemLabels != null && i < _itemLabels.Length && _itemLabels[i] != null)
-                _itemLabels[i].text = _menus[i].label;
+                _itemLabels[i].SetText(_menus[i].label);
             if (_itemDescs != null && i < _itemDescs.Length && _itemDescs[i] != null)
                 _itemDescs[i].text = _menus[i].desc;
         }
         for (int i = 0; i < _historyChildren.Length; i++)
         {
             if (_childLabels != null && i < _childLabels.Length && _childLabels[i] != null)
-                _childLabels[i].text = _historyChildren[i].label;
+                _childLabels[i].SetText(_historyChildren[i].label);
             if (_childDescs != null && i < _childDescs.Length && _childDescs[i] != null)
                 _childDescs[i].text = _historyChildren[i].desc;
         }
@@ -190,9 +188,8 @@ public class TitleController : MonoBehaviour
             bool sel = i == _currentIndex;
             if (_itemLabels != null && i < _itemLabels.Length && _itemLabels[i] != null)
             {
-                _itemLabels[i].fontSize  = sel ? SelectedFontSize : UnselectedFontSize;
-                _itemLabels[i].color     = sel ? SelectedColor : UnselectedColor;
-                _itemLabels[i].fontStyle = sel ? FontStyles.Bold : FontStyles.Normal;
+                _itemLabels[i].SetFontSize(sel ? SelectedFontSize : UnselectedFontSize);
+                _itemLabels[i].SetSelected(sel);
             }
             // 説明文は半透明黒帯(DescBg=親GO)ごと切り替える
             if (_itemDescs != null && i < _itemDescs.Length && _itemDescs[i] != null)
@@ -237,9 +234,8 @@ public class TitleController : MonoBehaviour
             bool sel = i == _childIndex;
             if (_childLabels != null && i < _childLabels.Length && _childLabels[i] != null)
             {
-                _childLabels[i].fontSize  = sel ? 28f : 22f;
-                _childLabels[i].color     = sel ? SelectedColor : UnselectedColor;
-                _childLabels[i].fontStyle = sel ? FontStyles.Bold : FontStyles.Normal;
+                _childLabels[i].SetFontSize(sel ? 30f : 23f);
+                _childLabels[i].SetSelected(sel);
             }
             if (_childDescs != null && i < _childDescs.Length && _childDescs[i] != null)
                 _childDescs[i].transform.parent.gameObject.SetActive(sel);
