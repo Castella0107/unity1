@@ -192,7 +192,25 @@ namespace RhythmGame.UI.Pvp
             Debug.Log($"[Matchmaking] MATCH FOUND vs {body.OpponentId} match={body.MatchId}");
 
             PvpMatchContext.StartMatch(body.MatchId, body.OpponentId);
-            SceneRouter.Instance?.GoTo(SceneId.PVPPrematch);
+
+            // 相手の表示名を取得 (MATCH FOUND 表示+以降の画面用にコンテキストへ)
+            _ = ResolveOpponentNameAsync(body.OpponentId);
+
+            // 即マッチ成立時は Lobby→Matchmaking の遷移がまだ進行中のことがあり、
+            // 通常の GoTo だと _isTransitioning ガードに握り潰される(後から入った側が固まる実バグ)。
+            SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPPrematch);
+        }
+
+        async Task ResolveOpponentNameAsync(string opponentId)
+        {
+            if (string.IsNullOrEmpty(opponentId)) return;
+            var r = await PvpApi.GetUserAsync(opponentId);
+            if (r.Ok && r.Data != null && !string.IsNullOrEmpty(r.Data.DisplayName))
+            {
+                PvpMatchContext.OpponentDisplayName = r.Data.DisplayName;
+                _opponentName = r.Data.DisplayName;
+                UpdateUi();
+            }
         }
 
         void UpdateUi()

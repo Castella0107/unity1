@@ -202,7 +202,14 @@ public class GameHud : MonoBehaviour
         if (_opponentBox != null) _opponentBox.SetActive(true);
         if (_vsBar       != null) _vsBar.SetActive(true);
 
-        if (_opponentName != null) _opponentName.text = string.IsNullOrEmpty(opponentId) ? "OPPONENT" : opponentId;
+        if (_opponentName != null)
+        {
+            // 表示名がコンテキストで解決済みならそれを使う (user_id の生表示を避ける)
+            var ctx = RhythmGame.Network.Api.PvpMatchContext.OpponentId == opponentId
+                ? RhythmGame.Network.Api.PvpMatchContext.OpponentDisplayName : null;
+            _opponentName.text = !string.IsNullOrEmpty(ctx) ? ctx
+                : string.IsNullOrEmpty(opponentId) ? "OPPONENT" : opponentId;
+        }
         if (_opponentRate != null) _opponentRate.text = "Rate ----";   // 取得まではプレースホルダー
 
         // 相手ライブスコア未供給: VS バー右側 / リード / セクター勝敗はプレースホルダー。

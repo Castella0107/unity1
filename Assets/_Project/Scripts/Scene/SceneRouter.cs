@@ -76,6 +76,26 @@ public class SceneRouter : MonoBehaviour
         StartCoroutine(GoToRoutine(target, parameters ?? EmptyParameters.Instance, style));
     }
 
+    /// <summary>
+    /// 進行中の遷移が終わってから指定シーンへ遷移する。
+    /// シーン Start 直後の非同期処理(即マッチ成立・自動ログイン等)が前の遷移と競合して
+    /// GoTo が握り潰される事故(_isTransitioning ガード)の恒久対策。通常の GoTo と同様に使える。
+    /// </summary>
+    public void GoToWhenIdle(
+        SceneId          target,
+        ISceneParameters parameters = null,
+        TransitionStyle  style      = TransitionStyle.FadeBlack)
+    {
+        StartCoroutine(GoToWhenIdleRoutine(target, parameters, style));
+    }
+
+    IEnumerator GoToWhenIdleRoutine(SceneId target, ISceneParameters parameters, TransitionStyle style)
+    {
+        while (_isTransitioning)
+            yield return null;
+        GoTo(target, parameters, style);
+    }
+
     /// <summary>起動時にログイン画面へ遷移する(起動時の黒フラッシュを避けるため演出なし)。
     /// セッション有効時は Login 側が自動で Title へスキップする。</summary>
     public void InitialBoot()

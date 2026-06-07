@@ -64,6 +64,13 @@ namespace RhythmGame.Network.Api
         public static string MatchId { get; private set; }
         /// <summary>対戦相手の user_id。</summary>
         public static string OpponentId { get; private set; }
+        /// <summary>対戦相手の表示名 (Matchmaking/Prematch で取得。未取得なら user_id を返す)。</summary>
+        public static string OpponentDisplayName
+        {
+            get => string.IsNullOrEmpty(_opponentDisplayName) ? OpponentId : _opponentDisplayName;
+            set => _opponentDisplayName = value;
+        }
+        static string _opponentDisplayName;
         /// <summary>試合用 WebSocket (Prematch で接続)。</summary>
         public static MatchSocketClient Socket { get; set; }
 
@@ -95,6 +102,7 @@ namespace RhythmGame.Network.Api
         {
             MatchId    = matchId;
             OpponentId = opponentId;
+            _opponentDisplayName = null;
             SelfIsA    = false;
             SelfIsLower = false;
             CurrentSongOrder  = 0;

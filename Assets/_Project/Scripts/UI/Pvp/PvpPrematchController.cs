@@ -114,6 +114,10 @@ namespace RhythmGame.UI.Pvp
             var d = r.Data;
             _selfIsA = d.PlayerA != null && d.PlayerA.UserId == AuthManager.UserId;
             PvpMatchContext.SelfIsA = _selfIsA;   // song3 の diff_a/diff_b 解決にドラフト以降で使う
+
+            var oppDto = _selfIsA ? d.PlayerB : d.PlayerA;
+            if (!string.IsNullOrEmpty(oppDto?.DisplayName))
+                PvpMatchContext.OpponentDisplayName = oppDto.DisplayName;   // 以降の画面の表示名ソース
             var self = _selfIsA ? d.PlayerA : d.PlayerB;
             var opp  = _selfIsA ? d.PlayerB : d.PlayerA;
 

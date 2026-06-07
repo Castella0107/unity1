@@ -108,13 +108,15 @@ namespace RhythmGame.Network.Api
                 return;
             }
 
-            string selfId = AuthManager.UserId;
-            string oppId  = PvpMatchContext.OpponentId;
+            // MatchEnd 画面は名前を表示にも自他判定 (SelfUserId == UserIdA) にも使うため、
+            // 表示名で統一して渡す (user_id の生表示を避ける)。
+            string selfId = string.IsNullOrEmpty(AuthManager.DisplayName) ? AuthManager.UserId : AuthManager.DisplayName;
+            string oppId  = PvpMatchContext.OpponentDisplayName;
             bool selfIsA  = PvpMatchContext.SelfIsA;
 
             string forfeitNote = fin.Forfeit
-                ? (fin.ForfeitedPlayer == selfId ? "タイムアウトにより不戦敗" : "相手の棄権により不戦勝")
-                : null;
+                ? (fin.ForfeitedPlayer == AuthManager.UserId ? "タイムアウトにより不戦敗" : "相手の棄権により不戦勝")
+                : null;   // 判定は user_id で行う (selfId は表示名)
 
             var p = new PvpMatchEndParameters
             {
