@@ -104,7 +104,7 @@ public class GamePlayController : MonoBehaviour
             // 共有ゆえ isPvP:false 固定なので、ここで明示注入する)。
             if (_params != null && _params.IsPvp && _hud != null)
                 _hud.SetPvpContext(_params.PvpOpponentId);
-            if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameTabController.GetSavedComboBorder());
+            if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameplayTabController.GetSavedComboBorder());
             // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
             int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
             _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: audioShift);

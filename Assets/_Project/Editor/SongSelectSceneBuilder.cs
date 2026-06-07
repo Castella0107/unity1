@@ -116,30 +116,30 @@ public static class SongSelectSceneBuilder
         T(catLbl, "FREE PLAY", 14, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
         y -= 34;
 
-        // Jacket
+        // Jacket — SPEED/MODIFIER 撤去(→PLAY OPTIONS)で空いた分を拡大 (300→396)
         var jaGO = Child("JacketArea", dt);
-        SR(jaGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 300));
+        SR(jaGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 396));
         var jiGO = Child("JacketImage", jaGO.transform);
         SR(jiGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
         var jacketRaw = jiGO.AddComponent<RawImage>(); jacketRaw.color = new Color(.25f,.25f,.25f);
         var jfGO = Child("JacketFrame", jaGO.transform);
         SR(jfGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
         var jfImg = jfGO.AddComponent<Image>(); jfImg.color = new Color(.6f,.6f,.6f,.25f); jfImg.raycastTarget = false;
-        y -= 308;
+        y -= 404;
 
         // Title
         var stGO  = Child("TitleText", dt);
-        SR(stGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 40));
-        var stTMP = T(stGO, "---", 32, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        SR(stGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 44));
+        var stTMP = T(stGO, "---", 34, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
         stTMP.overflowMode = TextOverflowModes.Ellipsis; Indent(stGO, 14);
-        y -= 42;
+        y -= 46;
 
         // Artist
         var artGO  = Child("ArtistText", dt);
-        SR(artGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 24));
-        var artTMP = T(artGO, "---", 18, Dim, TextAlignmentOptions.MidlineLeft);
+        SR(artGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 26));
+        var artTMP = T(artGO, "---", 19, Dim, TextAlignmentOptions.MidlineLeft);
         artTMP.overflowMode = TextOverflowModes.Ellipsis; Indent(artGO, 14);
-        y -= 26;
+        y -= 30;
 
         // BPM / Length
         var bpmGO  = Child("BpmDurationText", dt);
@@ -157,9 +157,11 @@ public static class SongSelectSceneBuilder
         // Sector diamonds
         var sectorIcons = BuildSectorRow(dt, ref y, W);
 
-        // Settings
-        var (hiSpdSldr, hiSpdVal, offSldr, offVal, saveBtn, saveLbl, modDD) =
-            BuildSettings(dt, ref y, W);
+        // SPEED/MODIFIER 現在値の読み取り専用表示 (変更は O: PLAY OPTIONS / [ ] / M)
+        var playInfoTMP = BuildPlayInfoRow(dt, ref y, W);
+
+        // Settings — 曲別 OFFSET のみ (SPEED/MODIFIER は PLAY OPTIONS ポップアップへ移動)
+        var (offSldr, offVal, saveBtn, saveLbl) = BuildSettings(dt, ref y, W);
 
         // Key hint (Enter plays / Esc back) — replaces the PLAY button
         var hintGO = Child("KeyHint", dt);
@@ -242,13 +244,11 @@ public static class SongSelectSceneBuilder
         SetRef(so, "_btnExtra",    diffBtns[3]);
         SetArr(so, "_diffLevelTexts", diffLvlTexts);
         SetArr(so, "_sectorIcons", sectorIcons);
-        SetRef(so, "_hiSpeedSlider", hiSpdSldr);
-        SetRef(so, "_hiSpeedValue",  hiSpdVal);
+        SetRef(so, "_playOptionInfoText", playInfoTMP);
         SetRef(so, "_perSongOffsetSlider", offSldr);
         SetRef(so, "_perSongOffsetValue",  offVal);
         SetRef(so, "_perSongOffsetSaveButton", saveBtn);
         SetRef(so, "_saveButtonLabel", saveLbl);
-        SetRef(so, "_modifierDropdown", modDD);
         SetRef(so, "_profileName", profName);
         SetRef(so, "_profileSub",  profSub);
         SetRef(so, "_backButton",  backBtn);
@@ -274,10 +274,252 @@ public static class SongSelectSceneBuilder
         SetRef(so2, "_songItemPrefab", savedPrefab);
         so2.ApplyModifiedProperties();
 
+        // PLAY OPTIONS (簡易コンフィグ) ポップアップ — O キーで開閉
+        BuildPlayOptionsPanel(ct);
+
         // Save
         EditorSceneManager.SaveScene(scene, ScenePath);
         AssetDatabase.Refresh();
         Debug.Log("[SongSelectSceneBuilder] Done → " + ScenePath);
+    }
+
+    // ═════════════════════════════════════════════════════════════════════════
+    // PLAY OPTIONS (簡易コンフィグ) ポップアップ — ユーザー提供モック準拠・ダーク版
+    // 左=設定6項目(◀ 値 ▶) / 右=プレイ画面プレビュー(GamePlay のレーン構成準拠)+GUIDE
+    // ═════════════════════════════════════════════════════════════════════════
+
+    static void BuildPlayOptionsPanel(Transform ct)
+    {
+        Color accentP = Hex("6B52E0");
+        Color accentHi= Hex("8E78F0");
+        Color boxBg   = Hex("161B2E");
+        Color rowBg   = new Color(1f, 1f, 1f, 0.06f);
+
+        // ルート(常時アクティブ・コントローラー保持) / Window(初期非表示)
+        var rootGO = Child("PlayOptions", ct);
+        SR(rootGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var ctrl = rootGO.AddComponent<PlayOptionsController>();
+
+        var winGO = Child("Window", rootGO.transform);
+        SR(winGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+
+        // 暗幕 (背面クリック遮断)
+        var dimGO = Child("Dim", winGO.transform);
+        SR(dimGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var dimImg = dimGO.AddComponent<Image>(); dimImg.color = new Color(0,0,0,.78f);
+
+        // 本体パネル
+        var panelGO = Child("Panel", winGO.transform);
+        SR(panelGO, V(.5f,.5f), V(.5f,.5f), V(.5f,.5f), V(0,-10), V(1500,820));
+        panelGO.AddComponent<Image>().color = Hex("0A0E1C");
+        var pt = panelGO.transform;
+
+        // ── ヘッダ (紫アクセントバー + 閉じる◀ + タイトル) ────────────────────
+        var headGO = Child("HeaderBar", pt);
+        SR(headGO, V(0,1), V(0,1), V(0,1), V(-14,24), V(560,64));
+        var headImg = headGO.AddComponent<Image>(); headImg.color = accentP; headImg.raycastTarget = false;
+
+        var closeGO  = Child("CloseButton", headGO.transform);
+        SR(closeGO, V(0,.5f), V(0,.5f), V(0,.5f), V(10,0), V(48,48));
+        var closeImg = closeGO.AddComponent<Image>(); closeImg.color = new Color(1,1,1,.18f);
+        var closeBtn = closeGO.AddComponent<Button>(); closeBtn.targetGraphic = closeImg;
+        var closeLbl = Child("Label", closeGO.transform);
+        SR(closeLbl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var closeTMP = T(closeLbl, "◀", 24, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+        closeTMP.raycastTarget = false;
+
+        var headLbl = Child("Title", headGO.transform);
+        SR(headLbl, V(0,0), V(1,1), V(.5f,.5f), V(70,0), V(-80,0));
+        T(headLbl, "PLAY OPTIONS", 34, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold | FontStyles.Italic);
+
+        // ── 左カラム: 設定6項目 ───────────────────────────────────────────────
+        const float LX = 50f, LW = 660f;
+        float y = -110f;
+
+        var rowBgs    = new Image[6];
+        var rowBtns   = new Button[6];
+        var valTexts  = new TextMeshProUGUI[6];
+        var prevBtns  = new Button[6];
+        var nextBtns  = new Button[6];
+        int rowIdx = 0;
+
+        void Section(string text)
+        {
+            var sGO = Child("Section_" + text, pt);
+            SR(sGO, V(0,1), V(0,1), V(0,1), V(LX, y), V(LW, 26));
+            T(sGO, "● " + text, 15, accentHi, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+            y -= 34f;
+        }
+
+        void OptionRow(string label)
+        {
+            int i = rowIdx++;
+            var rGO = Child("OptRow" + i, pt);
+            SR(rGO, V(0,1), V(0,1), V(0,1), V(LX, y), V(LW, 52));
+            var bg = rGO.AddComponent<Image>(); bg.color = rowBg;
+            var rb = rGO.AddComponent<Button>(); rb.targetGraphic = bg; rb.transition = Selectable.Transition.None;
+            rowBgs[i] = bg; rowBtns[i] = rb;
+
+            var lGO = Child("Label", rGO.transform);
+            SR(lGO, V(0,0), V(0,1), V(0,.5f), V(18,0), V(310,0));
+            var lt = T(lGO, label, 19, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+            lt.raycastTarget = false;
+
+            Button Arrow(string s, float cx)
+            {
+                var aGO = Child("Arrow" + s, rGO.transform);
+                SR(aGO, V(0,.5f), V(0,.5f), V(.5f,.5f), V(cx,0), V(36,36));
+                var aImg = aGO.AddComponent<Image>(); aImg.color = new Color(1,1,1,.12f);
+                var aBtn = aGO.AddComponent<Button>(); aBtn.targetGraphic = aImg;
+                var aLbl = Child("Label", aGO.transform);
+                SR(aLbl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+                var at = T(aLbl, s, 18, accentHi, TextAlignmentOptions.Center, FontStyles.Bold);
+                at.raycastTarget = false;
+                return aBtn;
+            }
+            prevBtns[i] = Arrow("◀", 384);
+
+            var vbGO  = Child("ValueBox", rGO.transform);
+            SR(vbGO, V(0,.5f), V(0,.5f), V(.5f,.5f), V(514,0), V(200,38));
+            var vbImg = vbGO.AddComponent<Image>(); vbImg.color = boxBg; vbImg.raycastTarget = false;
+            var vGO   = Child("Value", vbGO.transform);
+            SR(vGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+            valTexts[i] = T(vGO, "-", 19, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+            valTexts[i].raycastTarget = false;
+
+            nextBtns[i] = Arrow("▶", 644);
+            y -= 60f;
+        }
+
+        Section("PLAY OPTION");
+        OptionRow("ノーツスピード");
+        OptionRow("ノーツ配置");
+        Section("SOUND");
+        OptionRow("ノーツヒット音");
+        OptionRow("判定音");
+        Section("DISPLAY");
+        OptionRow("FAST/SLOW表示");
+        OptionRow("判定エフェクト");
+
+        // 操作ヒント (パネル下部左)
+        var fhGO = Child("FooterHint", pt);
+        SR(fhGO, V(0,0), V(0,0), V(0,0), V(LX, 26), V(LW, 26));
+        T(fhGO, "↑↓: 項目   ←→: 変更   O / ESC: 閉じる", 15, new Color(.7f,.7f,.75f), TextAlignmentOptions.MidlineLeft);
+
+        // ── 右カラム: PREVIEW (GamePlay レーン構成の静的表示) ────────────────
+        const float RX = 760f, RW = 690f;
+
+        var pvLblGO = Child("PreviewLabel", pt);
+        SR(pvLblGO, V(0,1), V(0,1), V(0,1), V(RX, -110), V(RW, 26));
+        T(pvLblGO, "● PREVIEW", 15, accentHi, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var pvGO = Child("PreviewBox", pt);
+        SR(pvGO, V(0,1), V(0,1), V(0,1), V(RX, -144), V(RW, 430));
+        var pvImg = pvGO.AddComponent<Image>(); pvImg.color = Hex("060912"); pvImg.raycastTarget = false;
+
+        BuildLanePreview(pvGO.transform, RW);
+
+        // ── GUIDE ─────────────────────────────────────────────────────────────
+        var gdLblGO = Child("GuideLabel", pt);
+        SR(gdLblGO, V(0,1), V(0,1), V(0,1), V(RX, -592), V(RW, 26));
+        T(gdLblGO, "● GUIDE", 15, accentHi, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var gdGO = Child("GuideBox", pt);
+        SR(gdGO, V(0,1), V(0,1), V(0,1), V(RX, -626), V(RW, 140));
+        var gdImg = gdGO.AddComponent<Image>(); gdImg.color = boxBg; gdImg.raycastTarget = false;
+        var gdTextGO = Child("GuideText", gdGO.transform);
+        SR(gdTextGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(-44,-28));
+        var guideTMP = T(gdTextGO, "", 18, Color.white, TextAlignmentOptions.TopLeft);
+
+        // ── コントローラー配線 ────────────────────────────────────────────────
+        var so = new SerializedObject(ctrl);
+        SetRef(so, "_window",            winGO);
+        SetRef(so, "_closeButton",       closeBtn);
+        SetArr(so, "_rowBgs",            rowBgs);
+        SetArr(so, "_rowButtons",        rowBtns);
+        SetArr(so, "_valueTexts",        valTexts);
+        SetArr(so, "_prevButtons",       prevBtns);
+        SetArr(so, "_nextButtons",       nextBtns);
+        SetRef(so, "_guideText",         guideTMP);
+        so.ApplyModifiedProperties();
+
+        winGO.SetActive(false);
+    }
+
+    // GamePlay のレーン構成 (FxL 1.2 | メイン 1.0×4 | FxR 1.2、LaneLayout 準拠) を
+    // 80px/unit でスケールした静的プレビュー。ノート色は NoteController.LaneColors と同じ。
+    static void BuildLanePreview(Transform parent, float boxW)
+    {
+        const float Unit = 80f;                       // 1.0 world unit = 80px
+        const float FieldW = 6.4f * Unit;             // 512
+        const float FieldH = 340f;
+        float fx = (boxW - FieldW) / 2f;              // フィールド左端 (ボックス内)
+
+        var fieldGO = Child("LaneField", parent);
+        SR(fieldGO, V(0,1), V(0,1), V(0,1), V(fx, -30), V(FieldW, FieldH));
+        var fieldImg = fieldGO.AddComponent<Image>(); fieldImg.color = new Color(1,1,1,.025f); fieldImg.raycastTarget = false;
+        var ft = fieldGO.transform;
+
+        // レーン幅 (px): FxL 96 | 80×4 | FxR 96 → 境界 x: 0,96,176,256,336,416,512
+        float[] bounds = { 0f, 96f, 176f, 256f, 336f, 416f, 512f };
+
+        // FX レーンの面 (うっすらオレンジ)
+        void FxFill(float x0, float w)
+        {
+            var go = Child("FxFill", ft);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = V(0,0); rt.anchorMax = V(0,1); rt.pivot = V(.5f,.5f);
+            rt.anchoredPosition = V(x0 + w/2f, 0); rt.sizeDelta = V(w, 0);
+            var img = go.AddComponent<Image>(); img.color = new Color(1f,.53f,.1f,.05f); img.raycastTarget = false;
+        }
+        FxFill(0f, 96f);
+        FxFill(416f, 96f);
+
+        // 仕切り線 (中央は太く明るく — LaneVisuals の中央強調に対応)
+        for (int i = 0; i < bounds.Length; i++)
+        {
+            bool center = Mathf.Approximately(bounds[i], 256f);
+            var go = Child("Divider" + i, ft);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = V(0,0); rt.anchorMax = V(0,1); rt.pivot = V(.5f,.5f);
+            rt.anchoredPosition = V(bounds[i], 0); rt.sizeDelta = V(center ? 3f : 2f, 0);
+            var img = go.AddComponent<Image>();
+            img.color = center ? new Color(1,1,1,.5f) : new Color(1,1,1,.22f);
+            img.raycastTarget = false;
+        }
+
+        // 判定ライン (赤)
+        var jlGO = Child("JudgmentLine", ft);
+        SR(jlGO, V(0,0), V(1,0), V(.5f,0), V(0, 44), V(0, 5));
+        var jlImg = jlGO.AddComponent<Image>(); jlImg.color = Hex("E5404A"); jlImg.raycastTarget = false;
+
+        // ノート (NoteController.LaneColors: 赤/黄/緑/青 + FXオレンジ)
+        void Note(float laneX0, float laneW, Color c, float yFromBottom)
+        {
+            var go = Child("Note", ft);
+            var rt = go.GetComponent<RectTransform>();
+            rt.anchorMin = V(0,0); rt.anchorMax = V(0,0); rt.pivot = V(.5f,.5f);
+            rt.anchoredPosition = V(laneX0 + laneW/2f, yFromBottom);
+            rt.sizeDelta = V(laneW * 0.96f, 24f);
+            var img = go.AddComponent<Image>(); img.color = c; img.raycastTarget = false;
+        }
+        Note( 96f, 80f, new Color(1.00f,.27f,.27f), 210f);   // Lane0 red
+        Note(176f, 80f, new Color(1.00f,.87f,.27f), 290f);   // Lane1 yellow
+        Note(256f, 80f, new Color(0.27f,1.00f,.53f), 130f);  // Lane2 green
+        Note(336f, 80f, new Color(0.27f,.53f,1.00f), 250f);  // Lane3 blue
+        Note(  0f, 96f, new Color(1.00f,.53f,.10f), 170f);   // FxL orange
+
+        // HUD 風オーバーレイ (COMBO / 判定)
+        var comboLblGO = Child("ComboLabel", parent);
+        SR(comboLblGO, V(.5f,1), V(.5f,1), V(.5f,1), V(0,-44), V(200,24));
+        T(comboLblGO, "COMBO", 14, new Color(1,1,1,.7f), TextAlignmentOptions.Center, FontStyles.Bold);
+        var comboGO = Child("ComboValue", parent);
+        SR(comboGO, V(.5f,1), V(.5f,1), V(.5f,1), V(0,-66), V(260,40));
+        T(comboGO, "12345", 34, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+
+        var judgeGO = Child("JudgeText", parent);
+        SR(judgeGO, V(.5f,.5f), V(.5f,.5f), V(.5f,.5f), V(0,-30), V(300,36));
+        T(judgeGO, "PERFECT", 26, Hex("2BD9E6"), TextAlignmentOptions.Center, FontStyles.Bold | FontStyles.Italic);
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -380,34 +622,47 @@ public static class SongSelectSceneBuilder
         return icons;
     }
 
-    static (Slider, TextMeshProUGUI, Slider, TextMeshProUGUI, Button, TextMeshProUGUI, TMP_Dropdown)
+    // SPEED/MODIFIER 現在値の読み取り専用1行 (変更は PLAY OPTIONS)。
+    static TextMeshProUGUI BuildPlayInfoRow(Transform dt, ref float y, float W)
+    {
+        var rowGO = Child("PlayInfoRow", dt);
+        SR(rowGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 30));
+        rowGO.AddComponent<Image>().color = new Color(0,0,0,.25f);
+
+        var iGO = Child("Info", rowGO.transform);
+        SR(iGO, V(0,0), V(1,1), V(0,.5f), V(14,0), V(-130,0));
+        var infoTMP = T(iGO, "SPEED 4.5    MODIFIER OFF", 15, Hex("FFD23C"),
+                        TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var hGO = Child("Hint", rowGO.transform);
+        SR(hGO, V(1,0), V(1,1), V(1,.5f), V(-14,0), V(110,0));
+        T(hGO, "O: 変更", 13, new Color(.6f,.6f,.6f), TextAlignmentOptions.MidlineRight);
+
+        y -= 38;
+        return infoTMP;
+    }
+
+    static (Slider, TextMeshProUGUI, Button, TextMeshProUGUI)
         BuildSettings(Transform dt, ref float y, float W)
     {
         var setGO = Child("SettingsPanel", dt);
-        SR(setGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 180));
+        SR(setGO, V(0,1), V(1,1), V(.5f,1), V(0, y), V(-28, 64));
         setGO.AddComponent<Image>().color = new Color(0,0,0,.3f);
 
-        var (hiSpdSldr, hiSpdVal) = SliderRow(setGO.transform, "SPEED", -8,  .5f, 20f, 4.5f, false);
-        var (offSldr,   offVal)   = SliderRow(setGO.transform, "OFFSET", -54, PerSongOffset.MinMs, PerSongOffset.MaxMs, 0f, true, rightInset: 80);
+        var (offSldr, offVal) = SliderRow(setGO.transform, "OFFSET", -12,
+            PerSongOffset.MinMs, PerSongOffset.MaxMs, 0f, true, rightInset: 80);
 
-        // SAVE button on the offset row (top-right area)
+        // SAVE button on the offset row (right)
         var saveGO  = Child("OffsetSave", setGO.transform);
-        SR(saveGO, V(1,1), V(1,1), V(1,1), V(-12,-50), V(64,30));
+        SR(saveGO, V(1,1), V(1,1), V(1,1), V(-12,-17), V(64,30));
         var saveImg = saveGO.AddComponent<Image>(); saveImg.color = Faint;
         var saveBtn = saveGO.AddComponent<Button>(); saveBtn.targetGraphic = saveImg;
         var saveLblGO = Child("Label", saveGO.transform);
         SR(saveLblGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
         var saveLbl = T(saveLblGO, "SAVE", 14, new Color(1,1,1,.35f), TextAlignmentOptions.Center, FontStyles.Bold);
 
-        // Modifier row
-        var modRowGO = Child("ModifierRow", setGO.transform);
-        SR(modRowGO, V(0,1), V(1,1), V(.5f,1), V(0,-100), V(-24, 44));
-        var mLblGO = Child("Label", modRowGO.transform);
-        SR(mLblGO, V(0,0), V(0,1), V(0,.5f), V(16,0), V(120,0));
-        T(mLblGO, "MODIFIER", 14, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-        var modDD = MakeDropdown(modRowGO.transform);
-
-        return (hiSpdSldr, hiSpdVal, offSldr, offVal, saveBtn, saveLbl, modDD);
+        y -= 72;
+        return (offSldr, offVal, saveBtn, saveLbl);
     }
 
     static (ScrollRect, RectTransform) BuildScrollView(Transform parent, float topInset)

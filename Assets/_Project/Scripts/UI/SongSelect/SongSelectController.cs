@@ -45,18 +45,14 @@ public class SongSelectController : MonoBehaviour
     [SerializeField] Button             _btnExtra;
     [SerializeField] TextMeshProUGUI[]  _diffLevelTexts;
 
-    [Header("Settings — HiSpeed")]
-    [SerializeField] Slider             _hiSpeedSlider;
-    [SerializeField] TextMeshProUGUI    _hiSpeedValue;
+    [Header("Play Option Info (読み取り専用 — 変更は O: PLAY OPTIONS)")]
+    [SerializeField] TextMeshProUGUI    _playOptionInfoText;
 
     [Header("Settings — Per-Song Offset")]
     [SerializeField] Slider             _perSongOffsetSlider;
     [SerializeField] TextMeshProUGUI    _perSongOffsetValue;
     [SerializeField] Button             _perSongOffsetSaveButton;
     [SerializeField] TextMeshProUGUI    _saveButtonLabel;
-
-    [Header("Settings — Modifier")]
-    [SerializeField] TMP_Dropdown       _modifierDropdown;
 
     [Header("Profile")]
     [SerializeField] TextMeshProUGUI    _profileName;
@@ -88,6 +84,7 @@ public class SongSelectController : MonoBehaviour
 
     PerSongOffset _currentPerSongOffset;
     bool          _perSongOffsetDirty;
+    bool          _playOptionsWasOpen;   // PLAY OPTIONS クローズ検出 (閉じた直後に表示を同期)
 
     InputAction _navigateAction;
     InputAction _submitAction;
@@ -123,9 +120,21 @@ public class SongSelectController : MonoBehaviour
 
     void Update()
     {
+        // ポップアップ(プレイヤーデータ / PLAY OPTIONS)表示中は裏画面の入力を抑止する
+        if (PlayerDataPopup.IsOpen) return;
+        if (PlayOptionsController.IsOpen) { _playOptionsWasOpen = true; return; }
+        if (_playOptionsWasOpen)
+        {
+            _playOptionsWasOpen = false;
+            UpdatePlayOptionInfo();   // ポップアップで変更した SPEED/MODIFIER を反映
+        }
+
         var kb = Keyboard.current;
         if (kb != null)
         {
+            // O: 簡易コンフィグ (PLAY OPTIONS) ポップアップ
+            if (kb.oKey.wasPressedThisFrame) { PlayOptionsController.Toggle(); return; }
+
             if (kb.f4Key.wasPressedThisFrame) CycleSort();
 
             // HiSpeed 調整: [ / ] で ±0.5（↑↓は曲選択のまま）
@@ -134,23 +143,36 @@ public class SongSelectController : MonoBehaviour
 
             // Modifier 切替: M で None → Mirror → Random 循環
             if (kb.mKey.wasPressedThisFrame) CycleModifier();
+
+            // F2: Config（ESC で本画面に戻る・選曲状態も復元）
+            if (kb.f2Key.wasPressedThisFrame) OnOpenConfig();
+
+            // R: 選択中の曲の楽曲別ランキング
+            if (kb.rKey.wasPressedThisFrame) OnOpenRanking();
         }
     }
 
-    // [ / ] で HiSpeed を 0.5 刻みで増減する。
+    // [ / ] で HiSpeed を 0.5 刻みで増減する (正本は PlayOptionsController.HiSpeed)。
     void StepHiSpeed(float delta)
     {
-        if (_hiSpeedSlider == null) return;
-        _hiSpeedSlider.value = Mathf.Clamp(_hiSpeedSlider.value + delta,
-                                           _hiSpeedSlider.minValue, _hiSpeedSlider.maxValue);
-        // onValueChanged 経由で _hiSpeedValue も更新される
+        PlayOptionsController.HiSpeed += delta;
+        UpdatePlayOptionInfo();
     }
 
-    // M で Modifier (None/Mirror/Random) を循環切替する。
+    // M で Modifier (None/Mirror/Random) を循環切替する (隠しショートカット、正本は PLAY OPTIONS)。
     void CycleModifier()
     {
-        if (_modifierDropdown == null || _modifierDropdown.options.Count == 0) return;
-        _modifierDropdown.value = (_modifierDropdown.value + 1) % _modifierDropdown.options.Count;
+        PlayOptionsController.ModifierIdx += 1;
+        UpdatePlayOptionInfo();
+    }
+
+    // 詳細ペインの読み取り専用表示「SPEED x.x   MODIFIER XXX」を更新する。
+    void UpdatePlayOptionInfo()
+    {
+        if (_playOptionInfoText == null) return;
+        string mod = PlayOptionsController.ModifierIdx == 0
+            ? "OFF" : PlayOptionsController.ModifierName.ToUpperInvariant();
+        _playOptionInfoText.text = $"SPEED {PlayOptionsController.HiSpeed:F1}    MODIFIER {mod}";
     }
 
     async void Start()
@@ -163,13 +185,13 @@ public class SongSelectController : MonoBehaviour
         if (_sortButton != null) _sortButton.onClick.AddListener(CycleSort);
 
         RhythmGame.UI.Common.ShortcutHintOverlay.Set(
-            "↑↓: 曲選択   ←→: 難易度   Space: Play   [ ]: 速度   M: Modifier   F4: ソート   ESC: 戻る");
+            "↑↓: 曲選択   ←→: 難易度   Space: Play   O: プレイ設定   [ ]: 速度   F4: ソート   R: ランキング   F2: 設定   ESC: 戻る");
 
-        // HiSpeed (0.5〜20: 低速は縛りプレイ用に残す)
-        _hiSpeedSlider.minValue = 0.5f;
-        _hiSpeedSlider.maxValue = 20f;
-        _hiSpeedSlider.onValueChanged.AddListener(v => _hiSpeedValue.text = v.ToString("F1"));
-        _hiSpeedSlider.value = PlayerPrefs.GetFloat("HiSpeed", 4.5f);
+        // プロフィールカードをクリックでプレイヤーデータポップアップ（シーン再焼き不要のランタイム結線）
+        WireProfileCardClick();
+
+        // SPEED / MODIFIER の現在値表示 (変更は O: PLAY OPTIONS / [ ] / M)
+        UpdatePlayOptionInfo();
 
         // Per-song offset
         _perSongOffsetSlider.minValue     = PerSongOffset.MinMs;
@@ -180,10 +202,6 @@ public class SongSelectController : MonoBehaviour
         _currentPerSongOffset = PerSongOffset.DefaultFor("");
         UpdateSaveButtonAppearance();
 
-        _modifierDropdown.ClearOptions();
-        _modifierDropdown.AddOptions(new List<string> { "None", "Mirror", "Random" });
-        _modifierDropdown.value = 0;
-
         UpdateProfile();
         UpdateSortLabel();
 
@@ -191,9 +209,37 @@ public class SongSelectController : MonoBehaviour
 
         if (_songs.Count > 0)
         {
-            SelectSong(0);
-            SetDifficulty(Difficulty.Extra);
+            // Config / SongRanking から戻った場合は選曲カーソルと難易度を復元する
+            var restore = ParameterStore.GetPending<SongSelectParameters>();
+            int focusIdx   = 0;
+            var focusDiff  = Difficulty.Extra;
+            if (restore != null)
+            {
+                int found = _songs.FindIndex(s => s.SongId == restore.FocusSongId);
+                if (found >= 0) focusIdx = found;
+                int d = System.Array.IndexOf(DiffNames, restore.Difficulty);
+                if (d >= 0) focusDiff = (Difficulty)d;
+            }
+            SelectSong(focusIdx);
+            SetDifficulty(focusDiff);
         }
+    }
+
+    // プロフィールカード（_profileName の親）に Button を付与し、クリックでポップアップを開く。
+    // 既存シーンの ProfileCard は Image 持ちなのでシーン再焼きなしで結線できる。
+    void WireProfileCardClick()
+    {
+        if (_profileName == null) return;
+        var card = _profileName.transform.parent;
+        if (card == null) return;
+        var img = card.GetComponent<Image>();
+        if (img == null) return;
+
+        var btn = card.GetComponent<Button>();
+        if (btn == null) btn = card.gameObject.AddComponent<Button>();
+        btn.targetGraphic = img;
+        btn.transition    = Selectable.Transition.None;
+        btn.onClick.AddListener(OnOpenPlayerData);
     }
 
     // ── Profile ──────────────────────────────────────────────────────────────
@@ -281,6 +327,7 @@ public class SongSelectController : MonoBehaviour
 
     void OnNavigate(InputAction.CallbackContext ctx)
     {
+        if (PlayerDataPopup.IsOpen || PlayOptionsController.IsOpen) return;
         var v = ctx.ReadValue<Vector2>();
         if      (v.y >  0.5f) SelectSong(_selectedIndex - 1);
         else if (v.y < -0.5f) SelectSong(_selectedIndex + 1);
@@ -288,8 +335,8 @@ public class SongSelectController : MonoBehaviour
         else if (v.x < -0.5f) SetDifficulty((Difficulty)Mathf.Max(0, (int)_selectedDiff - 1));
     }
 
-    void OnSubmit(InputAction.CallbackContext ctx) => OnPlay();
-    void OnCancel(InputAction.CallbackContext ctx) => OnBack();
+    void OnSubmit(InputAction.CallbackContext ctx) { if (!PlayerDataPopup.IsOpen && !PlayOptionsController.IsOpen) OnPlay(); }
+    void OnCancel(InputAction.CallbackContext ctx) { if (!PlayerDataPopup.IsOpen && !PlayOptionsController.IsOpen) OnBack(); }
 
     // ── Selection ────────────────────────────────────────────────────────────
 
@@ -520,22 +567,62 @@ public class SongSelectController : MonoBehaviour
         if (_perSongOffsetDirty)
             Debug.LogWarning("[SongSelect] Unsaved per-song offset — will not affect this play");
 
-        PlayerPrefs.SetFloat("HiSpeed", _hiSpeedSlider.value);
-        PlayerPrefs.Save();
-
         var meta = _songs[_selectedIndex];
         var parameters = new GamePlayParameters
         {
             SongId       = meta.SongId,
             Difficulty   = DiffNames[(int)_selectedDiff],
-            HiSpeed      = _hiSpeedSlider.value,
+            HiSpeed      = PlayOptionsController.HiSpeed,
             JudgeOffset  = 0,   // offsets now come from DeviceProfile via RepositoryService
             VisualOffset = 0,
-            Modifier     = _modifierDropdown.options[_modifierDropdown.value].text,
+            Modifier     = PlayOptionsController.ModifierName,
         };
 
         SceneRouter.Instance.GoTo(SceneId.GamePlay, parameters);
     }
 
     void OnBack() => SceneRouter.Instance.GoTo(SceneId.Title);
+
+    // ── Config / Ranking / Player Data ───────────────────────────────────────
+
+    // 復帰時に現在の選曲状態を復元するためのパラメータ。
+    SongSelectParameters CurrentSelectionParameters()
+    {
+        return new SongSelectParameters
+        {
+            FocusSongId = _songs.Count > 0 ? _songs[_selectedIndex].SongId : null,
+            Difficulty  = DiffNames[(int)_selectedDiff],
+        };
+    }
+
+    // F2: Config を開く（ESC で本画面に戻り、選曲状態も復元）。
+    void OnOpenConfig()
+    {
+        SceneRouter.Instance.GoTo(SceneId.Config, new ConfigParameters
+        {
+            ReturnScene      = SceneId.SongSelect,
+            ReturnParameters = CurrentSelectionParameters(),
+        });
+    }
+
+    // R: 選択中の曲・難易度の楽曲別ランキングを開く。
+    void OnOpenRanking()
+    {
+        if (_songs.Count == 0) return;
+        var meta = _songs[_selectedIndex];
+        SceneRouter.Instance.GoTo(SceneId.SongRanking, new SongRankingParameters
+        {
+            SongId     = meta.SongId,
+            Difficulty = DiffNames[(int)_selectedDiff],
+            SongTitle  = meta.Title,
+            Artist     = meta.Artist,
+        });
+    }
+
+    // プロフィールカードクリック: プレイヤーデータポップアップを開く。
+    void OnOpenPlayerData()
+    {
+        if (PlayerDataPopup.IsOpen) return;
+        PlayerDataPopup.Show();
+    }
 }

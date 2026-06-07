@@ -94,6 +94,48 @@ public sealed class PvpSongLine
 }
 
 /// <summary>
+/// Config シーンへ渡すパラメータ。入口は Title / SongSelect(F2) / PVPLobby(F2) の3箇所あり、
+/// ESC(戻る)で呼び出し元のシーンへ復帰するために遷移元を保持する。
+/// </summary>
+public sealed class ConfigParameters : ISceneParameters
+{
+    /// <summary>ESC で戻る先のシーン。既定は Title。</summary>
+    public SceneId ReturnScene { get; set; } = SceneId.Title;
+    /// <summary>戻る際に遷移先へ渡すパラメータ(SongSelect の選曲状態復元など)。null 可。</summary>
+    public ISceneParameters ReturnParameters { get; set; }
+    /// <summary>開いた直後に表示するタブ名(ConfigTab の文字列)。リセット/破棄後の再読込で使用。null=既定タブ。</summary>
+    public string InitialTab { get; set; }
+}
+
+/// <summary>
+/// SongSelect シーンへ渡すパラメータ。Config / SongRanking から戻った際に
+/// 選曲カーソルと難易度を復元するために使う。
+/// </summary>
+public sealed class SongSelectParameters : ISceneParameters
+{
+    /// <summary>復帰時にカーソルを合わせる楽曲ID。</summary>
+    public string FocusSongId { get; set; }
+    /// <summary>復帰時に選択する難易度 (easy/normal/hard/extra)。</summary>
+    public string Difficulty  { get; set; }
+}
+
+/// <summary>
+/// 楽曲別ランキングシーン (SongRanking) へ渡すパラメータ。
+/// SongSelect で選択中の曲のランキングを表示し、ESC で SongSelect へ復帰する。
+/// </summary>
+public sealed class SongRankingParameters : ISceneParameters
+{
+    /// <summary>ランキング対象の楽曲ID。</summary>
+    public string SongId     { get; set; }
+    /// <summary>ランキング対象の難易度 (easy/normal/hard/extra)。</summary>
+    public string Difficulty { get; set; }
+    /// <summary>ヘッダ表示用の曲名。</summary>
+    public string SongTitle  { get; set; }
+    /// <summary>ヘッダ表示用のアーティスト名。</summary>
+    public string Artist     { get; set; }
+}
+
+/// <summary>
 /// リザルトシーンへ渡すパラメータ。プレイ結果ビューと元の GamePlay パラメータを保持し、
 /// リトライ時に同一設定で再開できるようにする。
 /// </summary>

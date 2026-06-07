@@ -32,6 +32,9 @@ public class DevicesTabController : MonoBehaviour
     [SerializeField] Button _deleteButton;
     [SerializeField] Button _saveButton;
 
+    [Header("Modal (モーダル運用時のみ・任意)")]
+    [SerializeField] Button _closeButton;   // モーダル表示時に自パネルを閉じる
+
     readonly List<DeviceProfile>        _profiles  = new List<DeviceProfile>();
     readonly List<ProfileListItemView>  _itemViews = new List<ProfileListItemView>();
     DeviceProfile _selectedProfile;
@@ -46,6 +49,8 @@ public class DevicesTabController : MonoBehaviour
         _setActiveButton.onClick.AddListener(OnSetActive);
         _deleteButton.onClick.AddListener(OnDelete);
         _saveButton.onClick.AddListener(OnSave);
+        if (_closeButton != null)
+            _closeButton.onClick.AddListener(() => gameObject.SetActive(false));
     }
 
     void OnEnable()

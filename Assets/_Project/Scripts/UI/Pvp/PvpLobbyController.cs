@@ -46,7 +46,7 @@ namespace RhythmGame.UI.Pvp
             if (_startButton != null) _startButton.onClick.AddListener(OnStart);
             if (_backButton  != null) _backButton.onClick.AddListener(OnBack);
 
-            RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space: START (RANKED MATCH)      ESC: タイトルへ");
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space: START (RANKED MATCH)      F2: 設定      ESC: タイトルへ");
 
             // プレースホルダー初期値 (K ドメイン)
             if (_ladderTierText != null) _ladderTierText.text = "UNRANKED";
@@ -76,11 +76,12 @@ namespace RhythmGame.UI.Pvp
 
         void Update()
         {
-            // Space=START / ESC=タイトルへ（未マッチなので確認ダイアログなし）。Input System 専用。
+            // Space=START / F2=Config(ESCで本画面に戻る) / ESC=タイトルへ（未マッチなので確認ダイアログなし）。Input System 専用。
             var kb = UnityEngine.InputSystem.Keyboard.current;
             if (kb != null)
             {
                 if (kb.spaceKey.wasPressedThisFrame)  OnStart();
+                if (kb.f2Key.wasPressedThisFrame)     OnConfig();
                 if (kb.escapeKey.wasPressedThisFrame) OnBack();
             }
 
@@ -100,6 +101,13 @@ namespace RhythmGame.UI.Pvp
         void OnBack()
         {
             SceneRouter.Instance?.GoTo(SceneId.Title);
+        }
+
+        // F2: Config を開く。ESC で本画面 (PVPLobby) に復帰する。
+        void OnConfig()
+        {
+            SceneRouter.Instance?.GoTo(SceneId.Config,
+                new ConfigParameters { ReturnScene = SceneId.PVPLobby });
         }
 
         // ── OnGUI フォールバック ───────────────────────────────────────

@@ -36,6 +36,7 @@ public class SceneRouter : MonoBehaviour
         { SceneId.PVPMatchEnd, "PVPMatchEnd"  },
         { SceneId.PVPSongSetup,"PVPSongSetup" },
         { SceneId.PVPLobby,    "PVPLobby"     },
+        { SceneId.SongRanking, "SongRanking"  },
     };
 
     // Scenes that show LoadingOverlay during transition
@@ -91,6 +92,7 @@ public class SceneRouter : MonoBehaviour
         // 横断オーバーレイは画面を跨いで残さない（各画面が Start で再設定する）
         RhythmGame.UI.Common.ShortcutHintOverlay.Clear();
         RhythmGame.UI.Common.ConfirmDialog.ForceClose();
+        RhythmGame.UI.Common.SaveChangesDialog.ForceClose();
 
         string targetLabel;
         if (!SceneNames.TryGetValue(target, out targetLabel))

@@ -23,6 +23,10 @@ public class HitSoundPlayer : MonoBehaviour
     [SerializeField] float _tapClickVolume       = 1.0f;
     [SerializeField] float _judgmentVolume       = 0.85f;
 
+    // PlayerPrefs キー (簡易コンフィグ PLAY OPTIONS から切替・永続化)
+    const string PrefTapClick  = "HitSoundTap";
+    const string PrefJudgment  = "HitSoundJudgment";
+
     AudioSource     _source;
     HitSoundLibrary _library;
 
@@ -31,6 +35,10 @@ public class HitSoundPlayer : MonoBehaviour
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+
+        // 保存済み設定を復元 (未保存ならインスペクタ既定値)
+        _enableTapClick       = PlayerPrefs.GetInt(PrefTapClick, _enableTapClick       ? 1 : 0) == 1;
+        _enableJudgmentSounds = PlayerPrefs.GetInt(PrefJudgment, _enableJudgmentSounds ? 1 : 0) == 1;
 
         _source               = gameObject.AddComponent<AudioSource>();
         _source.playOnAwake   = false;
@@ -72,8 +80,19 @@ public class HitSoundPlayer : MonoBehaviour
         if (_source != null) _source.volume = linear01;
     }
 
-    /// <summary>タップクリック音の有効/無効を切り替える。</summary>
-    public void SetTapClickEnabled(bool enabled)       => _enableTapClick       = enabled;
-    /// <summary>判定効果音の有効/無効を切り替える。</summary>
-    public void SetJudgmentSoundsEnabled(bool enabled) => _enableJudgmentSounds = enabled;
+    /// <summary>タップクリック音の有効/無効を切り替える(PlayerPrefs に永続化)。</summary>
+    public void SetTapClickEnabled(bool enabled)
+    {
+        _enableTapClick = enabled;
+        PlayerPrefs.SetInt(PrefTapClick, enabled ? 1 : 0);
+        PlayerPrefs.Save();
+    }
+
+    /// <summary>判定効果音の有効/無効を切り替える(PlayerPrefs に永続化)。</summary>
+    public void SetJudgmentSoundsEnabled(bool enabled)
+    {
+        _enableJudgmentSounds = enabled;
+        PlayerPrefs.SetInt(PrefJudgment, enabled ? 1 : 0);
+        PlayerPrefs.Save();
+    }
 }

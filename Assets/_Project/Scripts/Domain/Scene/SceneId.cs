@@ -25,4 +25,7 @@ public enum SceneId
     PVPSongSetup,
     // Online lobby (対戦待合). Between Title's Online menu and Matchmaking.
     PVPLobby,
+    // 楽曲別ランキング (SongSelect の R キーで遷移、選択曲のランキング表示)。
+    // Appended at the end so existing ordinals (used by enumValueIndex wiring) are unchanged.
+    SongRanking,
 }
