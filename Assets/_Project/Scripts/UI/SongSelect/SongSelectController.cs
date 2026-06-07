@@ -254,6 +254,9 @@ public class SongSelectController : MonoBehaviour
 
     async Task LoadSongList()
     {
+        // サーバー楽曲同期を待ち合わせ (譜面はサーバーが正・chart_hash 整合。オフライン時はキャッシュ復元)
+        await RhythmGame.Network.Api.ServerSongLibrary.EnsureSyncedAsync();
+
         var songsRoot = Path.Combine(Application.streamingAssetsPath, "Songs");
         if (!Directory.Exists(songsRoot)) return;
 

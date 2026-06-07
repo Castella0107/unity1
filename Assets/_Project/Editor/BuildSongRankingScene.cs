@@ -38,6 +38,7 @@ public static class BuildSongRankingScene
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = Hex("050810");
         camGO.AddComponent<AudioListener>();
+        camGO.AddComponent<AudioListenerGuard>();   // _Persistent と重複時に無効化 (警告スパム防止)
 
         // ── EventSystem ───────────────────────────────────────────────────────
         var esGO = new GameObject("EventSystem");

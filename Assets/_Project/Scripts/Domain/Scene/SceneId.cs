@@ -28,4 +28,6 @@ public enum SceneId
     // 楽曲別ランキング (SongSelect の R キーで遷移、選択曲のランキング表示)。
     // Appended at the end so existing ordinals (used by enumValueIndex wiring) are unchanged.
     SongRanking,
+    // ログイン/新規登録 (Go サーバー移行 M1)。起動時 Bootstrap → Login → Title。
+    Login,
 }

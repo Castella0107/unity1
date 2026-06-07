@@ -56,6 +56,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/SongRanking.unity
     guid: d0e92f3e0df225c48af77cb9ee23d8b0
+  - enabled: 1
+    path: Assets/_Project/Scenes/Login.unity
+    guid: c1e5f54f5fb021843a66a6ed3f29239b
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0

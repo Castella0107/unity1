@@ -37,6 +37,7 @@ public class SceneRouter : MonoBehaviour
         { SceneId.PVPSongSetup,"PVPSongSetup" },
         { SceneId.PVPLobby,    "PVPLobby"     },
         { SceneId.SongRanking, "SongRanking"  },
+        { SceneId.Login,       "Login"        },
     };
 
     // Scenes that show LoadingOverlay during transition
@@ -75,11 +76,12 @@ public class SceneRouter : MonoBehaviour
         StartCoroutine(GoToRoutine(target, parameters ?? EmptyParameters.Instance, style));
     }
 
-    /// <summary>起動時に Title シーンへ遷移する(起動時の黒フラッシュを避けるため演出なし)。</summary>
+    /// <summary>起動時にログイン画面へ遷移する(起動時の黒フラッシュを避けるため演出なし)。
+    /// セッション有効時は Login 側が自動で Title へスキップする。</summary>
     public void InitialBoot()
     {
         // Use None for boot (no black flash on startup)
-        GoTo(SceneId.Title, null, TransitionStyle.None);
+        GoTo(SceneId.Login, null, TransitionStyle.None);
     }
 
     // ── Core routine ──────────────────────────────────────────────────────────

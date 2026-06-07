@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "songId": "song_003",
+  "title": "Test Song Gamma",
+  "artist": "Test Artist",
+  "bpm": 200,
+  "durationMs": 20000,
+  "audioFile": "audio.wav",
+  "jacketFile": "",
+  "firstOnsetMs": 0,
+  "audioOffsetMs": 0,
+  "sectors": []
+}

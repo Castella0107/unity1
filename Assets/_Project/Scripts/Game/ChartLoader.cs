@@ -26,17 +26,35 @@ public static class ChartLoader
             : Path.Combine(Application.streamingAssetsPath, "Songs", songId);
     }
 
-    /// <summary>指定楽曲の meta.json を読み込んで <see cref="SongMetadata"/> を返す。</summary>
+    /// <summary>指定楽曲の meta.json を読み込んで <see cref="SongMetadata"/> を返す。
+    /// ローカル meta が無いサーバー曲は ServerSongLibrary から合成する。</summary>
     public static async Task<SongMetadata> LoadMetaAsync(string songId)
     {
         string path = Path.Combine(ResolveBaseDir(songId), "meta.json");
-        string json = await ReadTextAsync(path);
-        return ChartParser.ParseMeta(json);
+        try
+        {
+            string json = await ReadTextAsync(path);
+            return ChartParser.ParseMeta(json);
+        }
+        catch (Exception)
+        {
+            // サーバー曲 (譜面のみサーバー配信) のフォールバック
+            var serverMeta = RhythmGame.Network.Api.ServerSongLibrary.GetMetaOrNull(songId);
+            if (serverMeta != null) return serverMeta;
+            throw;
+        }
     }
 
-    /// <summary>指定楽曲・難易度のチャートを読み込む。<c>charts/&lt;diff&gt;.json</c> と <c>&lt;diff&gt;.json</c> の両配置に対応。</summary>
+    /// <summary>指定楽曲・難易度のチャートを読み込む。
+    /// サーバー同期済み譜面 (ServerSongLibrary) を最優先し (chart_hash がサーバー正)、
+    /// 無ければローカル <c>charts/&lt;diff&gt;.json</c> / <c>&lt;diff&gt;.json</c> の両配置を読む。</summary>
     public static async Task<ChartData> LoadChartAsync(string songId, string difficulty)
     {
+        // サーバー譜面が正 (Go サーバー移行 M2)。テストプレイの OverrideBasePath 指定時はローカル優先。
+        if (string.IsNullOrEmpty(OverrideBasePath) &&
+            RhythmGame.Network.Api.ServerSongLibrary.TryGetChart(songId, difficulty, out var serverChart))
+            return serverChart;
+
         // 本体配置: <base>/charts/<diff>.json。ChartEditor 配置: <base>/<diff>.json も許容。
         string baseDir   = ResolveBaseDir(songId);
         string nested    = Path.Combine(baseDir, "charts", difficulty + ".json");

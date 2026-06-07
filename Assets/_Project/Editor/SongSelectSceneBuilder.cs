@@ -42,6 +42,7 @@ public static class SongSelectSceneBuilder
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = Hex("050810");
         camGO.AddComponent<AudioListener>();
+        camGO.AddComponent<AudioListenerGuard>();   // _Persistent と重複時に無効化 (警告スパム防止)
 
         // ── EventSystem ───────────────────────────────────────────────────────
         var esGO = new GameObject("EventSystem");
@@ -76,7 +77,7 @@ public static class SongSelectSceneBuilder
         // Mode logo (left)
         var logoGO = Child("ModeLogo", topGO.transform);
         SR(logoGO, V(0,0), V(0,1), V(0,.5f), V(Pad,0), V(360,0));
-        T(logoGO, "△▽✕  FREE PLAY", 30, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        T(logoGO, "△▽×  FREE PLAY", 30, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
         // Back button (left, under-ish — small)
         var backBtnGO  = Child("BackButton", topGO.transform);
@@ -742,7 +743,7 @@ public static class SongSelectSceneBuilder
             var cImg = cGO.AddComponent<Image>(); cImg.color = new Color(1,1,1,.06f); cImg.raycastTarget = false;
             var cl = Child("Lv", cGO.transform);
             SR(cl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-            var clt = T(cl, "✕", 16, new Color(.45f,.45f,.45f), TextAlignmentOptions.Center, FontStyles.Bold);
+            var clt = T(cl, "×", 16, new Color(.45f,.45f,.45f), TextAlignmentOptions.Center, FontStyles.Bold);
             clt.raycastTarget = false;
         }
 

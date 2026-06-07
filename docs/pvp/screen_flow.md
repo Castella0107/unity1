@@ -351,6 +351,14 @@ SongSelect から **O キー** で開くポップアップ。フルの Config（
 - **操作**: **↑↓（W/S）=項目選択**（旧←→から変更）/ Space・Enter=決定 / ESC=終了確認。遷移先は従来通り（Free Play→SongSelect / Online→PVPLobby / Config / History / Exit）。
 - 付随: Result.unity の Canvas に残っていた missing script 残骸を1件除去。
 
+### 12-2. メニュー文字スタイル（同日・ユーザー提供リファレンス(ONLINE 中抜きグラデ)適用）
+
+メインメニュー全項目（親5+History子2）に、リファレンス画像準拠の**中抜き(アウトライン)+左濃紺→右スチールブルーのグラデーション+縦長コンデンス大文字**スタイルを適用。
+
+- 実装: `UI/Title/MenuOutlineLabel.cs`（新規）— **TMP 2層重ね**。Back=塗り文字+頂点グラデーション（左→右）、Front=同じ文字を黒・`_FaceDilate` 負値で一回り細らせて重ね、内側を抜く（背景が真っ暗なタイトル前提）。縦長感はルート `localScale(0.85, 1.12)`。
+- 選択中=明るい青グラデ（#2A3DA8→#7FB4FF）/ 非選択=暗い紺グラデ（#141C49→#3D5E8C）。文字は自動大文字化。
+- 真のフォントファイル生成ではなく TMP スタイル再現。BGA・背景画導入で背景が黒以外になる場合は Front 色の追従が必要（既知の制約）。
+
 ### 12-1. History 子ボタン + History 独立画面化（同日・ユーザー提供モック(みんなで推理風)適用）
 
 - **Title の History に子メニュー**: History 選択中に **Space または →** で右側に子ボタン2つを展開 — **Ladder Match**（ラダーマッチ履歴）/ **Free Play**（フリープレイ履歴）。↑↓で選択、Space で決定、**ESC / ← で親メニューに戻る**。選択中の子には説明文（黒帯）。データ正本は `TitleController._historyChildren`。

@@ -6,12 +6,15 @@ using UnityEngine;
 /// </summary>
 public static class ServerConfig
 {
-    const string PrefKey_BaseUrl       = "Network_BaseUrl";
+    // v2: Go サーバー (PVPharmonics) 移行に伴い既定 URL を 8080 に変更 (2026-06-07)。
+    // 旧キー "Network_BaseUrl" に保存された C# サーバー URL (5246) を引き継がないようキーを更新。
+    const string PrefKey_BaseUrl       = "Network_BaseUrl_v2";
     const string PrefKey_TimeoutSec    = "Network_TimeoutSec";
     const string PrefKey_Enabled       = "Network_Enabled";
 
-    /// <summary>既定のサーバーベース URL。</summary>
-    public const string DefaultBaseUrl    = "http://localhost:5246";
+    /// <summary>既定のサーバーベース URL (Go サーバー・ConoHa ステージング、TLS必須)。
+    /// ローカル開発時は F9 オーバーレイ等で http://localhost:8080 に変更可。</summary>
+    public const string DefaultBaseUrl    = "https://pvpharmonics.duckdns.org";
     /// <summary>既定のリクエストタイムアウト(秒)。</summary>
     public const int    DefaultTimeoutSec = 10;
     /// <summary>ネットワーク機能の既定有効状態。</summary>

@@ -50,6 +50,7 @@ public static class BuildConfigScene
         cam.clearFlags = CameraClearFlags.SolidColor;
         cam.backgroundColor = Bg;
         camGO.AddComponent<AudioListener>();
+        camGO.AddComponent<AudioListenerGuard>();   // _Persistent と重複時に無効化 (警告スパム防止)
 
         var esGO = new GameObject("EventSystem");
         esGO.AddComponent<EventSystem>();

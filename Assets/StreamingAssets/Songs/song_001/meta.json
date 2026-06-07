@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "songId": "song_001",
+  "title": "Test Song Alpha",
+  "artist": "Test Artist",
+  "bpm": 175,
+  "durationMs": 20000,
+  "audioFile": "audio.wav",
+  "jacketFile": "",
+  "firstOnsetMs": 0,
+  "audioOffsetMs": 0,
+  "sectors": []
+}
