@@ -2,7 +2,8 @@
 
 > 正本フロー（PVP対戦）: `C:\Users\CaSte\OneDrive\デスクトップ\フロー.png`（ユーザー提供）
 > 配色規約: **自分 = シアン `#2BD9E6`（左） / 相手 = レッド `#F24D6B`（右）**、基調は DJMAX 風
-> 最終更新: 2026-06-07 — ①Config を SongSelect / PVPLobby からも開けるように（ESC は呼び出し元へ戻る） ②PVPMatchEnd への遷移ラベルを「3曲目完了」と「2曲目後8ptクリンチ」の2系統で明確化 ③SongSelect にプレイヤーデータポップアップ（新規） ④SongSelect に楽曲別ランキング画面（新規）を追加
+> 最終更新: 2026-06-07 (2回目) — 図を実装に追従: Config を**5タブ**表記に変更（モック適用・§10）+ **未保存変更の3択確認**を明記（§10-1）+ SongSelect に **PLAY OPTIONS（簡易設定ポップアップ・O キー）** を追加（§11）。
+> 同日(1回目): ①Config 入口3箇所化（ESC=呼び出し元復帰） ②PVPMatchEnd 到達2系統明確化 ③プレイヤーデータポップアップ ④楽曲別ランキング画面
 
 このドキュメントは「画面遷移」と「各画面の操作（キーボード / ESC / ゲームパッド / ボタン）」を一体で定義する。
 凡例: **(済)** = 現状コードに実装済み / **(新)** = 本仕様で新規に追加する操作。
@@ -44,9 +45,10 @@ flowchart TD
     PlayS["GamePlay (ソロ)<br/>(ESC=ポーズ)"]
     Result["Result<br/>(スコア / リトライ)"]
     Hist["History<br/>(戦績・リプレイ)"]
-    Conf["Config<br/>(5タブ設定)"]
+    Conf["Config<br/>(5タブ設定・未保存変更は確認)"]
     Replay["GamePlay (リプレイ再生)"]
     PData["プレイヤーデータ<br/>(ポップアップ)"]
+    PlayOpt["PLAY OPTIONS<br/>(簡易設定ポップアップ)"]
     Rank["楽曲別ランキング<br/>(選択曲のランキング)"]
 
     %% ── PVP系 ──
@@ -83,6 +85,8 @@ flowchart TD
 
     SongSel -->|プレイヤーデータをクリック| PData
     PData -.->|閉じる| SongSel
+    SongSel -->|O=プレイ設定| PlayOpt
+    PlayOpt -.->|O / ESC| SongSel
     SongSel -->|R=ランキング| Rank
     Rank -.->|ESC| SongSel
 
@@ -90,7 +94,7 @@ flowchart TD
     Hist -.->|ESC| Title
     SongSel -.->|F2=Config| Conf
     Lobby -.->|F2=Config| Conf
-    Conf -.->|ESC=呼び出し元へ戻る| Title
+    Conf -.->|"ESC=呼び出し元へ戻る（未保存変更は3択確認）"| Title
 
     Lobby -->|Space=START| MM
     MM -->|MATCH FOUND（自動）| Pre
@@ -113,7 +117,7 @@ flowchart TD
 
     classDef solo fill:#143,stroke:#2BD9E6,color:#fff;
     classDef pvp  fill:#413,stroke:#F7C740,color:#fff;
-    class SongSel,PlayS,Result,Hist,Conf,Replay,PData,Rank solo;
+    class SongSel,PlayS,Result,Hist,Conf,Replay,PData,PlayOpt,Rank solo;
     class Lobby,MM,Pre,Pick,Ban,Setup,PlayP,SongRes,End pvp;
 ```
 

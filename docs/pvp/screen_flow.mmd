@@ -6,9 +6,10 @@ flowchart TD
     PlayS["GamePlay (ソロ)<br/>(ESC=ポーズ)"]
     Result["Result<br/>(スコア / リトライ)"]
     Hist["History<br/>(戦績・リプレイ)"]
-    Conf["Config<br/>(7タブ設定)"]
+    Conf["Config<br/>(5タブ設定・未保存変更は確認)"]
     Replay["GamePlay (リプレイ再生)"]
     PData["プレイヤーデータ<br/>(ポップアップ)"]
+    PlayOpt["PLAY OPTIONS<br/>(簡易設定ポップアップ)"]
     Rank["楽曲別ランキング<br/>(選択曲のランキング)"]
 
     Lobby["PVPLobby<br/>(オンラインロビー)"]
@@ -44,6 +45,8 @@ flowchart TD
 
     SongSel -->|プレイヤーデータをクリック| PData
     PData -.->|閉じる| SongSel
+    SongSel -->|O=プレイ設定| PlayOpt
+    PlayOpt -.->|O / ESC| SongSel
     SongSel -->|R=ランキング| Rank
     Rank -.->|ESC| SongSel
 
@@ -51,7 +54,7 @@ flowchart TD
     Hist -.->|ESC| Title
     SongSel -.->|F2=Config| Conf
     Lobby -.->|F2=Config| Conf
-    Conf -.->|ESC=呼び出し元へ戻る| Title
+    Conf -.->|"ESC=呼び出し元へ戻る（未保存変更は3択確認）"| Title
 
     Lobby -->|Space=START| MM
     MM -->|MATCH FOUND（自動）| Pre
@@ -74,5 +77,5 @@ flowchart TD
 
     classDef solo fill:#143,stroke:#2BD9E6,color:#fff;
     classDef pvp  fill:#413,stroke:#F7C740,color:#fff;
-    class SongSel,PlayS,Result,Hist,Conf,Replay,PData,Rank solo;
+    class SongSel,PlayS,Result,Hist,Conf,Replay,PData,PlayOpt,Rank solo;
     class Lobby,MM,Pre,Pick,Ban,Setup,PlayP,SongRes,End pvp;
