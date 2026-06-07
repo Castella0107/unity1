@@ -91,6 +91,29 @@ namespace RhythmGame.UI.Pvp
                 double remain = (_deadline.Value - DateTimeOffset.UtcNow).TotalSeconds;
                 _timerText.text = remain > 0 ? $"{remain:F0}" : "0";
             }
+
+            // ESC: ドラフト離脱 = 不戦敗の確認 (離脱で WS が切れ、サーバーの 30s グレース後 forfeit)
+            if (!RhythmGame.UI.Common.ConfirmDialog.IsOpen)
+            {
+                var kb = UnityEngine.InputSystem.Keyboard.current;
+                if (kb != null && kb.escapeKey.wasPressedThisFrame) ShowLeaveConfirm();
+                var pad = UnityEngine.InputSystem.Gamepad.current;
+                if (pad != null && RhythmGame.Input.GamepadLayout.BackPressed(pad)) ShowLeaveConfirm();
+            }
+        }
+
+        void ShowLeaveConfirm()
+        {
+            RhythmGame.UI.Common.ConfirmDialog.Show(
+                "対戦から離脱しますか？(不戦敗扱い)", "離脱する", "もどる",
+                onConfirm: () => _ = LeaveAsync());
+        }
+
+        async Task LeaveAsync()
+        {
+            _leaving = true;
+            await PvpMatchContext.ClearAsync();   // WS クローズ → サーバーのグレース → forfeit
+            SceneRouter.Instance?.GoTo(SceneId.PVPLobby);
         }
 
         // ── State polling (正) ───────────────────────────────────────────────
@@ -111,7 +134,40 @@ namespace RhythmGame.UI.Pvp
                     return;
                 }
 
+                await EnsureSocketAsync();   // WS 切断時の自動再接続 (30s グレース内なら復帰可)
                 await Task.Delay(1500);
+            }
+        }
+
+        bool _reconnecting;
+
+        // WS が落ちていたら再接続を試みる (相手進捗中継・start通知の復旧。draft はグレース 30 秒)
+        async Task EnsureSocketAsync()
+        {
+            if (_leaving || _reconnecting) return;
+            var sock = PvpMatchContext.Socket;
+            if (sock != null && sock.IsConnected) return;
+
+            _reconnecting = true;
+            try
+            {
+                sock?.Dispose();
+                var newSock = new MatchSocketClient();
+                bool ok = await newSock.ConnectAsync(PvpMatchContext.MatchId);
+                if (ok)
+                {
+                    PvpMatchContext.Socket = newSock;
+                    Debug.Log("[Draft] WS 再接続成功");
+                }
+                else
+                {
+                    newSock.Dispose();
+                    PvpMatchContext.Socket = null;
+                }
+            }
+            finally
+            {
+                _reconnecting = false;
             }
         }
 

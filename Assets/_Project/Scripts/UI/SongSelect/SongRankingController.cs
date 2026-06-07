@@ -64,6 +64,14 @@ public class SongRankingController : MonoBehaviour
 
     async Task LoadAsync()
     {
+        // Go サーバーのランキング API は Phase 7 で実装予定 (未提供) — COMING SOON 表示 (M6)
+        // K の Phase 7 完了後、/leaderboard/{song_id}/{difficulty} に結線し直す。
+        SetStatus("COMING SOON — ランキングはサーバー側 (Phase 7) の実装待ちです");
+        if (_personalText != null) _personalText.text = "";
+        await Task.CompletedTask;
+        return;
+
+#pragma warning disable CS0162 // 到達不能: Phase 7 結線時に復活させる旧実装
         var net = NetworkClient.Instance;
         if (net == null) { SetStatus("オフライン (サーバー未接続)"); return; }
 
@@ -109,6 +117,7 @@ public class SongRankingController : MonoBehaviour
             _personalText.text = $"YOUR RANK   #{me.Body.overallRank} / {me.Body.totalUsers}      SCORE {me.Body.best.score:N0}";
         else
             _personalText.text = "YOUR RANK   -- (記録なし)";
+#pragma warning restore CS0162
     }
 
     void SetStatus(string msg)

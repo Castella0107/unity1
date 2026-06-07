@@ -116,7 +116,11 @@ public class TitleController : MonoBehaviour
         }
         if (_childRoot != null) _childRoot.SetActive(false);
 
-        if (_playerNameText != null) _playerNameText.text = LocalIdentity.UserId;
+        if (_playerNameText != null)
+            _playerNameText.text = RhythmGame.Network.Api.AuthManager.OfflineMode
+                ? "OFFLINE"
+                : (string.IsNullOrEmpty(RhythmGame.Network.Api.AuthManager.DisplayName)
+                    ? "GUEST" : RhythmGame.Network.Api.AuthManager.DisplayName);
         if (_playerRatingText != null) _playerRatingText.text = "RATING ----";
         _ = LoadPlayerRatingAsync();
 
@@ -129,12 +133,12 @@ public class TitleController : MonoBehaviour
 
     async Task LoadPlayerRatingAsync()
     {
-        var net = NetworkClient.Instance;
-        if (net == null || _playerRatingText == null) return;
-        var r = await net.FetchPvpUserStatsAsync(LocalIdentity.UserId);
+        if (_playerRatingText == null) return;
+        if (RhythmGame.Network.Api.AuthManager.OfflineMode) return;
+        var r = await RhythmGame.Network.Api.ApiClient.GetAsync<RhythmGame.Network.Api.UserMeDto>("/users/me");
         if (this == null || _playerRatingText == null) return;
-        if (r.Ok && r.Body != null)
-            _playerRatingText.text = $"RATING {r.Body.rating:F0}";
+        if (r.Ok && r.Data != null)
+            _playerRatingText.text = $"RATING {r.Data.Rating:F0}";
     }
 
     // ── Input callbacks ────────────────────────────────────────────────────

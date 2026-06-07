@@ -64,14 +64,19 @@ namespace RhythmGame.UI.Pvp
 
         async Task LoadStatsAsync()
         {
-            var net = NetworkClient.Instance;
-            if (net == null) return;
-            var r = await net.FetchPvpUserStatsAsync(LocalIdentity.UserId);
-            if (!r.Ok || r.Body == null) return;
+            // Go サーバー /users/me (rating + 勝敗カウント) に結線 (M6)
+            if (RhythmGame.Network.Api.AuthManager.OfflineMode) return;
+            var r = await RhythmGame.Network.Api.ApiClient
+                .GetAsync<RhythmGame.Network.Api.UserMeDto>("/users/me");
+            if (!r.Ok || r.Data == null) return;
 
-            if (_totalMatchText != null) _totalMatchText.text = r.Body.totalMatches.ToString();
-            if (_matchWinText   != null) _matchWinText.text   = r.Body.wins.ToString();
-            if (_winRatioText   != null) _winRatioText.text   = $"{r.Body.winRatio * 100.0:0.00}%";
+            int total = r.Data.WinCount + r.Data.LossCount + r.Data.DrawCount;
+            if (_totalMatchText != null) _totalMatchText.text = total.ToString();
+            if (_matchWinText   != null) _matchWinText.text   = r.Data.WinCount.ToString();
+            if (_winRatioText   != null) _winRatioText.text   =
+                total > 0 ? $"{(double)r.Data.WinCount / total * 100.0:0.00}%" : "0.00%";
+            if (_ladderTierText != null) _ladderTierText.text = $"RATING {r.Data.Rating:F0}";
+            if (_centerTierText != null) _centerTierText.text = $"{r.Data.Rating:F0}";
         }
 
         void Update()

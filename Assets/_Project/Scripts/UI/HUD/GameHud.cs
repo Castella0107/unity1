@@ -141,9 +141,18 @@ public class GameHud : MonoBehaviour
         if (_rateValue != null)
             _rateValue.text = Rate(score, agg.CurrentMaxScore).ToString("F2") + "%";
 
-        // PVP: self side of the VS bar tracks the live score. Opponent side / lead /
-        // sector win-lose stay placeholders until live opponent data is supplied.
-        if (_isPvp && _vsSelfScore != null) _vsSelfScore.text = score.ToString("N0");
+        // PVP: VS バー。自分側=ライブスコア、相手側=WS opponent_progress 受信値 (M5 でライブ化)。
+        if (_isPvp)
+        {
+            if (_vsSelfScore != null) _vsSelfScore.text = score.ToString("N0");
+            if (_oppLiveScore >= 0)
+            {
+                if (_vsOppScore != null) _vsOppScore.text = _oppLiveScore.ToString("N0");
+                SetLead(score, _oppLiveScore);
+                long sum = (long)score + _oppLiveScore;
+                SetVsSplit(sum > 0 ? (float)score / sum : 0.5f);
+            }
+        }
 
         UpdateSectorDiamonds(agg);
     }
@@ -208,6 +217,14 @@ public class GameHud : MonoBehaviour
         FetchOpponentRate(opponentId);
     }
 
+    int _oppLiveScore = -1;   // WS opponent_progress の最新スコア (-1=未受信でプレースホルダー維持)
+
+    /// <summary>相手のライブスコアを供給する (WS opponent_progress → GamePlayController 経由)。</summary>
+    public void UpdateOpponentLive(long score)
+    {
+        _oppLiveScore = (int)System.Math.Min(score, int.MaxValue);
+    }
+
     /// <summary>VS バーの綱引き比率を設定する(self の取り分 0..1)。相手ライブ化時に実スコア比で駆動。</summary>
     void SetVsSplit(float selfShare)
     {
@@ -237,14 +254,16 @@ public class GameHud : MonoBehaviour
     async void FetchOpponentRate(string opponentId)
     {
         if (string.IsNullOrEmpty(opponentId)) return;
-        var net = RhythmGame.Network.NetworkClient.Instance;
-        if (net == null) return;
         try
         {
-            var r = await net.FetchPvpUserStatsAsync(opponentId);
+            var r = await RhythmGame.Network.Api.PvpApi.GetUserAsync(opponentId);
             if (_opponentRate == null) return;   // destroyed while awaiting
-            if (r != null && r.Ok && r.Body != null)
-                _opponentRate.text = "Rate " + Mathf.RoundToInt((float)r.Body.rating);
+            if (r != null && r.Ok && r.Data != null)
+            {
+                _opponentRate.text = "Rate " + Mathf.RoundToInt((float)r.Data.Rating);
+                if (_opponentName != null && !string.IsNullOrEmpty(r.Data.DisplayName))
+                    _opponentName.text = r.Data.DisplayName;
+            }
         }
         catch { /* プレースホルダーのまま */ }
     }

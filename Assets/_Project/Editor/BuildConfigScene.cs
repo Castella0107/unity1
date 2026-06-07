@@ -340,6 +340,13 @@ public static class BuildConfigScene
         float y = -8f;
         var pt = panel.transform;
 
+        // ログインセッション (Go サーバー認証, M6)
+        var sessRow = Row(pt, ref y, "ログイン中のアカウント");
+        var sessGO  = Child("SessionInfo", sessRow.transform);
+        SR(sessGO, V(0,0), V(0,1), V(0,.5f), V(430,0), V(380,0));
+        var sessTMP = T(sessGO, "-", 17, AccentHi, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        var logoutBtn = SmallButton(sessRow.transform, "ログアウト", V(1,.5f), V(-20,0), V(180,40), danger: true);
+
         // プレイヤー名
         var nameRow   = Row(pt, ref y, "プレイヤー名");
         var nameInput = MakeInput(nameRow.transform, 430, 380, "表示名を入力");
@@ -397,6 +404,8 @@ public static class BuildConfigScene
         SetRef(soA, "_statusMessageSaveButton", msgSave);
         SetRef(soA, "_charCountText",           cntTMP);
         SetRef(soA, "_notificationsToggle",     notifTgl);
+        SetRef(soA, "_sessionInfoText",         sessTMP);
+        SetRef(soA, "_logoutButton",            logoutBtn);
         soA.ApplyModifiedProperties();
 
         var data = panel.AddComponent<DataTabController>();

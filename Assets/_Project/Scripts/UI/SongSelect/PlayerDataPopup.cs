@@ -51,7 +51,9 @@ public class PlayerDataPopup : MonoBehaviour
 
     void Open()
     {
-        _playerName   = LocalIdentity.UserId;
+        _playerName   = !string.IsNullOrEmpty(RhythmGame.Network.Api.AuthManager.DisplayName)
+            ? RhythmGame.Network.Api.AuthManager.DisplayName
+            : LocalIdentity.UserId;
         _soloLine     = "取得中...";
         _pvpRating    = "--";
         _pvpMatches   = "--";
@@ -79,16 +81,17 @@ public class PlayerDataPopup : MonoBehaviour
         }
         catch { _soloLine = "--"; }
 
-        // PVP: サーバー戦績 (未登録ユーザーは全0が返る)
-        var net = NetworkClient.Instance;
-        if (net == null) { SetPvpUnavailable(); return; }
-        var r = await net.FetchPvpUserStatsAsync(LocalIdentity.UserId);
-        if (!r.Ok || r.Body == null) { SetPvpUnavailable(); return; }
+        // PVP: Go サーバー /users/me (M6 で結線変更)
+        if (RhythmGame.Network.Api.AuthManager.OfflineMode) { SetPvpUnavailable(); return; }
+        var r = await RhythmGame.Network.Api.ApiClient
+            .GetAsync<RhythmGame.Network.Api.UserMeDto>("/users/me");
+        if (!r.Ok || r.Data == null) { SetPvpUnavailable(); return; }
 
-        _pvpRating    = $"{r.Body.rating:F0}";
-        _pvpMatches   = $"{r.Body.totalMatches}";
-        _pvpWinLine   = $"{r.Body.wins}W - {r.Body.losses}L - {r.Body.draws}D";
-        _pvpRatioLine = $"{r.Body.winRatio * 100.0:0.00}%";
+        int total = r.Data.WinCount + r.Data.LossCount + r.Data.DrawCount;
+        _pvpRating    = $"{r.Data.Rating:F0}";
+        _pvpMatches   = $"{total}";
+        _pvpWinLine   = $"{r.Data.WinCount}W - {r.Data.LossCount}L - {r.Data.DrawCount}D";
+        _pvpRatioLine = total > 0 ? $"{(double)r.Data.WinCount / total * 100.0:0.00}%" : "0.00%";
     }
 
     void SetPvpUnavailable()

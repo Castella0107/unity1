@@ -30,6 +30,10 @@ public class AccountTabController : MonoBehaviour
     [Header("Notifications")]
     [SerializeField] Toggle _notificationsToggle;
 
+    [Header("Session (Go サーバー認証, M6)")]
+    [SerializeField] TextMeshProUGUI _sessionInfoText;   // ログイン中のメール/表示名
+    [SerializeField] Button          _logoutButton;
+
     [Header("Sign Out (Phase 4)")]
     [SerializeField] Button _signOutButton;
 
@@ -59,6 +63,30 @@ public class AccountTabController : MonoBehaviour
         if (_notificationsToggle != null)
             _notificationsToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("NotificationsEnabled", 1) == 1);
         if (_signOutButton != null) _signOutButton.interactable = false;
+
+        // ログインセッション表示 (Go サーバー認証)
+        if (_sessionInfoText != null)
+        {
+            _sessionInfoText.text = RhythmGame.Network.Api.AuthManager.OfflineMode
+                ? "オフラインモード (未ログイン)"
+                : RhythmGame.Network.Api.AuthManager.HasSession
+                    ? $"{RhythmGame.Network.Api.AuthManager.DisplayName}  ({RhythmGame.Network.Api.AuthManager.Email})"
+                    : "未ログイン";
+        }
+        if (_logoutButton != null)
+        {
+            _logoutButton.interactable = RhythmGame.Network.Api.AuthManager.HasSession;
+            _logoutButton.onClick.AddListener(() =>
+                RhythmGame.UI.Common.ConfirmDialog.Show(
+                    "ログアウトしますか？", "ログアウト", "もどる",
+                    onConfirm: Logout));
+        }
+    }
+
+    async void Logout()
+    {
+        await RhythmGame.Network.Api.AuthManager.LogoutAsync();
+        SceneRouter.Instance?.GoTo(SceneId.Login);
     }
 
     void SetupListeners()

@@ -103,7 +103,21 @@ public class GamePlayController : MonoBehaviour
             // PVP: 相手情報ボックス・VS スコアバー・セクター勝敗タグを有効化(BindStageVisuals は
             // 共有ゆえ isPvP:false 固定なので、ここで明示注入する)。
             if (_params != null && _params.IsPvp && _hud != null)
+            {
                 _hud.SetPvpContext(_params.PvpOpponentId);
+
+                // Go 新フロー: WS opponent_progress → 相手ライブスコアを HUD へ (M5)
+                var sock = RhythmGame.Network.Api.PvpMatchContext.Socket;
+                if (sock != null)
+                {
+                    _opponentProgressHandler = (songOrder, percentX1000, score) =>
+                    {
+                        if (songOrder == RhythmGame.Network.Api.PvpMatchContext.CurrentSongOrder && _hud != null)
+                            _hud.UpdateOpponentLive(score);
+                    };
+                    sock.OnOpponentProgress += _opponentProgressHandler;
+                }
+            }
             if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameplayTabController.GetSavedComboBorder());
             // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
             int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
@@ -162,9 +176,14 @@ public class GamePlayController : MonoBehaviour
 
     float _wsProgressTimer;
 
+    System.Action<int, int, long> _opponentProgressHandler;
+
     void OnDestroy()
     {
         StageInitializer.UnbindStageVisuals();
+        if (_opponentProgressHandler != null &&
+            RhythmGame.Network.Api.PvpMatchContext.Socket != null)
+            RhythmGame.Network.Api.PvpMatchContext.Socket.OnOpponentProgress -= _opponentProgressHandler;
     }
 
     async void TriggerResultAsync()
@@ -269,12 +288,12 @@ public class GamePlayController : MonoBehaviour
             if (isNewBest) { PlayerPrefs.SetInt(bestKey, record.EffectiveScore); PlayerPrefs.Save(); }
         }
 
-        // ── サーバー自動送信 (fire-and-forget) ───────────────────────────────
-        // ローカル保存とリザルト遷移を絶対にブロックしない設計。
-        // 失敗・タイムアウト・サーバー停止すべて Debug.LogWarning に落として続行。
-        // PVP モードでは matchId バンドルで submit するので個別送信はスキップ。
-        if (_params == null || !_params.IsPvp)
-            SubmitToServerFireAndForget(record);
+        // ── サーバー自動送信 ─────────────────────────────────────────────────
+        // 旧 C# サーバーの /api/replay/validate 向け。Go サーバーのソロ検証
+        // (/score/validate) は Phase 6 で未実装のため停止中 (M6)。
+        // K の Phase 6/7 実装後に Go 向けへ書き直して再開する。
+        // if (_params == null || !_params.IsPvp)
+        //     SubmitToServerFireAndForget(record);
 
         // ── ソロのリプレイ刈り込み ───────────────────────────────────────────
         // 各楽曲×難易度の最高スコアのリプレイだけローカルに残す。
