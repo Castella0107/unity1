@@ -15,6 +15,20 @@ public class MainThreadDispatcher : MonoBehaviour
 
     readonly ConcurrentQueue<Action> _queue = new ConcurrentQueue<Action>();
 
+    /// <summary>
+    /// シーン配置に依存せず必ず存在させる自己ブートストラップ。
+    /// (_Persistent 未配置のまま MatchSocketClient が Dispatch すると受信スレッドで
+    /// Unity API に触れて例外死するため、BeforeSceneLoad で確実に生成する)
+    /// </summary>
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
+    static void Bootstrap()
+    {
+        if (Instance != null) return;
+        var go = new GameObject("MainThreadDispatcher (auto)");
+        go.AddComponent<MainThreadDispatcher>();
+        // Awake で Instance 設定+DontDestroyOnLoad される
+    }
+
     void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }

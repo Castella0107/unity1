@@ -1,5 +1,5 @@
 using System.Threading.Tasks;
-using RhythmGame.Network;
+using RhythmGame.Network.Api;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -8,8 +8,9 @@ using UnityEngine.UI;
 namespace RhythmGame.UI.Pvp
 {
     /// <summary>
-    /// Matchmaking.unity に付ける MonoBehaviour。
-    /// JoinQueueAsync → GetQueueStatusAsync を周期 poll → matched で PvpFlowController.StartMatch。
+    /// Matchmaking.unity に付ける MonoBehaviour (Go サーバー移行 M3 で全面書き換え)。
+    /// PvpApi.JoinQueueAsync → GetQueueStatusAsync を 1.5 秒 poll (poll 毎にサーバーが再マッチ試行)
+    /// → matched で PvpMatchContext をセットして PVPPrematch (READY 画面) へ。
     /// Inspector に Text/Button を割り当てれば正規 UI、未割当でも OnGUI フォールバックで動く。
     /// </summary>
     public class MatchmakingController : MonoBehaviour
@@ -45,17 +46,23 @@ namespace RhythmGame.UI.Pvp
 
             RhythmGame.UI.Common.ShortcutHintOverlay.Set("ESC: マッチング検索をキャンセル");
 
-            if (_youNameText != null)     _youNameText.text     = LocalIdentity.UserId;
+            if (_youNameText != null)
+                _youNameText.text = string.IsNullOrEmpty(AuthManager.DisplayName) ? "YOU" : AuthManager.DisplayName;
             if (_opponentNameText != null) _opponentNameText.text = _opponentName;
-            if (_timerText != null)       _timerText.text       = "00:00";
+            if (_timerText != null)        _timerText.text        = "00:00";
 
-            // 試合中に直接 Matchmaking に戻ってきた場合は何もしない
-            var pvp = PvpFlowController.Instance;
-            if (pvp != null && pvp.IsActive)
+            if (AuthManager.OfflineMode || !AuthManager.HasSession)
             {
-                _statusLine = "PVP match already active — returning to game";
-                Debug.LogWarning("[Matchmaking] " + _statusLine);
+                _statusLine = "オンライン対戦にはログインが必要です";
                 UpdateUi();
+                return;
+            }
+
+            // 進行中マッチが残っている場合は Prematch に戻す
+            if (!string.IsNullOrEmpty(PvpMatchContext.MatchId))
+            {
+                Debug.LogWarning("[Matchmaking] 進行中マッチあり → Prematch へ");
+                SceneRouter.Instance?.GoTo(SceneId.PVPPrematch);
                 return;
             }
 
@@ -113,11 +120,7 @@ namespace RhythmGame.UI.Pvp
 
         async Task CancelAndReturn()
         {
-            try
-            {
-                if (NetworkClient.Instance != null)
-                    await NetworkClient.Instance.LeaveQueueAsync(LocalIdentity.UserId);
-            }
+            try { await PvpApi.LeaveQueueAsync(); }
             catch { }
             if (SceneRouter.Instance != null)
                 SceneRouter.Instance.GoTo(SceneId.PVPLobby);
@@ -128,27 +131,20 @@ namespace RhythmGame.UI.Pvp
             _statusLine = "Joining queue...";
             UpdateUi();
 
-            var net = NetworkClient.Instance;
-            if (net == null)
+            var join = await PvpApi.JoinQueueAsync();
+            if (_canceled) return;
+            if (!join.Ok && join.ErrorCode != "ALREADY_IN_QUEUE")
             {
-                _statusLine = "NetworkClient not available";
-                UpdateUi();
-                return;
-            }
-
-            var join = await net.JoinQueueAsync(LocalIdentity.UserId);
-            if (!join.Ok)
-            {
-                _statusLine = "Join FAIL: " + join.Error;
+                // ALREADY_IN_MATCH: 残存マッチがある (タイムアウト放置等)。状態を出して中断。
+                _statusLine = "参加失敗: " + join.ErrorMessage;
                 UpdateUi();
                 return;
             }
 
             // 即マッチング成立した場合
-            if (join.Body.status == "matched")
+            if (join.Ok && join.Data.Status == "matched")
             {
-                if (_canceled) return;
-                StartMatchFromQueueResponse(join.Body);
+                StartMatchFromQueueResponse(join.Data);
                 return;
             }
 
@@ -162,48 +158,41 @@ namespace RhythmGame.UI.Pvp
                 await Task.Delay((int)(_pollIntervalSec * 1000));
                 if (_canceled) break;
 
-                var s = await net.GetQueueStatusAsync(LocalIdentity.UserId);
-                if (_canceled) break;   // await 中に Cancel された応答は捨てる(Title 遷移と競合させない)
-                if (!s.Ok) continue;   // 一時的なポーリングエラーは UI を乱さず再試行
+                var s = await PvpApi.GetQueueStatusAsync();
+                if (_canceled) break;   // await 中に Cancel された応答は捨てる(遷移と競合させない)
+                if (!s.Ok) continue;    // 一時的なポーリングエラーは UI を乱さず再試行
 
-                if (s.Body.status == "matched")
+                if (s.Data.Status == "matched")
                 {
-                    StartMatchFromQueueResponse(s.Body);
+                    StartMatchFromQueueResponse(s.Data);
                     return;
                 }
-                if (s.Body.status == "idle")
+                if (s.Data.Status == "idle")
                 {
                     // キューから落ちていたら再参加
-                    var rejoin = await net.JoinQueueAsync(LocalIdentity.UserId);
+                    var rejoin = await PvpApi.JoinQueueAsync();
                     if (_canceled) break;
-                    if (rejoin.Ok && rejoin.Body.status == "matched")
+                    if (rejoin.Ok && rejoin.Data.Status == "matched")
                     {
-                        StartMatchFromQueueResponse(rejoin.Body);
+                        StartMatchFromQueueResponse(rejoin.Data);
                         return;
                     }
                 }
             }
         }
 
-        void StartMatchFromQueueResponse(QueueResponseDto body)
+        void StartMatchFromQueueResponse(QueueStatusDto body)
         {
             if (_canceled) return;   // Cancel 後に紛れ込んだ matched 応答は無視
             _animateSearch = false;
             _statusLine   = "MATCH FOUND";
-            _opponentName = string.IsNullOrEmpty(body.opponentId) ? "OPPONENT" : body.opponentId;
-            _songsLine    = body.songs != null
-                ? "♪ " + string.Join("    ♪ ", body.songs.ConvertAll(s => s.songId))
-                : "";
+            _opponentName = string.IsNullOrEmpty(body.OpponentId) ? "OPPONENT" : body.OpponentId;
+            _songsLine    = "楽曲はドラフト (PICK/BAN) で決定";
             UpdateUi();
-            Debug.Log("[Matchmaking] MATCH FOUND vs " + _opponentName + " / " + _songsLine);
+            Debug.Log($"[Matchmaking] MATCH FOUND vs {body.OpponentId} match={body.MatchId}");
 
-            var pvp = PvpFlowController.Instance;
-            if (pvp == null)
-            {
-                Debug.LogError("[Matchmaking] PvpFlowController.Instance is null");
-                return;
-            }
-            pvp.StartMatch(body.matchId, body.opponentId, body.songs);
+            PvpMatchContext.StartMatch(body.MatchId, body.OpponentId);
+            SceneRouter.Instance?.GoTo(SceneId.PVPPrematch);
         }
 
         void UpdateUi()
