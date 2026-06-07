@@ -113,6 +113,7 @@ namespace RhythmGame.UI.Pvp
 
             var d = r.Data;
             _selfIsA = d.PlayerA != null && d.PlayerA.UserId == AuthManager.UserId;
+            PvpMatchContext.SelfIsA = _selfIsA;   // song3 の diff_a/diff_b 解決にドラフト以降で使う
             var self = _selfIsA ? d.PlayerA : d.PlayerB;
             var opp  = _selfIsA ? d.PlayerB : d.PlayerA;
 
@@ -175,10 +176,12 @@ namespace RhythmGame.UI.Pvp
 
         void OnMatchStart()
         {
+            if (_started) return;
             _started = true;
-            SetStatus("MATCH START!  ドラフト (pick_song1) へ — ※ドラフト画面は M4 実装予定");
+            SetStatus("MATCH START!");
             if (_timerText != null) _timerText.text = "";
-            Debug.Log("[Prematch] start 受信 — phase=pick_song1 (M4 でドラフト画面に遷移する)");
+            Debug.Log("[Prematch] start — ドラフト (PVPSongPick) へ遷移");
+            SceneRouter.Instance?.GoTo(SceneId.PVPSongPick);
         }
 
         // ── READY / 辞退 ────────────────────────────────────────────────────

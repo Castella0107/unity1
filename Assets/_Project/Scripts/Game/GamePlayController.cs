@@ -130,19 +130,37 @@ public class GamePlayController : MonoBehaviour
             TriggerResultAsync();
         }
 
-        // PVP モード: 進捗 % + 現在スコアをオーバーレイに渡す (実 POST は overlay 側で 0.5秒間隔)
+        // PVP モード: 進捗 % + 現在スコアを送信
         if (_params != null && _params.IsPvp && _conductor != null && _durationMs > 0
             && _judgment != null && _judgment.Aggregator != null)
         {
-            var overlay = RhythmGame.Network.PvpProgressOverlay.Instance;
-            if (overlay != null)
+            float percent = (float)Math.Max(0, Math.Min(1.0, _conductor.SongTimeMs / _durationMs));
+            int   score   = _judgment.Aggregator.CurrentScore;
+
+            // Go 新フロー: WebSocket progress (0.5秒間隔、docs/06 §6.7)
+            var socket = RhythmGame.Network.Api.PvpMatchContext.Socket;
+            if (socket != null && socket.IsConnected)
             {
-                float percent = (float)Math.Max(0, Math.Min(1.0, _conductor.SongTimeMs / _durationMs));
-                int   score   = _judgment.Aggregator.CurrentScore;
-                overlay.UpdateLocalProgress(_params.PvpSongIndex, percent, score);
+                _wsProgressTimer += Time.unscaledDeltaTime;
+                if (_wsProgressTimer >= 0.5f)
+                {
+                    _wsProgressTimer = 0f;
+                    _ = socket.SendProgressAsync(
+                        RhythmGame.Network.Api.PvpMatchContext.CurrentSongOrder,
+                        (int)(percent * 100000f), score);
+                }
+            }
+            else
+            {
+                // 旧フロー (C# サーバー HTTP polling) — M6 で削除予定
+                var overlay = RhythmGame.Network.PvpProgressOverlay.Instance;
+                if (overlay != null)
+                    overlay.UpdateLocalProgress(_params.PvpSongIndex, percent, score);
             }
         }
     }
+
+    float _wsProgressTimer;
 
     void OnDestroy()
     {
@@ -285,7 +303,16 @@ public class GamePlayController : MonoBehaviour
         JacketBackgroundController.Instance?.SetCanvasEnabled(true);
         JacketBackgroundController.Instance?.SetJacket(SongId);
 
-        // PVP モード: Result シーンへ寄らず PvpFlowController に通知し、次曲または送信フェーズへ
+        // PVP モード (Go 新フロー): submit → 曲リザルト (PVPResult) へ
+        if (_params != null && _params.IsPvp &&
+            !string.IsNullOrEmpty(RhythmGame.Network.Api.PvpMatchContext.MatchId))
+        {
+            Debug.Log($"[GamePlay] PVP song completed (Go flow) — submit へ (order={RhythmGame.Network.Api.PvpMatchContext.CurrentSongOrder})");
+            await RhythmGame.Network.Api.PvpResultBridge.SubmitAndContinueAsync(record);
+            return;
+        }
+
+        // PVP モード (旧 C# フロー — M6 で削除予定)
         if (_params != null && _params.IsPvp)
         {
             var pvp = RhythmGame.Network.PvpFlowController.Instance;

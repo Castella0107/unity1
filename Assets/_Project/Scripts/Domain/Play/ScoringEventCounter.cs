@@ -17,6 +17,33 @@ using System.Collections.Generic;
 /// </summary>
 public static class ScoringEventCounter
 {
+    /// <summary>
+    /// 譜面内容から 5 等分のセクター境界 (4点、ms) を算出する。
+    /// Go サーバー engine.SectorEndsFromChart と同一意味論 (最終ノーツ終端 × 0.2/0.4/0.6/0.8)。
+    /// meta.Sectors が無いサーバー配信曲の PVP セクター集計に使う。譜面が空なら空配列。
+    /// </summary>
+    public static int[] SectorEndsFromChart(IEnumerable<NoteData> notes)
+    {
+        double maxEnd = 0;
+        if (notes != null)
+        {
+            foreach (var n in notes)
+            {
+                double end = n.TimeMs;
+                if (n.Type == NoteType.Hold || n.Type == NoteType.FxHold) end += n.DurationMs;
+                if (end > maxEnd) maxEnd = end;
+            }
+        }
+        if (maxEnd <= 0) return new int[0];
+        return new[]
+        {
+            (int)(maxEnd * 0.2),
+            (int)(maxEnd * 0.4),
+            (int)(maxEnd * 0.6),
+            (int)(maxEnd * 0.8),
+        };
+    }
+
     /// <summary>譜面の総スコアリングイベント数を数える。Tap/FxTap=1、Hold/FxHold=頭+ティック数+尾。ScoreCalculator の totalNotes に渡す値。</summary>
     public static int Count(IEnumerable<NoteData> notes, BpmTimeline bpm)
     {

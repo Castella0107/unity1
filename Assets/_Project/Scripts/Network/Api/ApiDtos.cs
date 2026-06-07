@@ -219,4 +219,83 @@ namespace RhythmGame.Network.Api
         [JsonProperty("diff_a")]  public string DiffA;
         [JsonProperty("diff_b")]  public string DiffB;
     }
+
+    // ── PVP 試合: pick / ban / submit / result (docs/05 §6.11) ──────────────
+
+    public class PickRequestDto
+    {
+        [JsonProperty("song_id",    NullValueHandling = NullValueHandling.Ignore)] public string SongId;
+        [JsonProperty("difficulty", NullValueHandling = NullValueHandling.Ignore)] public string Difficulty;
+    }
+
+    public class BanRequestDto
+    {
+        [JsonProperty("song_id")] public string SongId;
+    }
+
+    public class SubmitRequestDto
+    {
+        [JsonProperty("sector_scores")]     public int[]  SectorScores;
+        [JsonProperty("sector_tie_breaks")] public int[]  SectorTieBreaks;
+        [JsonProperty("total_score")]       public int    TotalScore;
+        [JsonProperty("replay_base64", NullValueHandling = NullValueHandling.Ignore)] public string ReplayBase64;
+        [JsonProperty("claim",         NullValueHandling = NullValueHandling.Ignore)] public SubmitClaimDto Claim;
+    }
+
+    public class SubmitClaimDto
+    {
+        [JsonProperty("rank")]               public string Rank;
+        [JsonProperty("perfect_plus_count")] public int    PerfectPlusCount;
+        [JsonProperty("perfect_count")]      public int    PerfectCount;
+        [JsonProperty("great_count")]        public int    GreatCount;
+        [JsonProperty("good_count")]         public int    GoodCount;
+        [JsonProperty("miss_count")]         public int    MissCount;
+        [JsonProperty("max_combo")]          public int    MaxCombo;
+        [JsonProperty("fast_count")]         public int    FastCount;
+        [JsonProperty("late_count")]         public int    LateCount;
+    }
+
+    public class SubmitResponseDto
+    {
+        [JsonProperty("match_finalized")] public bool           MatchFinalized;   // この曲の両者提出が揃ったか
+        [JsonProperty("match_over")]      public bool           MatchOver;
+        [JsonProperty("clinch")]          public bool           Clinch;
+        [JsonProperty("song_result")]     public SongResultDto  SongResult;
+        [JsonProperty("result")]          public MatchResultDto Result;
+    }
+
+    public class SongResultDto
+    {
+        [JsonProperty("song_index")] public int               SongIndex;   // 1-3
+        [JsonProperty("points_a")]   public int               PointsA;     // ミリポイント(難易度倍率適用後)
+        [JsonProperty("points_b")]   public int               PointsB;
+        [JsonProperty("sectors")]    public SectorResultDto[] Sectors;
+    }
+
+    public class SectorResultDto
+    {
+        [JsonProperty("score_a")]     public int ScoreA;
+        [JsonProperty("score_b")]     public int ScoreB;
+        [JsonProperty("points_a")]    public int PointsA;
+        [JsonProperty("points_b")]    public int PointsB;
+        [JsonProperty("tie_break_a")] public int TieBreakA;
+        [JsonProperty("tie_break_b")] public int TieBreakB;
+    }
+
+    public class MatchResultDto
+    {
+        [JsonProperty("match_id")]         public string MatchId;
+        [JsonProperty("outcome_kind")]     public string OutcomeKind;   // "win_a" | "win_b" | "draw"
+        [JsonProperty("total_points_a")]   public int    TotalPointsA;  // ミリポイント (最大15000)
+        [JsonProperty("total_points_b")]   public int    TotalPointsB;
+        [JsonProperty("rating_a_before")]  public double RatingABefore;
+        [JsonProperty("rating_a_after")]   public double RatingAAfter;
+        [JsonProperty("rating_change_a")]  public double RatingChangeA;
+        [JsonProperty("rating_b_before")]  public double RatingBBefore;
+        [JsonProperty("rating_b_after")]   public double RatingBAfter;
+        [JsonProperty("rating_change_b")]  public double RatingChangeB;
+        [JsonProperty("forfeit")]          public bool   Forfeit;
+        [JsonProperty("forfeit_reason")]   public string ForfeitReason;
+        [JsonProperty("forfeited_player")] public string ForfeitedPlayer;
+    }
 }

@@ -54,9 +54,11 @@ public class JudgmentSystem : MonoBehaviour
             _inputSource.OnLaneUp   -= HandleLaneUp;
         }
 
-        int[] sectorEnds = meta?.Sectors != null
+        // セクター境界: meta.Sectors 定義を優先、無ければ譜面内容から 5 等分
+        // (Go サーバーの engine.SectorEndsFromChart と同一意味論 — サーバー配信曲は meta に sectors が無い)
+        int[] sectorEnds = meta?.Sectors != null && meta.Sectors.Count > 0
             ? meta.Sectors.Take(4).Select(s => s.EndMs).ToArray()
-            : new int[0];
+            : ScoringEventCounter.SectorEndsFromChart(chart.Notes);
 
         var bpm = new BpmTimeline(chart.Events ?? new List<TempoEvent>());
         var src = new ChartDataNoteSource(chart);
