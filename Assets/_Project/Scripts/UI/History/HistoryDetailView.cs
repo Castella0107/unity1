@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -55,8 +54,6 @@ public class HistoryDetailView : MonoBehaviour
 
     PlayRecord _current;
     bool       _hasReplay;
-    bool       _validateBusy;
-    string     _validateResultFallback = "";
 
     void Start()
     {
@@ -77,8 +74,9 @@ public class HistoryDetailView : MonoBehaviour
 
         _hasReplay = hasReplay;
         SetValidateResult("");   // clear any result carried over from the previous record
+        // サーバー検証 (Go /score/validate) は Phase 7 で未実装のため無効化 (M6 で旧 C# 版を撤去)。
         if (_validateButton != null)
-            _validateButton.interactable = hasReplay && ServerConfig.Enabled && NetworkClient.Instance != null;
+            _validateButton.interactable = false;
 
         var dt = DateTimeOffset.FromUnixTimeMilliseconds(r.PlayedAtUnixMs).LocalDateTime;
 
@@ -162,82 +160,19 @@ public class HistoryDetailView : MonoBehaviour
             UnityEngine.SceneManagement.SceneManager.LoadScene("GamePlay");
     }
 
-    // ── Server validation (re-runs the validation; server save is idempotent by PlayId) ──
+    // ── Server validation ──
+    // 旧 C# サーバーの /api/replay/validate 向け実装は M6 で撤去。
+    // Go サーバーのソロ検証 (/score/validate) は Phase 7 で実装予定のため、現状は「準備中」表示のみ。
 
-    async Task DoValidate()
+    Task DoValidate()
     {
-        if (_current == null) return;
-        if (NetworkClient.Instance == null) { SetValidateResult("offline (no server)"); return; }
-        if (string.IsNullOrEmpty(_current.ReplayPath) || !File.Exists(_current.ReplayPath))
-        { SetValidateResult("replay file missing"); return; }
-
-        _validateBusy = true;
-        if (_validateButton != null) _validateButton.interactable = false;
-        SetValidateResult("validating...");
-        try
-        {
-            byte[] bytes = File.ReadAllBytes(_current.ReplayPath);
-            var claim = new ResultClaimDto
-            {
-                score       = _current.RawScore,
-                maxCombo    = _current.MaxCombo,
-                perfectPlus = _current.PerfectPlusCount,
-                perfect     = _current.PerfectCount,
-                great       = _current.GreatCount,
-                good        = _current.GoodCount,
-                miss        = _current.MissCount,
-                rank        = _current.Rank ?? "",
-            };
-            var meta = new ValidateRequestDto
-            {
-                playId           = _current.PlayId,
-                songId           = _current.SongId,
-                difficulty       = _current.Difficulty,
-                userId           = LocalIdentity.UserId,
-                playedAtUnixMs   = _current.PlayedAtUnixMs,
-                totalNotes       = _current.TotalNotes,
-                isFullCombo      = _current.IsFullCombo,
-                isAllPerfect     = _current.IsAllPerfect,
-                isAllPerfectPlus = _current.IsAllPerfectPlus,
-            };
-
-            var r = await NetworkClient.Instance.ValidateReplayAsync(_current.ChartHash, bytes, claim, meta);
-            if (this == null) return;
-            if (!r.Ok)
-                SetValidateResult($"offline / transport error (rt={r.RoundtripMs}ms)");
-            else if (r.Body.isValid)
-                SetValidateResult($"VALID  score={r.Body.serverResult?.score}  (rt={r.RoundtripMs}ms)");
-            else
-                SetValidateResult("INVALID - " + r.Body.mismatchReason);
-        }
-        catch (Exception e) { SetValidateResult("error - " + e.Message); }
-        finally
-        {
-            _validateBusy = false;
-            if (this != null && _validateButton != null) _validateButton.interactable = _hasReplay;
-        }
+        SetValidateResult("サーバー検証: 準備中 (Phase 7)");
+        return Task.CompletedTask;
     }
 
     void SetValidateResult(string text)
     {
         if (_validateResultText != null) _validateResultText.text = text;
-        else                             _validateResultFallback = text ?? "";
     }
 
-    // Fallback button + result line when no proper UI is wired (no scene editing required).
-    void OnGUI()
-    {
-        if (_validateButton != null) return;
-        if (_current == null || !_hasReplay) return;
-        if (!ServerConfig.Enabled || NetworkClient.Instance == null) return;
-
-        const float w = 340f, h = 72f;
-        GUILayout.BeginArea(new Rect(16f, Screen.height - h - 16f, w, h), GUI.skin.box);
-        GUI.enabled = !_validateBusy;
-        if (GUILayout.Button("Validate on Server"))
-            _ = DoValidate();
-        GUI.enabled = true;
-        GUILayout.Label(_validateResultFallback);
-        GUILayout.EndArea();
-    }
 }

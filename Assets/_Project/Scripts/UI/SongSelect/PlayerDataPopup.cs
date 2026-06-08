@@ -53,7 +53,7 @@ public class PlayerDataPopup : MonoBehaviour
     {
         _playerName   = !string.IsNullOrEmpty(RhythmGame.Network.Api.AuthManager.DisplayName)
             ? RhythmGame.Network.Api.AuthManager.DisplayName
-            : LocalIdentity.UserId;
+            : RhythmGame.Network.Api.AuthManager.UserId;
         _soloLine     = "取得中...";
         _pvpRating    = "--";
         _pvpMatches   = "--";

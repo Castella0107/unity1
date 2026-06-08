@@ -42,14 +42,8 @@ EditorBuildSettings:
     path: Assets/_Project/Scenes/PVPSongPick.unity
     guid: 856eb081d30dc8049b46f1d5e09e2eb0
   - enabled: 1
-    path: Assets/_Project/Scenes/PVPBanPhase.unity
-    guid: a6e67a54fad44c649b91ea0cf8bcdd3b
-  - enabled: 1
     path: Assets/_Project/Scenes/PVPResult.unity
     guid: 8fb63255b88a49a44ae8bbd7bdef6210
-  - enabled: 1
-    path: Assets/_Project/Scenes/PVPSongSetup.unity
-    guid: 37ffd121955537b4993087c3f8955446
   - enabled: 1
     path: Assets/_Project/Scenes/PVPLobby.unity
     guid: 2127cb63a5115d8439ae6c584fa814dd

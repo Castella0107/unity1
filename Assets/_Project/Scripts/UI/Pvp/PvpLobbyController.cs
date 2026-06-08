@@ -124,7 +124,7 @@ namespace RhythmGame.UI.Pvp
             GUI.Box(r, "ONLINE LOBBY");
             GUILayout.BeginArea(new Rect(r.x + 16, r.y + 32, r.width - 32, r.height - 44));
             GUILayout.Label("LADDER TIER: UNRANKED");
-            GUILayout.Label($"Player: {LocalIdentity.UserId}");
+            GUILayout.Label($"Player: {(string.IsNullOrEmpty(RhythmGame.Network.Api.AuthManager.DisplayName) ? RhythmGame.Network.Api.AuthManager.UserId : RhythmGame.Network.Api.AuthManager.DisplayName)}");
             GUILayout.Space(10);
             if (GUILayout.Button("START  (RANKED MATCH)")) OnStart();
             if (GUILayout.Button("BACK")) OnBack();

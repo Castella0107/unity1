@@ -13,16 +13,12 @@ public enum SceneId
     Result,
     Config,
     History,
-    // Phase 5:
+    // Phase 5 (Go フロー):
     Matchmaking,
     PVPPrematch,
-    PVPSongPick,
-    PVPBanPhase,
+    PVPSongPick,    // 統合ドラフト画面 (PvpDraftController、交互ターン制+BAN を内包)
     PVPResult,
     PVPMatchEnd,
-    // Per-song difficulty + play settings screen, shown before each PVP song (flow ⑦).
-    // Appended at the end so existing ordinals (used by enumValueIndex wiring) are unchanged.
-    PVPSongSetup,
     // Online lobby (対戦待合). Between Title's Online menu and Matchmaking.
     PVPLobby,
     // 楽曲別ランキング (SongSelect の R キーで遷移、選択曲のランキング表示)。

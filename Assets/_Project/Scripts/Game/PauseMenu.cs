@@ -112,9 +112,9 @@ public class PauseMenu : MonoBehaviour
                 _retiring = true;
                 _conductor?.Stop();
                 RhythmGame.UI.Common.ShortcutHintOverlay.Clear();
-                var pvp = RhythmGame.Network.PvpFlowController.Instance;
-                if (pvp != null) pvp.AbortMatch("Retired");
-                else SceneRouter.Instance?.GoTo(SceneId.Title);
+                // 離脱で WS が切れ、サーバーの submit タイムアウト後に forfeit (不戦敗) 扱い。
+                _ = RhythmGame.Network.Api.PvpMatchContext.ClearAsync();
+                SceneRouter.Instance?.GoTo(SceneId.PVPLobby);
             }
         }
         else if (_retireHold > 0f)

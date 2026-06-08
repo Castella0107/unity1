@@ -246,7 +246,10 @@ public class SongSelectController : MonoBehaviour
 
     void UpdateProfile()
     {
-        if (_profileName != null) _profileName.text = LocalIdentity.UserId;
+        if (_profileName != null)
+            _profileName.text = string.IsNullOrEmpty(RhythmGame.Network.Api.AuthManager.DisplayName)
+                ? RhythmGame.Network.Api.AuthManager.UserId
+                : RhythmGame.Network.Api.AuthManager.DisplayName;
         if (_profileSub  != null) _profileSub.text  = "FREE PLAY";
     }
 

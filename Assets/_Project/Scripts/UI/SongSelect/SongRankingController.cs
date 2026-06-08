@@ -64,60 +64,12 @@ public class SongRankingController : MonoBehaviour
 
     async Task LoadAsync()
     {
-        // Go サーバーのランキング API は Phase 7 で実装予定 (未提供) — COMING SOON 表示 (M6)
-        // K の Phase 7 完了後、/leaderboard/{song_id}/{difficulty} に結線し直す。
+        // Go サーバーのランキング API は Phase 7 で実装予定 (未提供) — COMING SOON 表示。
+        // K の Phase 7 完了後、/api/v1/leaderboard/{song_id}/{difficulty} に結線する
+        // (旧 C# サーバー版 NetworkClient 実装は M6 で撤去済み)。
         SetStatus("COMING SOON — ランキングはサーバー側 (Phase 7) の実装待ちです");
         if (_personalText != null) _personalText.text = "";
         await Task.CompletedTask;
-        return;
-
-#pragma warning disable CS0162 // 到達不能: Phase 7 結線時に復活させる旧実装
-        var net = NetworkClient.Instance;
-        if (net == null) { SetStatus("オフライン (サーバー未接続)"); return; }
-
-        // 上位ランキング
-        var r = await net.FetchLeaderboardAsync(_params.SongId, _params.Difficulty, FetchLimit);
-        if (this == null) return;   // シーン離脱後の戻り
-        if (!r.Ok || r.Body == null)
-        {
-            SetStatus($"取得失敗: {r.Error}");
-            return;
-        }
-
-        var entries = r.Body.entries;
-        if (entries == null || entries.Count == 0)
-        {
-            SetStatus("まだ記録がありません");
-        }
-        else
-        {
-            SetStatus(null);
-            string self = LocalIdentity.UserId;
-            for (int i = 0; _rows != null && i < _rows.Length; i++)
-            {
-                if (_rows[i] == null) continue;
-                if (i < entries.Count)
-                {
-                    var e = entries[i];
-                    _rows[i].SetEntry(e.rank, e.userId, e.score, e.scoreRank, e.maxCombo,
-                                      e.isFullCombo, e.isAllPerfectPlus, e.userId == self);
-                }
-                else
-                {
-                    _rows[i].Hide();
-                }
-            }
-        }
-
-        // 自分の順位
-        var me = await net.FetchPersonalBestAsync(_params.SongId, _params.Difficulty, LocalIdentity.UserId);
-        if (this == null) return;
-        if (_personalText == null) return;
-        if (me.Ok && me.Body != null && me.Body.hasRecord)
-            _personalText.text = $"YOUR RANK   #{me.Body.overallRank} / {me.Body.totalUsers}      SCORE {me.Body.best.score:N0}";
-        else
-            _personalText.text = "YOUR RANK   -- (記録なし)";
-#pragma warning restore CS0162
     }
 
     void SetStatus(string msg)

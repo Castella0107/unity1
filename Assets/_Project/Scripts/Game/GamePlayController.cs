@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.IO;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -151,7 +150,7 @@ public class GamePlayController : MonoBehaviour
             float percent = (float)Math.Max(0, Math.Min(1.0, _conductor.SongTimeMs / _durationMs));
             int   score   = _judgment.Aggregator.CurrentScore;
 
-            // Go 新フロー: WebSocket progress (0.5秒間隔、docs/06 §6.7)
+            // Go フロー: WebSocket progress (0.5秒間隔、docs/06 §6.7)
             var socket = RhythmGame.Network.Api.PvpMatchContext.Socket;
             if (socket != null && socket.IsConnected)
             {
@@ -163,13 +162,6 @@ public class GamePlayController : MonoBehaviour
                         RhythmGame.Network.Api.PvpMatchContext.CurrentSongOrder,
                         (int)(percent * 100000f), score);
                 }
-            }
-            else
-            {
-                // 旧フロー (C# サーバー HTTP polling) — M6 で削除予定
-                var overlay = RhythmGame.Network.PvpProgressOverlay.Instance;
-                if (overlay != null)
-                    overlay.UpdateLocalProgress(_params.PvpSongIndex, percent, score);
             }
         }
     }
@@ -289,17 +281,12 @@ public class GamePlayController : MonoBehaviour
         }
 
         // ── サーバー自動送信 ─────────────────────────────────────────────────
-        // 旧 C# サーバーの /api/replay/validate 向け。Go サーバーのソロ検証
-        // (/score/validate) は Phase 6 で未実装のため停止中 (M6)。
-        // K の Phase 6/7 実装後に Go 向けへ書き直して再開する。
-        // if (_params == null || !_params.IsPvp)
-        //     SubmitToServerFireAndForget(record);
+        // ソロのサーバー検証 (Go /score/validate) は Phase 7 で未実装のため停止中。
+        // K の Phase 7 実装後に Go 向け送信を追加して再開する。
 
         // ── ソロのリプレイ刈り込み ───────────────────────────────────────────
         // 各楽曲×難易度の最高スコアのリプレイだけローカルに残す。
-        // SubmitToServerFireAndForget は最初の await 前にファイルを同期読込するため、
-        // ここで非ベストのリプレイを消してもサーバー送信とは競合しない。
-        // PVP リプレイはサーバー送信 + PVP 履歴のリングバッファが管理するので触らない。
+        // PVP リプレイは PvpResultBridge の送信 + PVP 履歴のリングバッファが管理するので触らない。
         if ((_params == null || !_params.IsPvp) && playRepo != null && repoSvc?.Replays != null)
             await PruneSoloReplaysAsync(playRepo, repoSvc.Replays, record, isNewBest, previousBestPlayId);
 
@@ -331,18 +318,8 @@ public class GamePlayController : MonoBehaviour
             return;
         }
 
-        // PVP モード (旧 C# フロー — M6 で削除予定)
         if (_params != null && _params.IsPvp)
-        {
-            var pvp = RhythmGame.Network.PvpFlowController.Instance;
-            if (pvp != null && pvp.IsActive)
-            {
-                Debug.Log($"[GamePlay] PVP song completed, notifying PvpFlowController (idx={_params.PvpSongIndex})");
-                pvp.OnSongCompleted(record.SongId, record.ReplayPath);
-                return;   // SceneRouter は PvpFlowController が次曲または PvpMatchEnd へ
-            }
-            Debug.LogWarning("[GamePlay] IsPvp=true but PvpFlowController is not active — falling back to Result");
-        }
+            Debug.LogWarning("[GamePlay] IsPvp=true but PvpMatchContext is not active — falling back to Result");
 
         if (SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.Result, resultParams);
@@ -388,81 +365,6 @@ public class GamePlayController : MonoBehaviour
         catch (Exception e)
         {
             Debug.LogWarning("[GamePlay] Solo replay prune failed: " + e.Message);
-        }
-    }
-
-    // ── サーバー自動送信 ──────────────────────────────────────────────────
-    // ローカル DB に保存済みの PlayRecord をサーバーで検証 + leaderboard 登録する。
-    // Result 遷移を絶対にブロックしないため async void で発射する。
-    static async void SubmitToServerFireAndForget(PlayRecord record)
-    {
-        try
-        {
-            if (record == null || string.IsNullOrEmpty(record.ReplayPath) || !File.Exists(record.ReplayPath))
-            {
-                Debug.Log("[GamePlay] Server submit skipped — no replay path");
-                return;
-            }
-            var net = RhythmGame.Network.NetworkClient.Instance;
-            if (net == null)
-            {
-                Debug.Log("[GamePlay] Server submit skipped — NetworkClient not bootstrapped");
-                return;
-            }
-
-            byte[] replayBytes = File.ReadAllBytes(record.ReplayPath);
-            var claim = new RhythmGame.Network.ResultClaimDto
-            {
-                score       = record.RawScore,
-                maxCombo    = record.MaxCombo,
-                perfectPlus = record.PerfectPlusCount,
-                perfect     = record.PerfectCount,
-                great       = record.GreatCount,
-                good        = record.GoodCount,
-                miss        = record.MissCount,
-                rank        = record.Rank ?? "",
-            };
-            var meta = new RhythmGame.Network.ValidateRequestDto
-            {
-                playId           = record.PlayId,
-                songId           = record.SongId,
-                difficulty       = record.Difficulty,
-                userId           = RhythmGame.Network.LocalIdentity.UserId,
-                playedAtUnixMs   = record.PlayedAtUnixMs,
-                totalNotes       = record.TotalNotes,
-                isFullCombo      = record.IsFullCombo,
-                isAllPerfect     = record.IsAllPerfect,
-                isAllPerfectPlus = record.IsAllPerfectPlus,
-            };
-
-            // Result 画面が同じ送信結果 (VALID/INVALID) を表示できるよう、進行中の Task を共有スロットに登録。
-            var validateTask = net.ValidateReplayAsync(record.ChartHash, replayBytes, claim, meta);
-            RhythmGame.Network.ServerSubmissionTracker.Register(record.PlayId, validateTask);
-            var r = await validateTask;
-            if (!r.Ok)
-            {
-                Debug.LogWarning("[GamePlay] Server submit transport failed: " + r.TransportError + " — enqueuing");
-                RhythmGame.Network.SubmissionQueue.Enqueue(new RhythmGame.Network.SubmissionQueue.QueuedEntry
-                {
-                    ChartHash  = record.ChartHash,
-                    ReplayPath = record.ReplayPath,
-                    Claim      = claim,
-                    Meta       = meta,
-                });
-                return;
-            }
-            if (r.Body.isValid)
-            {
-                Debug.Log($"[GamePlay] Server VALID — score={r.Body.serverResult?.score} (rt={r.RoundtripMs}ms)");
-            }
-            else
-            {
-                Debug.LogWarning($"[GamePlay] Server INVALID — {r.Body.mismatchReason} (rt={r.RoundtripMs}ms)");
-            }
-        }
-        catch (Exception e)
-        {
-            Debug.LogWarning("[GamePlay] Server submit exception: " + e.Message);
         }
     }
 

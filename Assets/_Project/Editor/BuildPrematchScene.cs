@@ -8,7 +8,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// PVPPrematch.unity を READY 画面 (Go サーバー移行 M3) として再構築する Editor ヘルパー。
-/// 旧 PvpDraftScreenController(Prematch) レイアウトを置き換える。
+/// PvpPrematchController を baked-in 結線する (旧ブラインドドラフトの Prematch レイアウトを置き換え済み)。
 /// 中央: YOU(シアン) vs OPP(レッド) パネル+戦績 / レート変動予測 / READY 状態 / deadline タイマー / READY ボタン。
 /// </summary>
 public static class BuildPrematchScene

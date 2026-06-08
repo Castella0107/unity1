@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.IO;
 using System.Threading.Tasks;
-using RhythmGame.Network;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -203,52 +202,15 @@ public class ResultController : MonoBehaviour
     }
 
     // ── Server validation + leaderboard rank ────────────────────────────────────
-    // Reuses the submission GamePlayController already fired at song completion (shared via
-    // ServerSubmissionTracker) so we never double-submit. Shows VALID/INVALID and, on VALID,
-    // the player's leaderboard rank. Output goes to _serverStatusText when wired, otherwise an
-    // OnGUI fallback panel — so it works without any scene editing.
+    // ソロのサーバー検証 (Go /score/validate) + 楽曲別ランキングは Phase 7 で未実装。
+    // K の Phase 7 実装後に Go API へ結線して復活させる。それまでは「準備中」表示に縮小。
+    // Output goes to _serverStatusText when wired, otherwise an OnGUI fallback panel.
 
-    static bool IsServerEligible(ResultParameters p, PlayRecord rec)
-        => p != null && rec != null && !rec.IsPvP && !IsTestPlayMode
-           && ServerConfig.Enabled && NetworkClient.Instance != null;
-
-    async void KickoffServerStatus(PlayRecord rec)
+    void KickoffServerStatus(PlayRecord rec)
     {
-        if (!IsServerEligible(_params, rec)) return;   // leave the panel hidden
-        SetServerStatus("Server: checking...");
-
-        // Wait briefly for THIS play's fire-and-forget submission to register its task.
-        Task<NetworkClient.ValidateResult> task = null;
-        float deadline = Time.realtimeSinceStartup + 1.5f;
-        while (true)
-        {
-            if (ServerSubmissionTracker.PlayId == rec.PlayId && ServerSubmissionTracker.Task != null)
-            { task = ServerSubmissionTracker.Task; break; }
-            if (Time.realtimeSinceStartup >= deadline) break;
-            await Task.Delay(50);
-            if (this == null) return;   // scene unloaded while waiting
-        }
-        if (task == null) { SetServerStatus("Server: offline (not submitted)"); return; }
-
-        NetworkClient.ValidateResult r;
-        try { r = await task; }
-        catch (Exception e) { SetServerStatus("Server: error - " + e.Message); return; }
-        if (this == null) return;
-
-        if (!r.Ok)           { SetServerStatus("Server: offline (queued for retry)"); return; }
-        if (!r.Body.isValid) { SetServerStatus("Server: INVALID - " + r.Body.mismatchReason); return; }
-
-        SetServerStatus("Server: VALID  (ranking...)");
-        try
-        {
-            var pb = await NetworkClient.Instance.FetchPersonalBestAsync(rec.SongId, rec.Difficulty, LocalIdentity.UserId);
-            if (this == null) return;
-            if (pb.Ok && pb.Body != null && pb.Body.hasRecord)
-                SetServerStatus($"Server: VALID   Rank #{pb.Body.overallRank} / {pb.Body.totalUsers}");
-            else
-                SetServerStatus("Server: VALID");
-        }
-        catch { SetServerStatus("Server: VALID"); }
+        // PVP / テストプレイはサーバー検証表示の対象外 (パネル非表示)。
+        if (_params == null || rec == null || rec.IsPvP || IsTestPlayMode) return;
+        SetServerStatus("サーバー検証: 準備中 (Phase 7)");
     }
 
     void SetServerStatus(string text)

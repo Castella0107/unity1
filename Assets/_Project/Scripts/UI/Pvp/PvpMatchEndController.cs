@@ -7,7 +7,7 @@ namespace RhythmGame.UI.Pvp
 {
     /// <summary>
     /// PvpMatchEnd.unity に付ける MonoBehaviour。
-    /// PvpFlowController が GoTo(PVPMatchEnd, PvpMatchEndParameters) で遷移してくる。
+    /// PvpResultBridge.GoToMatchEnd() が GoTo(PVPMatchEnd, PvpMatchEndParameters) で遷移してくる。
     /// </summary>
     public class PvpMatchEndController : MonoBehaviour
     {
