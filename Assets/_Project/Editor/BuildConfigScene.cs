@@ -114,6 +114,8 @@ public static class BuildConfigScene
             anchorLeft: true,  pos: V(80, 38),  size: V(190, 54));
         var (backBtn, _)  = MakeChipButton(ct, "ESC", "閉じる", Faint,
             anchorLeft: false, pos: V(-80, 38), size: V(210, 54));
+        var (saveBtn, _)  = MakeChipButton(ct, "F5", "保存", Accent,
+            anchorLeft: false, pos: V(-420, 38), size: V(190, 54));
 
         // ── 5 パネル ─────────────────────────────────────────────────────────
         var gameplayPanel = MakePanel(ct, "GameplayPanel");
@@ -164,6 +166,7 @@ public static class BuildConfigScene
         SetRef(so, "_descBodyText",    descBodyTMP);
         SetRef(so, "_backButton",      backBtn);
         SetRef(so, "_resetButton",     resetBtn);
+        SetRef(so, "_saveButton",      saveBtn);
         SetRef(so, "_inputAsset",      inputAsset);
         so.ApplyModifiedProperties();
 

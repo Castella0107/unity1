@@ -30,6 +30,7 @@ public class ConfigController : MonoBehaviour
     [Header("Navigation")]
     [SerializeField] Button _backButton;
     [SerializeField] Button _resetButton;
+    [SerializeField] Button _saveButton;   // 保存ボタン(押下時に確定)。BuildConfigScene が配線。
 
     [Header("Input")]
     [SerializeField] InputActionAsset _inputAsset;
@@ -113,11 +114,13 @@ public class ConfigController : MonoBehaviour
         JacketBackgroundController.Instance?.SetFallback();
         if (_backButton  != null) _backButton.onClick.AddListener(OnBack);
         if (_resetButton != null) _resetButton.onClick.AddListener(ConfirmResetAll);
+        if (_saveButton  != null) _saveButton.onClick.AddListener(OnSave);
         BuildTabBar();
         SwitchTab(initialTab);
+        TakeGlobalSnapshot();   // 入場時の確定済みベースライン(保存ボタン押下まで巻き戻し対象)
 
         RhythmGame.UI.Common.ShortcutHintOverlay.Set(
-            "L/R Shift・←→: タブ切替   ↑↓: 項目   Space: 決定   F9: リセット   ESC: 閉じる");
+            "L/R Shift・←→: タブ切替   ↑↓: 項目   Space: 決定   保存ボタンで確定   ESC: 閉じる");
     }
 
     // ── Tab bar ───────────────────────────────────────────────────────────────
@@ -138,27 +141,14 @@ public class ConfigController : MonoBehaviour
     }
 
     /// <summary>
-    /// 未保存変更の確認を挟んでタブを切り替える。現在タブに未保存(スナップショット比)の変更があれば
-    /// 「キャンセル / 保存しない / 適用」ダイアログを表示する (ユーザー提供モック準拠)。
+    /// タブを切り替える。保存モデルがグローバル(保存ボタンで確定/離脱で破棄確認)になったため、
+    /// タブ切替では保存確認を挟まずそのまま切り替える(変更は全タブ通して暫定、確定は保存ボタン)。
     /// </summary>
     public void TrySwitchTab(ConfigTab target)
     {
         if (target == _currentTab) return;
         if (RhythmGame.UI.Common.SaveChangesDialog.IsOpen) return;
-
-        if (!IsCurrentTabDirty())
-        {
-            SwitchTab(target);
-            return;
-        }
-
-        var from = _currentTab;
-        RhythmGame.UI.Common.SaveChangesDialog.Show(
-            $"「{Tabs[(int)from].label}」カテゴリーでの\n変更内容を保存しますか?",
-            "※ 保存しない場合、変更内容は破棄されます。",
-            onApply:   () => SwitchTab(target),                       // 変更を確定(即時保存済なのでそのまま前進)
-            onDiscard: () => RevertCurrentTab(thenReloadAt: target),  // スナップショットへ巻き戻して再読込
-            onCancel:  null);                                          // 現タブに留まる
+        SwitchTab(target);
     }
 
     /// <summary>指定タブに切り替え、ボタンの選択状態・パネル表示・説明カードを更新し、スナップショットを取り直す。</summary>
@@ -176,7 +166,7 @@ public class ConfigController : MonoBehaviour
         if (_descBodyText  != null) _descBodyText.text  = Tabs[(int)tab].descBody;
 
         FocusFirstSelectable(tab);
-        TakeSnapshot(tab);
+        // スナップショットはグローバル(入場時+保存時)で取るので、タブ切替では取り直さない。
     }
 
     /// <summary>タブ名(文字列)でタブを切り替える。子コントローラーからのタブ間遷移に使う。</summary>
@@ -231,7 +221,8 @@ public class ConfigController : MonoBehaviour
             if (kb.tabKey.wasPressedThisFrame || kb.eKey.wasPressedThisFrame) StepTab(+1);
             if (kb.qKey.wasPressedThisFrame) StepTab(-1);
 
-            // F9: 全設定リセット (確認ダイアログ)
+            // F5: 設定を保存(確定) / F9: 全設定リセット (確認ダイアログ)
+            if (kb.f5Key.wasPressedThisFrame) OnSave();
             if (kb.f9Key.wasPressedThisFrame) ConfirmResetAll();
         }
 
@@ -259,18 +250,25 @@ public class ConfigController : MonoBehaviour
         OnBack();
     }
 
-    // 閉じる(ESC/ボタン)。未保存変更があれば確認ダイアログを挟む。
+    // 閉じる(ESC/ボタン)。保存していない変更があれば「保存して退出/破棄して退出/キャンセル」を確認。
     void OnBack()
     {
         if (RhythmGame.UI.Common.SaveChangesDialog.IsOpen) return;
-        if (!IsCurrentTabDirty()) { LeaveScene(); return; }
+        if (!IsAnyDirty()) { LeaveScene(); return; }
 
         RhythmGame.UI.Common.SaveChangesDialog.Show(
-            $"「{Tabs[(int)_currentTab].label}」カテゴリーでの\n変更内容を保存しますか?",
-            "※ 保存しない場合、変更内容は破棄されます。",
-            onApply:   LeaveScene,
-            onDiscard: () => RevertCurrentTab(thenLeave: true),
-            onCancel:  null);
+            "保存していない変更があります。",
+            "「破棄して退出」すると変更は元に戻ります。",
+            onApply:   () => { TakeGlobalSnapshot(); LeaveScene(); },   // 保存して退出(即時保存済を確定)
+            onDiscard: RevertAllAndLeave,                                // 破棄して退出(全タブ巻き戻し)
+            onCancel:  null);                                            // 留まる
+    }
+
+    // ── 保存ボタン: 現在値を確定(ベースラインを更新)し、フィードバック表示 ──
+    void OnSave()
+    {
+        TakeGlobalSnapshot();
+        RhythmGame.UI.Common.ShortcutHintOverlay.Set("設定を保存しました ✓");
     }
 
     void LeaveScene()
@@ -340,32 +338,33 @@ public class ConfigController : MonoBehaviour
         }
     }
 
-    void TakeSnapshot(ConfigTab tab)
+    // 全タブのスナップショットを取る(入場時+保存時)。_snapshot は pref key で一意なので全タブ同居可。
+    void TakeGlobalSnapshot()
     {
         _snapshot.Clear();
-        foreach (var (key, type) in TabPrefKeys[tab])
-            _snapshot[key] = ReadPref(key, type);
+        foreach (var kv in TabPrefKeys)
+            foreach (var (key, type) in kv.Value)
+                _snapshot[key] = ReadPref(key, type);
 
         _snapshotHasOffsets = false;
-        if (tab == ConfigTab.Gameplay)
+        var prof = RepositoryService.Instance?.ActiveProfile;
+        if (prof != null)
         {
-            var prof = RepositoryService.Instance?.ActiveProfile;
-            if (prof != null)
-            {
-                _snapshotHasOffsets = true;
-                _snapshotJudgmentMs = prof.Offsets.JudgmentOffsetMs;
-                _snapshotVisualMs   = prof.Offsets.VisualOffsetMs;
-            }
+            _snapshotHasOffsets = true;
+            _snapshotJudgmentMs = prof.Offsets.JudgmentOffsetMs;
+            _snapshotVisualMs   = prof.Offsets.VisualOffsetMs;
         }
     }
 
-    bool IsCurrentTabDirty()
+    // 全タブのどれかに未保存(スナップショット比)の変更があるか。
+    bool IsAnyDirty()
     {
-        foreach (var (key, type) in TabPrefKeys[_currentTab])
-        {
-            _snapshot.TryGetValue(key, out var old);
-            if (ReadPref(key, type) != old) return true;
-        }
+        foreach (var kv in TabPrefKeys)
+            foreach (var (key, type) in kv.Value)
+            {
+                _snapshot.TryGetValue(key, out var old);
+                if (ReadPref(key, type) != old) return true;
+            }
 
         if (_snapshotHasOffsets)
         {
@@ -378,92 +377,78 @@ public class ConfigController : MonoBehaviour
         return false;
     }
 
-    // スナップショットへ巻き戻し、ランタイムへ再適用してから次の動作へ進む。
-    // UI コントロール(スライダー位置等)は Start でしか読まないため、画面再読込で戻す。
-    async void RevertCurrentTab(ConfigTab thenReloadAt = (ConfigTab)(-1), bool thenLeave = false)
+    // 全タブをスナップショットへ巻き戻し(PlayerPrefs+ランタイム+オフセット)、退出する。
+    // 退出するので UI 巻き戻し(シーン再読込)は不要。
+    async void RevertAllAndLeave()
     {
-        // 1. PlayerPrefs を書き戻す
-        foreach (var (key, type) in TabPrefKeys[_currentTab])
-        {
-            _snapshot.TryGetValue(key, out var old);
-            if (old == null) { PlayerPrefs.DeleteKey(key); continue; }
-            switch (type)
+        // 1. PlayerPrefs を全タブ書き戻す
+        foreach (var kv in TabPrefKeys)
+            foreach (var (key, type) in kv.Value)
             {
-                case PrefType.Int:    PlayerPrefs.SetInt(key, int.Parse(old)); break;
-                case PrefType.Float:  PlayerPrefs.SetFloat(key, float.Parse(old, System.Globalization.CultureInfo.InvariantCulture)); break;
-                default:              PlayerPrefs.SetString(key, old); break;
+                _snapshot.TryGetValue(key, out var old);
+                if (old == null) { PlayerPrefs.DeleteKey(key); continue; }
+                switch (type)
+                {
+                    case PrefType.Int:    PlayerPrefs.SetInt(key, int.Parse(old)); break;
+                    case PrefType.Float:  PlayerPrefs.SetFloat(key, float.Parse(old, System.Globalization.CultureInfo.InvariantCulture)); break;
+                    default:              PlayerPrefs.SetString(key, old); break;
+                }
             }
-        }
         PlayerPrefs.Save();
 
-        // 2. 即時反映済みのランタイム状態を巻き戻す
-        switch (_currentTab)
-        {
-            case ConfigTab.Graphics:
-                DisplayTabController.ApplySettingsOnBoot();
-                break;
-            case ConfigTab.Audio:
-                AudioVolumeBinder.Instance?.SetMasterVolume(PlayerPrefs.GetFloat("Vol_Master", 80f));
-                AudioVolumeBinder.Instance?.SetMusicVolume(PlayerPrefs.GetFloat("Vol_Music", 90f));
-                AudioVolumeBinder.Instance?.SetSfxVolume(PlayerPrefs.GetFloat("Vol_Sfx", 70f));
-                break;
-            case ConfigTab.Gameplay:
-                float bg = PlayerPrefs.GetFloat("BgEffectsIntensity", 100f);
-                JacketBackgroundController.Instance?.SetBrightness((bg / 100f) * 0.5f);
-                BeatGridController.Instance?.SetUserIntensity(bg / 100f);
-                break;
-            case ConfigTab.Keys:
-                var map = _inputAsset != null ? _inputAsset.FindActionMap("Gameplay") : null;
-                if (map != null)
-                {
-                    map.RemoveAllBindingOverrides();
-                    InputTabController.LoadBindingsFromPrefs(_inputAsset);
-                }
-                break;
-        }
+        // 2. 即時反映済みのランタイム状態を全タブ分巻き戻す
+        ApplyRuntimeRevertAll();
 
-        // 3. オフセット(DeviceProfile)を書き戻す (ゲームプレイタブのみ)
-        if (_currentTab == ConfigTab.Gameplay && _snapshotHasOffsets)
-        {
-            var repo = RepositoryService.Instance;
-            var prof = repo?.ActiveProfile;
-            if (repo != null && prof != null &&
-                (prof.Offsets.JudgmentOffsetMs != _snapshotJudgmentMs ||
-                 prof.Offsets.VisualOffsetMs   != _snapshotVisualMs))
-            {
-                var reverted = new DeviceProfile
-                {
-                    ProfileId           = prof.ProfileId,
-                    DisplayName         = prof.DisplayName,
-                    OsDeviceName        = prof.OsDeviceName,
-                    IsAutoSwitchEnabled = prof.IsAutoSwitchEnabled,
-                    Offsets = new AppOffsetSettings
-                    {
-                        JudgmentOffsetMs = _snapshotJudgmentMs,
-                        VisualOffsetMs   = _snapshotVisualMs,
-                    },
-                    CreatedAtUnixMs = prof.CreatedAtUnixMs,
-                    UpdatedAtUnixMs = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
-                };
-                await repo.Offsets.SaveProfileAsync(reverted);
-                await repo.SetActiveProfileAsync(reverted.ProfileId);
-            }
-        }
+        // 3. オフセット(DeviceProfile)を書き戻す
+        await RevertOffsetsAsync();
 
-        // 4. 次の動作へ (UI 巻き戻しはシーン再読込で行う)
-        if (thenLeave)
+        // 4. 退出
+        LeaveScene();
+    }
+
+    // 全タブのランタイム状態を(巻き戻し済み PlayerPrefs から)再適用する。
+    void ApplyRuntimeRevertAll()
+    {
+        DisplayTabController.ApplySettingsOnBoot();   // Graphics
+        AudioVolumeBinder.Instance?.SetMasterVolume(PlayerPrefs.GetFloat("Vol_Master", 80f));
+        AudioVolumeBinder.Instance?.SetMusicVolume(PlayerPrefs.GetFloat("Vol_Music", 90f));
+        AudioVolumeBinder.Instance?.SetSfxVolume(PlayerPrefs.GetFloat("Vol_Sfx", 70f));
+        float bg = PlayerPrefs.GetFloat("BgEffectsIntensity", 100f);   // Gameplay
+        JacketBackgroundController.Instance?.SetBrightness((bg / 100f) * 0.5f);
+        BeatGridController.Instance?.SetUserIntensity(bg / 100f);
+        var map = _inputAsset != null ? _inputAsset.FindActionMap("Gameplay") : null;   // Keys
+        if (map != null)
         {
-            LeaveScene();
+            map.RemoveAllBindingOverrides();
+            InputTabController.LoadBindingsFromPrefs(_inputAsset);
         }
-        else if ((int)thenReloadAt >= 0)
+    }
+
+    async System.Threading.Tasks.Task RevertOffsetsAsync()
+    {
+        if (!_snapshotHasOffsets) return;
+        var repo = RepositoryService.Instance;
+        var prof = repo?.ActiveProfile;
+        if (repo == null || prof == null) return;
+        if (prof.Offsets.JudgmentOffsetMs == _snapshotJudgmentMs &&
+            prof.Offsets.VisualOffsetMs   == _snapshotVisualMs) return;
+
+        var reverted = new DeviceProfile
         {
-            SceneRouter.Instance?.GoTo(SceneId.Config, new ConfigParameters
+            ProfileId           = prof.ProfileId,
+            DisplayName         = prof.DisplayName,
+            OsDeviceName        = prof.OsDeviceName,
+            IsAutoSwitchEnabled = prof.IsAutoSwitchEnabled,
+            Offsets = new AppOffsetSettings
             {
-                ReturnScene      = _returnScene,
-                ReturnParameters = _returnParameters,
-                InitialTab       = thenReloadAt.ToString(),
-            });
-        }
+                JudgmentOffsetMs = _snapshotJudgmentMs,
+                VisualOffsetMs   = _snapshotVisualMs,
+            },
+            CreatedAtUnixMs = prof.CreatedAtUnixMs,
+            UpdatedAtUnixMs = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
+        await repo.Offsets.SaveProfileAsync(reverted);
+        await repo.SetActiveProfileAsync(reverted.ProfileId);
     }
 
     // ── Reset (F9) ────────────────────────────────────────────────────────────
