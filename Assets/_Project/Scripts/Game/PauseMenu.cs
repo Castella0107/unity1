@@ -85,6 +85,24 @@ public class PauseMenu : MonoBehaviour
         _buttons = titleBtn != null
             ? new[] { _resumeButton, _restartButton, _quitButton, titleBtn }
             : new[] { _resumeButton, _restartButton, _quitButton };
+
+        // ボタンは絶対座標で縦並び。複製した Title が Quit と重なるので、4つを元の中心の
+        // まわりに等間隔で並べ直す(間隔・X・中心は既存ボタンから算出)。
+        if (titleBtn != null && _resumeButton != null && _restartButton != null)
+        {
+            var resumeRt  = (RectTransform)_resumeButton.transform;
+            var restartRt = (RectTransform)_restartButton.transform;
+            float spacing = Mathf.Abs(resumeRt.anchoredPosition.y - restartRt.anchoredPosition.y);
+            if (spacing < 1f) spacing = 80f;
+            float x      = resumeRt.anchoredPosition.x;
+            float center = restartRt.anchoredPosition.y;   // 元の3ボタンの中央
+            for (int i = 0; i < _buttons.Length; i++)
+            {
+                if (_buttons[i] == null) continue;
+                var r = (RectTransform)_buttons[i].transform;
+                r.anchoredPosition = new Vector2(x, center + (1.5f - i) * spacing);
+            }
+        }
     }
 
     static void SetButtonLabel(Button b, string text)
