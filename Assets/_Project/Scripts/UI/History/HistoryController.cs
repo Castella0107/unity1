@@ -347,7 +347,7 @@ public class HistoryController : MonoBehaviour
     {
         if (_selectedIndex < 0 || _selectedIndex >= _soloViews.Count) return;
         var rec = _soloViews[_selectedIndex].Record;
-        LaunchReplay(rec.SongId, rec.Difficulty, rec.ReplayPath);
+        LaunchReplay(rec.SongId, rec.Difficulty, rec.ReplayPath, isPvp: false);
     }
 
     void LaunchPvpReplay(PvpMatchRecord m, int songIndex)
@@ -355,10 +355,12 @@ public class HistoryController : MonoBehaviour
         if (m.SelfReplayPaths == null || songIndex < 0 || songIndex >= m.SelfReplayPaths.Length) return;
         string songId = (m.SongIds      != null && songIndex < m.SongIds.Length)      ? m.SongIds[songIndex]      : null;
         string diff   = (m.Difficulties != null && songIndex < m.Difficulties.Length) ? m.Difficulties[songIndex] : "extra";
-        LaunchReplay(songId, diff, m.SelfReplayPaths[songIndex]);
+        LaunchReplay(songId, diff, m.SelfReplayPaths[songIndex], isPvp: true);
     }
 
-    void LaunchReplay(string songId, string difficulty, string replayPath)
+    // isPvp: PVP(Ladder)由来のリプレイか。リプレイ終了/ポーズ離脱時に History の正しいタブ
+    // (Ladder/Free)へ戻すために GamePlayParameters.IsPvp へ伝搬する。
+    void LaunchReplay(string songId, string difficulty, string replayPath, bool isPvp)
     {
         if (string.IsNullOrEmpty(replayPath) || !File.Exists(replayPath))
         {
@@ -370,6 +372,7 @@ public class HistoryController : MonoBehaviour
             SongId               = songId,
             Difficulty           = string.IsNullOrEmpty(difficulty) ? "extra" : difficulty,
             IsReplay             = true,
+            IsPvp                = isPvp,
             ReplayPath           = replayPath,
             InitialPlaybackSpeed = 1.0,
         };

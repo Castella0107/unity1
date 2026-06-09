@@ -25,6 +25,7 @@ public class ReplayPlaybackController : MonoBehaviour
     ChartData         _chart;
     SongMetadata      _meta;
     bool              _isPlaying;
+    bool              _isPvpReplay;   // PVP(Ladder)由来か。終了時に History の戻りタブを決める。
 
     /// <summary>リプレイ再生中か。</summary>
     public bool   IsPlaying     => _isPlaying;
@@ -45,6 +46,7 @@ public class ReplayPlaybackController : MonoBehaviour
             gameObject.SetActive(false);
             return;
         }
+        _isPvpReplay = prm.IsPvp;
 
         Application.runInBackground = true;
 
@@ -189,9 +191,15 @@ public class ReplayPlaybackController : MonoBehaviour
         StageInitializer.UnbindStageVisuals();
         if (_liveInput != null) _liveInput.enabled = true;
 
+        // PVP リプレイは Ladder タブ、ソロリプレイは Free タブの History へ戻す
+        // (モード未指定だと Free=ソロに戻ってしまう不具合の修正)。
+        var hp = new HistoryParameters { Mode = _isPvpReplay ? "Ladder" : "Free" };
         if (SceneRouter.Instance != null)
-            SceneRouter.Instance.GoTo(SceneId.History);
+            SceneRouter.Instance.GoTo(SceneId.History, hp);
         else
+        {
+            ParameterStore.SetPending(hp);
             UnityEngine.SceneManagement.SceneManager.LoadScene("History");
+        }
     }
 }

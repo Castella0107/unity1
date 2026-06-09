@@ -30,7 +30,9 @@ public class PauseMenu : MonoBehaviour
     Button[] _buttons;
 
     // PVP 対戦中はポーズ不可。ESC 長押し（6秒）でリタイア（不戦敗）。
-    bool        _isPvp;
+    bool        _isPvpMatch;   // ライブ PVP 対戦 (リプレイは除く)。リタイア対象。
+    bool        _isReplay;     // リプレイ再生中。Quit は History へ戻す。
+    string      _returnMode;   // リプレイ Quit 時の History タブ ("Ladder"/"Free")。
     float       _retireHold;
     const float RetireHoldSec = 6f;
     bool        _retiring;
@@ -49,17 +51,19 @@ public class PauseMenu : MonoBehaviour
         if (_quitButton    != null) _quitButton.onClick.AddListener(OnQuit);
 
         var prm = ParameterStore.GetCurrent<GamePlayParameters>();
-        _isPvp = prm != null && prm.IsPvp;
+        _isReplay   = prm != null && prm.IsReplay;
+        _isPvpMatch = !_isReplay && prm != null && prm.IsPvp;   // リプレイはライブ対戦扱いにしない
+        _returnMode = (prm != null && prm.IsPvp) ? "Ladder" : "Free";
         RhythmGame.UI.Common.ShortcutHintOverlay.Set(
-            _isPvp ? "ESC（長押し6秒）: リタイア（不戦敗）" : "ESC: ポーズ");
+            _isPvpMatch ? "ESC（長押し6秒）: リタイア（不戦敗）" : "ESC: ポーズ");
     }
 
     void Update()
     {
         if (Keyboard.current == null) return;
 
-        // PVP: ポーズ不可。ESC を 6 秒長押しでリタイア。
-        if (_isPvp)
+        // ライブ PVP 対戦: ポーズ不可。ESC を 6 秒長押しでリタイア。
+        if (_isPvpMatch)
         {
             HandlePvpRetire();
             return;
@@ -186,6 +190,15 @@ public class PauseMenu : MonoBehaviour
         _isPaused = false;
         _conductor?.Stop();
         if (_panel != null) _panel.SetActive(false);
+
+        // リプレイ再生中のポーズ離脱は History へ戻す(PVP=Ladder / ソロ=Free タブ)。
+        if (_isReplay)
+        {
+            var hp = new HistoryParameters { Mode = _returnMode };
+            if (SceneRouter.Instance != null) SceneRouter.Instance.GoTo(SceneId.History, hp);
+            else { ParameterStore.SetPending(hp); UnityEngine.SceneManagement.SceneManager.LoadScene("History"); }
+            return;
+        }
 
         if (SceneRouter.Instance != null)
             SceneRouter.Instance.GoTo(SceneId.SongSelect);
