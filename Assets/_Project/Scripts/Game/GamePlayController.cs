@@ -196,10 +196,11 @@ public class GamePlayController : MonoBehaviour
         if (_judgment == null || _judgment.Aggregator == null) return;
 
         var snap   = _judgment.SnapshotForResult();
+        bool isPvpPlay = _params != null && _params.IsPvp;
         var record = PlayRecordFactory.Create(
             snap, SongId, Difficulty,
             _chart != null ? (_chart.ChartHash ?? "") : "",
-            _totalNotes, ParseModifiers(_params?.Modifier), false, null);
+            _totalNotes, ParseModifiers(_params?.Modifier), isPvpPlay, null);
 
         // ── Build replay data ────────────────────────────────────────────────
         var repoSvc       = RepositoryService.Instance;
@@ -258,13 +259,17 @@ public class GamePlayController : MonoBehaviour
             Debug.LogWarning("[GamePlay] Replay NOT saved — repoSvc.Replays is null.");
         }
 
-        // ── Best score + SQLite save ─────────────────────────────────────────
+        // PVP プレイはソロ PlayRecords に保存しない(Free/ソロ履歴を汚さない)。リプレイファイルは
+        // 上で保存済み(Ladder の各曲再生に使う)。各曲の集積は PvpResultBridge.SubmitAndContinueAsync
+        // が sector_scores 付きで行い、試合終了(GoToMatchEnd)で PvpMatchRecord に焼く。
+
+        // ── Best score + SQLite save (ソロのみ) ──────────────────────────────
         int    bestBefore         = 0;
         bool   isNewBest          = false;
         string previousBestPlayId = null;
 
         var playRepo = repoSvc?.PlayRecords;
-        if (playRepo != null)
+        if (!isPvpPlay && playRepo != null)
         {
             var best   = await playRepo.GetBestAsync(record.SongId, record.Difficulty);
             bestBefore = best?.BestEffectiveScore ?? 0;
@@ -272,7 +277,7 @@ public class GamePlayController : MonoBehaviour
             previousBestPlayId = best?.BestPlayId;
             await playRepo.SaveAsync(record);
         }
-        else
+        else if (!isPvpPlay)
         {
             string bestKey = string.Format("Best_{0}_{1}", SongId, Difficulty);
             bestBefore = PlayerPrefs.GetInt(bestKey, 0);

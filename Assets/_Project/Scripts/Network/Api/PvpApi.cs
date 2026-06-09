@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace RhythmGame.Network.Api
@@ -97,6 +98,33 @@ namespace RhythmGame.Network.Api
         /// <summary>最終結果 (MatchEnd 用)。</summary>
         public static MatchResultDto FinalResult { get; set; }
 
+        // ── ローカル PVP 履歴 (Ladder) 用の曲ごと集積 ───────────────────────────
+        // 試合中に各曲を貯め、GoToMatchEnd で PvpMatchRecord に焼いて SavePvpMatchAsync する。
+        // static シングルトンなので3曲(GamePlay→PVPResult→GamePlay…)をまたいで生存する。
+        // SelfSectorScoresFlat は「曲×5セクター」のフラット配列(HistoryPvpRowView が j*5+s で参照)。
+        public static readonly List<string> PlayedSongIds        = new List<string>();
+        public static readonly List<string> PlayedDifficulties   = new List<string>();
+        public static readonly List<string> SelfReplayPaths      = new List<string>();
+        public static readonly List<int>    SelfSectorScoresFlat = new List<int>();
+
+        /// <summary>1曲提出時に呼ぶ (PvpResultBridge から)。sectorScores は5要素。</summary>
+        public static void RecordSongPlayed(string songId, string difficulty, string replayPath, int[] sectorScores)
+        {
+            PlayedSongIds.Add(songId ?? "");
+            PlayedDifficulties.Add(difficulty ?? "");
+            SelfReplayPaths.Add(replayPath ?? "");
+            for (int i = 0; i < 5; i++)
+                SelfSectorScoresFlat.Add(sectorScores != null && i < sectorScores.Length ? sectorScores[i] : 0);
+        }
+
+        static void ResetAccumulation()
+        {
+            PlayedSongIds.Clear();
+            PlayedDifficulties.Clear();
+            SelfReplayPaths.Clear();
+            SelfSectorScoresFlat.Clear();
+        }
+
         /// <summary>マッチ成立時にセットする。</summary>
         public static void StartMatch(string matchId, string opponentId)
         {
@@ -112,6 +140,7 @@ namespace RhythmGame.Network.Api
             CumulativeOppMilli  = 0;
             LastSubmit  = null;
             FinalResult = null;
+            ResetAccumulation();
         }
 
         /// <summary>試合終了/中断時にクリアする (WS も閉じる)。</summary>

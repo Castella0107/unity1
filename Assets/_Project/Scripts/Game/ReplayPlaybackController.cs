@@ -71,6 +71,11 @@ public class ReplayPlaybackController : MonoBehaviour
             _replay = ReplayDecoder.Decode(bytes);
 
             // ── Load chart / meta / audio ────────────────────────────────────
+            // PVP(およびサーバー曲)のリプレイは記録時にサーバー譜面で再生されている。
+            // ServerSongLibrary が未同期だと ChartLoader がローカル/別譜面へフォールバックして
+            // 「別の譜面が再生される」ため、譜面ロード前にサーバー譜面を同期(オフラインはキャッシュ復元)。
+            if (!RhythmGame.Network.Api.ServerSongLibrary.IsSynced)
+                await RhythmGame.Network.Api.ServerSongLibrary.EnsureSyncedAsync();
             _meta  = await ChartLoader.LoadMetaAsync(prm.SongId);
             _chart = await ChartLoader.LoadChartAsync(prm.SongId, prm.Difficulty);
 

@@ -35,6 +35,10 @@ namespace RhythmGame.Network.Api
             int total = 0;
             foreach (var s in sectors) total += s;
 
+            // ローカル PVP 履歴(Ladder)用に各曲を集積する(GoToMatchEnd で PvpMatchRecord に焼く)。
+            // submit 成否に関わらず手元の実プレイは記録する。
+            PvpMatchContext.RecordSongPlayed(record.SongId, record.Difficulty, record.ReplayPath, sectors);
+
             // リプレイ (保存済みファイル → base64)
             string replayB64 = null;
             try
@@ -134,6 +138,39 @@ namespace RhythmGame.Network.Api
                 ErrorMessage  = forfeitNote,
                 Songs         = null,   // 曲別内訳はサーバー result に含まれない (Phase 7 で拡充検討)
             };
+
+            // ── ローカル PVP 履歴(Ladder)に1試合=1レコードで保存 ──
+            // 表示名で格納する(HistoryPvpRowView は SelfUserId/OpponentId をそのまま名前表示する)。
+            try
+            {
+                bool selfWon = (selfIsA && fin.OutcomeKind == "win_a") || (!selfIsA && fin.OutcomeKind == "win_b");
+                int resultKind = fin.OutcomeKind == "draw" ? 0 : (selfWon ? 1 : 2);
+                var rec = new PvpMatchRecord
+                {
+                    MatchId              = fin.MatchId,
+                    SelfUserId           = selfId,   // 表示名
+                    OpponentId           = oppId,    // 表示名
+                    ResultKind           = resultKind,
+                    SelfPoints           = (selfIsA ? fin.TotalPointsA : fin.TotalPointsB) / 1000.0,
+                    OpponentPoints       = (selfIsA ? fin.TotalPointsB : fin.TotalPointsA) / 1000.0,
+                    SelfRatingBefore     = selfIsA ? fin.RatingABefore : fin.RatingBBefore,
+                    SelfRatingAfter      = selfIsA ? fin.RatingAAfter  : fin.RatingBAfter,
+                    OpponentRatingBefore = selfIsA ? fin.RatingBBefore : fin.RatingABefore,
+                    OpponentRatingAfter  = selfIsA ? fin.RatingBAfter  : fin.RatingAAfter,
+                    SongIds              = PvpMatchContext.PlayedSongIds.ToArray(),
+                    Difficulties         = PvpMatchContext.PlayedDifficulties.ToArray(),
+                    SelfSectorScores     = PvpMatchContext.SelfSectorScoresFlat.ToArray(),
+                    OpponentSectorScores = null,   // 相手のセクタースコアは未取得(best-effort)
+                    SelfReplayPaths      = PvpMatchContext.SelfReplayPaths.ToArray(),
+                    CompletedAtUnixMs    = System.DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                };
+                _ = RepositoryService.Instance?.PlayRecords?.SavePvpMatchAsync(rec);
+                Debug.Log($"[PvpResultBridge] Ladder履歴に保存: {rec.MatchId} songs={rec.SongIds.Length} replays={rec.SelfReplayPaths.Length}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning("[PvpResultBridge] Ladder履歴の保存に失敗: " + e.Message);
+            }
 
             _ = PvpMatchContext.ClearAsync();   // WS クローズ (MatchEnd では不要)
             SceneRouter.Instance?.GoTo(SceneId.PVPMatchEnd, p);
