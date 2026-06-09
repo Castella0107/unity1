@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -52,6 +53,21 @@ public class LaneKeyGuide : MonoBehaviour
         _input.OnLaneDown += HandleDown;
         _input.OnLaneUp   += HandleUp;
         _subscribed = true;
+        RefreshKeyLabels();   // Config のキーバインド変更をゲーム内チップラベルへ反映
+    }
+
+    // 各キーチップの子ラベルを、現在の実バインド (override 適用後) で更新する。
+    // ラベルは HudSceneBuilder が静的文字列で焼き込んでいるため、実行時にここで上書きする。
+    void RefreshKeyLabels()
+    {
+        var gic = _input as GameInputController;
+        if (gic == null) return;
+        for (int i = 0; i < _keyChips.Length; i++)
+        {
+            if (_keyChips[i] == null) continue;
+            var lbl = _keyChips[i].GetComponentInChildren<TextMeshProUGUI>();
+            if (lbl != null) lbl.text = gic.GetLaneKeyDisplay(i);
+        }
     }
 
     void OnDisable()

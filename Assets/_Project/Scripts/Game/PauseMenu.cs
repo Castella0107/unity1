@@ -41,8 +41,6 @@ public class PauseMenu : MonoBehaviour
 
     void Start()
     {
-        _buttons = new[] { _resumeButton, _restartButton, _quitButton };
-
         if (_panel            != null) _panel.SetActive(false);
         if (_countdownOverlay != null) _countdownOverlay.SetActive(false);
 
@@ -54,8 +52,46 @@ public class PauseMenu : MonoBehaviour
         _isReplay   = prm != null && prm.IsReplay;
         _isPvpMatch = !_isReplay && prm != null && prm.IsPvp;   // リプレイはライブ対戦扱いにしない
         _returnMode = (prm != null && prm.IsPvp) ? "Ladder" : "Free";
+
+        SetupNavButtons();   // Quit ラベル整理 +「タイトルへ」ボタンを追加
+
         RhythmGame.UI.Common.ShortcutHintOverlay.Set(
             _isPvpMatch ? "ESC（長押し6秒）: リタイア（不戦敗）" : "ESC: ポーズ");
+    }
+
+    // 戻る系ボタンを整える。ポーズパネルは手組みシーンで「タイトルへ」ボタンが無いため、
+    // Quit ボタンを複製して runtime で追加する(シーン編集不要)。
+    //   - Quit: リプレイ=「履歴へ」(History) / ソロ=「選曲へ」(SongSelect)
+    //   - 追加: 「タイトルへ」→ Title
+    void SetupNavButtons()
+    {
+        SetButtonLabel(_quitButton, _isReplay ? "履歴へ" : "選曲へ");
+
+        Button titleBtn = null;
+        if (_quitButton != null && _quitButton.transform.parent != null)
+        {
+            var go = Instantiate(_quitButton.gameObject, _quitButton.transform.parent);
+            go.name = "TitleBtn";
+            go.transform.SetSiblingIndex(_quitButton.transform.GetSiblingIndex() + 1);
+            titleBtn = go.GetComponent<Button>();
+            if (titleBtn != null)
+            {
+                titleBtn.onClick.RemoveAllListeners();
+                titleBtn.onClick.AddListener(OnTitle);
+            }
+            SetButtonLabel(titleBtn, "タイトルへ");
+        }
+
+        _buttons = titleBtn != null
+            ? new[] { _resumeButton, _restartButton, _quitButton, titleBtn }
+            : new[] { _resumeButton, _restartButton, _quitButton };
+    }
+
+    static void SetButtonLabel(Button b, string text)
+    {
+        if (b == null) return;
+        var lbl = b.GetComponentInChildren<TextMeshProUGUI>(true);
+        if (lbl != null) lbl.text = text;
     }
 
     void Update()
@@ -204,6 +240,18 @@ public class PauseMenu : MonoBehaviour
             SceneRouter.Instance.GoTo(SceneId.SongSelect);
         else
             UnityEngine.SceneManagement.SceneManager.LoadScene("SongSelect");
+    }
+
+    void OnTitle()
+    {
+        _isPaused = false;
+        _conductor?.Stop();
+        if (_panel != null) _panel.SetActive(false);
+
+        if (SceneRouter.Instance != null)
+            SceneRouter.Instance.GoTo(SceneId.Title);
+        else
+            UnityEngine.SceneManagement.SceneManager.LoadScene("Title");
     }
 
     // ── Selection highlight ───────────────────────────────────────────────────

@@ -90,6 +90,19 @@ public sealed class GameInputController : MonoBehaviour, IInputSource
         }
     }
 
+    /// <summary>指定レーン (LaneId) の現在のキー割り当てを人間可読の文字列で返す。
+    /// Config でのリバインド (override) を反映するので、ゲーム内キー表示の更新に使う。</summary>
+    public string GetLaneKeyDisplay(int laneIndex)
+    {
+        if (_laneActions == null || laneIndex < 0 || laneIndex >= _laneActions.Length) return "?";
+        var action = _laneActions[laneIndex];
+        if (action == null || action.bindings.Count == 0) return "?";
+        string path = action.bindings[0].effectivePath;   // override 適用後の実効パス
+        string disp = UnityEngine.InputSystem.InputControlPath.ToHumanReadableString(
+            path, UnityEngine.InputSystem.InputControlPath.HumanReadableStringOptions.OmitDevice);
+        return string.IsNullOrEmpty(disp) ? "?" : disp.ToUpper();
+    }
+
     private void OnEnable()
     {
         if (_gameplay != null && !_mapEnabled)

@@ -227,7 +227,8 @@ public static class BuildConfigScene
         var blockImg = blockGO.AddComponent<Image>(); blockImg.color = new Color(0,0,0,.55f); blockImg.raycastTarget = false;
         y -= LaneBlockH + 12f;
 
-        string[] laneNames = { "LINE 1", "LINE 2", "LINE 3", "LINE 4", "FX L", "FX R" };
+        // ゲーム内レーン配置に合わせて FX L を左端に(InputTabController.LaneActionNames と同順)。
+        string[] laneNames = { "FX L", "LINE 1", "LINE 2", "LINE 3", "LINE 4", "FX R" };
         var keyDisplays = new TextMeshProUGUI[6];
         var changeBtns  = new Button[6];
         var highlights  = new Image[6];

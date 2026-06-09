@@ -26,7 +26,9 @@ public class InputTabController : MonoBehaviour
     [Header("Refs")]
     [SerializeField] InputActionAsset _inputAsset;
 
-    static readonly string[] LaneActionNames = { "Lane0", "Lane1", "Lane2", "Lane3", "FxL", "FxR" };
+    // 表示順はゲーム内レーン配置に合わせる: FX L を左端、FX R を右端、間に LINE 1〜4。
+    // (_keyDisplays/_changeButtons/_testKeyHighlights も BuildConfigScene でこの順に配線。)
+    static readonly string[] LaneActionNames = { "FxL", "Lane0", "Lane1", "Lane2", "Lane3", "FxR" };
 
     InputActionRebindingExtensions.RebindingOperation _rebindOp;
     int _rebindingIndex = -1;
