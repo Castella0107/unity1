@@ -32,6 +32,30 @@ public static class StageInitializer
         scroller?.Initialize(chart);
         scroller?.SetScrollSpeed(ResolveHiSpeed(hiSpeed));
         hud?.Initialize(meta, chart, isPvP: false);
+
+        EnsureBeatLines(conductor, chart, scroller);
+    }
+
+    /// <summary>拍線・小節線スクローラーを生成(または再利用)し、譜面で初期化する。</summary>
+    static void EnsureBeatLines(AudioConductor conductor, ChartData chart, NoteScroller scroller)
+    {
+        var beatLines = BeatLineScroller.Instance;
+        if (beatLines == null)
+        {
+            // ノートと完全に同じ空間に置く: ノートの親(NotePool)を最優先、無ければレーンステージ、原点。
+            Transform parent = null;
+            var pool = Object.FindObjectOfType<NotePool>();
+            if (pool != null) parent = pool.transform;
+            else { var lv = Object.FindObjectOfType<LaneVisuals>(); if (lv != null) parent = lv.transform; }
+
+            var go = new GameObject("BeatLineScroller");
+            if (parent != null) go.transform.SetParent(parent, false);
+            go.transform.localPosition = Vector3.zero;
+            go.transform.localRotation = Quaternion.identity;
+            go.transform.localScale    = Vector3.one;
+            beatLines = go.AddComponent<BeatLineScroller>();
+        }
+        beatLines.Initialize(conductor, chart, scroller);
     }
 
     /// <summary>HiSpeed を解決する。未指定(0以下)なら PlayerPrefs の保存値(既定4.5)。</summary>
@@ -42,6 +66,7 @@ public static class StageInitializer
     public static void UnbindStageVisuals()
     {
         BeatGridController.Instance?.Unbind();
+        BeatLineScroller.Instance?.Clear();
         JacketBackgroundController.Instance?.SetCanvasEnabled(true);
     }
 
