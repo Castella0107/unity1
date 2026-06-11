@@ -64,8 +64,8 @@ public class BpmTimeline
     /// <summary>[レガシー] 既定の1小節あたりの拍数(4/4)。拍子対応後は GetTimeSignatureAt / GetMeasureIntervalMs を使う。</summary>
     public const int BeatsPerMeasure = 4;
 
-    /// <summary>1 小節あたりのホールド判定ティック数(1 小節 2 ノーツ)。</summary>
-    public const int HoldTicksPerMeasure = 2;
+    /// <summary>1 小節あたりのホールド判定ティック数(1 小節 8 ノーツ = 4/4 で八分音符刻み)。</summary>
+    public const int HoldTicksPerMeasure = 8;
 
     /// <summary>
     /// ホールド末尾ガード(ms)。EndMs から HoldTailGuardMs 以内に来るボディティックは生成しない。
@@ -90,7 +90,7 @@ public class BpmTimeline
     }
 
     /// <summary>
-    /// ホールドの判定ティック間隔(ms)を返す。1 小節 2 ノーツ = 小節長の 1/2(4/4 で 2 拍)。
+    /// ホールドの判定ティック間隔(ms)を返す。1 小節 8 ノーツ = 小節長の 1/8(4/4 で八分音符)。
     /// HoldJudgmentTracker と ScoringEventCounter が共有し、満点(1,000,000)整合を保つ。
     /// </summary>
     public double GetHoldTickIntervalMs(double timeMs) =>

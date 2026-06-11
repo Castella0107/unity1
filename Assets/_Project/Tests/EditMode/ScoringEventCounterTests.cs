@@ -41,29 +41,29 @@ public class ScoringEventCounterTests
     // ── Hold ticks (per-measure) ────────────────────────────────────────────────
 
     [Test]
-    public void Hold120Bpm500ms_TotalIs2()
+    public void Hold120Bpm500ms_TotalIs3()
     {
-        // 120 BPM → measure = 2000 ms; a 500 ms hold spans < 1 measure → 0 body ticks
-        // total = head(1) + 0 ticks + tail(1) = 2
+        // 120 BPM → tick = 250 ms; a 500 ms hold (1000→1500) has one body tick at 1250
+        // (1500 boundary excluded). total = head(1) + 1 tick + tail(1) = 3
         var notes = new List<NoteData>
         {
             new NoteData { Id = 1, Type = NoteType.Hold, Lane = LaneRef.Lane0,
                            TimeMs = 1000, DurationMs = 500 }
         };
-        Assert.AreEqual(2, ScoringEventCounter.Count(notes, Bpm120()));
+        Assert.AreEqual(3, ScoringEventCounter.Count(notes, Bpm120()));
     }
 
     [Test]
-    public void Hold120Bpm5000ms_TotalIs6()
+    public void Hold120Bpm5000ms_TotalIs21()
     {
-        // 120 BPM → hold tick = 1000 ms; ticks at 2000,3000,4000,5000 (within [1000,6000)) = 4
-        // total = head(1) + 4 ticks + tail(1) = 6
+        // 120 BPM → hold tick = 250 ms; ticks at 1250,1500,...,5750 (within [1000,6000)) = 19
+        // total = head(1) + 19 ticks + tail(1) = 21
         var notes = new List<NoteData>
         {
             new NoteData { Id = 1, Type = NoteType.Hold, Lane = LaneRef.Lane0,
                            TimeMs = 1000, DurationMs = 5000 }
         };
-        Assert.AreEqual(6, ScoringEventCounter.Count(notes, Bpm120()));
+        Assert.AreEqual(21, ScoringEventCounter.Count(notes, Bpm120()));
     }
 
     [Test]
@@ -89,7 +89,7 @@ public class ScoringEventCounterTests
     [Test]
     public void MixedTapAndHold_SumIsCorrect()
     {
-        // Tap(1) + Hold(head+0ticks+tail = 2) + Tap(1) = 4
+        // Tap(1) + Hold(head+1tick+tail = 3) + Tap(1) = 5
         var notes = new List<NoteData>
         {
             new NoteData { Id = 1, Type = NoteType.Tap,  Lane = LaneRef.Lane0, TimeMs = 0 },
@@ -97,7 +97,7 @@ public class ScoringEventCounterTests
                            TimeMs = 1000, DurationMs = 500 },
             new NoteData { Id = 3, Type = NoteType.Tap,  Lane = LaneRef.Lane2, TimeMs = 2000 },
         };
-        Assert.AreEqual(4, ScoringEventCounter.Count(notes, Bpm120()));
+        Assert.AreEqual(5, ScoringEventCounter.Count(notes, Bpm120()));
     }
 
     // ── Matches HoldJudgmentTracker ────────────────────────────────────────────
@@ -145,7 +145,7 @@ public class ScoringEventCounterTests
                            TimeMs = 2000, DurationMs = 500 },
         };
         var bpm   = Bpm120();
-        int total = ScoringEventCounter.Count(notes, bpm);  // 1 tap + (head + 0 ticks + tail) = 3
+        int total = ScoringEventCounter.Count(notes, bpm);  // 1 tap + (head + 1 tick + tail) = 4
 
         var calc = new ScoreCalculator(total);
         for (int i = 0; i < total; i++)
