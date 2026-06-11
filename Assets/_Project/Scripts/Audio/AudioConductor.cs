@@ -39,6 +39,11 @@ public sealed class AudioConductor : MonoBehaviour
     public double JudgmentTimeMs =>
         SongTimeMs - _appOffsets.JudgmentOffsetMs - (_perSongOffset?.JudgmentOffsetMs ?? 0);
 
+    /// <summary>現在適用中のアプリ判定オフセット(ms)。判定トレース計測用の読み取り専用アクセサ。</summary>
+    public int CurrentAppJudgmentOffsetMs => _appOffsets.JudgmentOffsetMs;
+    /// <summary>現在適用中の曲別判定オフセット(ms)。判定トレース計測用の読み取り専用アクセサ。</summary>
+    public int CurrentPerSongJudgmentOffsetMs => _perSongOffset?.JudgmentOffsetMs ?? 0;
+
     /// <summary>アプリ映像オフセットを差し引いた時刻。ノーツのスクロール位置に使う(曲別オフセットは判定専用のため適用しない)。</summary>
     public double VisualTimeMs => SongTimeMs - _appOffsets.VisualOffsetMs;
 

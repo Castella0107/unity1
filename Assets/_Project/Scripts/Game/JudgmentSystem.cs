@@ -67,6 +67,21 @@ public class JudgmentSystem : MonoBehaviour
 
         ReplayBuffer = new ReplayInputBuffer();
 
+        // テスト用判定トレース (K とのタイミング判定突き合わせ調査)。Enabled=false で全 no-op。
+        if (JudgmentTrace.Enabled)
+        {
+            JudgmentTrace.Begin(
+                RhythmGame.Network.Api.PvpMatchContext.MatchId,
+                RhythmGame.Network.Api.PvpMatchContext.CurrentSongOrder,
+                RhythmGame.Network.Api.PvpMatchContext.CurrentSongId,
+                RhythmGame.Network.Api.PvpMatchContext.CurrentDifficulty,
+                RhythmGame.Network.Api.AuthManager.UserId,
+                RhythmGame.Network.Api.PvpMatchContext.SelfIsA,
+                chart.ChartHash ?? "",
+                _conductor != null ? _conductor.CurrentAppJudgmentOffsetMs     : 0,
+                _conductor != null ? _conductor.CurrentPerSongJudgmentOffsetMs : 0);
+        }
+
         _inputSource = input;
         _inputSource.OnLaneDown += HandleLaneDown;
         _inputSource.OnLaneUp   += HandleLaneUp;
@@ -80,6 +95,7 @@ public class JudgmentSystem : MonoBehaviour
     void HandleLaneDown(LaneRef lane, double timeMs)
     {
         double t = System.Math.Round(timeMs);
+        JudgmentTrace.LogInput((int)lane, true, timeMs, t);
         ReplayBuffer?.Add((int)lane, true, t);
         _engine?.ProcessLaneDown(lane, t);
     }
@@ -87,6 +103,7 @@ public class JudgmentSystem : MonoBehaviour
     void HandleLaneUp(LaneRef lane, double timeMs)
     {
         double t = System.Math.Round(timeMs);
+        JudgmentTrace.LogInput((int)lane, false, timeMs, t);
         ReplayBuffer?.Add((int)lane, false, t);
         _engine?.ProcessLaneUp(lane, t);
     }
@@ -106,6 +123,8 @@ public class JudgmentSystem : MonoBehaviour
 
     void HandleJudgment(JudgmentEvent ev)
     {
+        JudgmentTrace.LogJudgment(ev);
+
         switch (ev.Kind)
         {
             case NoteKind.Tap:
@@ -134,7 +153,12 @@ public class JudgmentSystem : MonoBehaviour
     // ── Result ────────────────────────────────────────────────────────────────
 
     /// <summary>最終結果のプレイ進行スナップショットを構築して返す。</summary>
-    public PlayProgressSnapshot SnapshotForResult() => _engine?.BuildResult();
+    public PlayProgressSnapshot SnapshotForResult()
+    {
+        var snap = _engine?.BuildResult();
+        JudgmentTrace.End(snap); // 集計サマリ付きでトレースを確定 (複数回呼んでも安全)
+        return snap;
+    }
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -145,5 +169,7 @@ public class JudgmentSystem : MonoBehaviour
             _inputSource.OnLaneDown -= HandleLaneDown;
             _inputSource.OnLaneUp   -= HandleLaneUp;
         }
+        // 途中離脱でもトレースを取りこぼさないよう保険で閉じる (集計サマリなし)。
+        JudgmentTrace.End(null);
     }
 }
