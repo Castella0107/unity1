@@ -61,6 +61,28 @@ namespace RhythmGame.Network.Api
                 new TempoEvent { Type = "bpm", TimeMs = 0, Bpm = bpm, Multiplier = 1.0 },
             };
 
+            // 拍子イベント (variable time signature)。サーバー JSON の events[] から timesig を取り込む。
+            // 無ければ全編 4/4 (BpmTimeline 既定)。スコア(ホールドtick)が拍子に追従するため、
+            // クライアントとサーバーが同一の timesig を見る必要がある (engine/count.go も同様に解釈)。
+            var eventsArr = root["events"] as JArray;
+            if (eventsArr != null)
+            {
+                foreach (var ev in eventsArr)
+                {
+                    if ((ev.Value<string>("type") ?? "") != "timesig") continue;
+                    int num = ev.Value<int?>("numerator")   ?? 0;
+                    int den = ev.Value<int?>("denominator") ?? 0;
+                    if (num <= 0 || den <= 0) continue;
+                    events.Add(new TempoEvent
+                    {
+                        Type        = "timesig",
+                        TimeMs      = ev.Value<double?>("time_ms") ?? 0,
+                        Numerator   = num,
+                        Denominator = den,
+                    });
+                }
+            }
+
             var timeline = new BpmTimeline(events);
             int totalScoringEvents = ScoringEventCounter.Count(notes, timeline);
             if (totalScoringEvents == 0) totalScoringEvents = 1;

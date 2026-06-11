@@ -72,16 +72,20 @@ public class ChartData
 }
 
 /// <summary>
-/// BPM変化またはスクロール速度倍率変化を表すテンポイベント。タイプは "bpm" または "speed"。
+/// BPM変化・スクロール速度倍率変化・拍子変化を表すテンポイベント。タイプは "bpm" | "speed" | "timesig"。
 /// </summary>
 public class TempoEvent
 {
-    /// <summary>イベント種別 ("bpm" | "speed")。</summary>
+    /// <summary>イベント種別 ("bpm" | "speed" | "timesig")。</summary>
     public string Type;
-    /// <summary>イベント発生時刻(ms)。</summary>
+    /// <summary>イベント発生時刻(ms)。"timesig" ではこの時刻が小節の頭(基準拍/バーライン起点)になる。</summary>
     public double TimeMs;
     /// <summary>"bpm" イベント時の BPM 値。</summary>
     public double Bpm;
     /// <summary>"speed" イベント時のスクロール速度倍率。</summary>
     public double Multiplier;
+    /// <summary>"timesig" イベント時の拍子の分子(1小節の拍数)。例: 7/8 → 7。0 は未設定(=4/4 既定)。</summary>
+    public int Numerator;
+    /// <summary>"timesig" イベント時の拍子の分母(1拍の音価。4=四分音符/8=八分音符)。0 は未設定(=4/4 既定)。</summary>
+    public int Denominator;
 }

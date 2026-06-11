@@ -49,6 +49,11 @@ public static class ChartSerializerEditor
                 };
                 if (e.Type == "bpm")   je["bpm"]        = e.Bpm;
                 if (e.Type == "speed") je["multiplier"] = e.Multiplier;
+                if (e.Type == "timesig")
+                {
+                    je["numerator"]   = e.Numerator;
+                    je["denominator"] = e.Denominator;
+                }
                 events.Add(je);
             }
         }

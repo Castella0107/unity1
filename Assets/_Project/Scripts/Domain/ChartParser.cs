@@ -54,10 +54,12 @@ public static class ChartParser
 
     private class TempoEventDto
     {
-        public string Type       { get; set; }
-        public double TimeMs     { get; set; }
-        public double Bpm        { get; set; }
-        public double Multiplier { get; set; }
+        public string Type        { get; set; }
+        public double TimeMs      { get; set; }
+        public double Bpm         { get; set; }
+        public double Multiplier  { get; set; }
+        public int    Numerator   { get; set; }   // "timesig" のみ
+        public int    Denominator { get; set; }   // "timesig" のみ
     }
 
     private class NoteDto
@@ -145,10 +147,12 @@ public static class ChartParser
                 foreach (var e in dto.Events)
                     events.Add(new TempoEvent
                     {
-                        Type       = e.Type,
-                        TimeMs     = e.TimeMs,
-                        Bpm        = e.Bpm,
-                        Multiplier = e.Multiplier
+                        Type        = e.Type,
+                        TimeMs      = e.TimeMs,
+                        Bpm         = e.Bpm,
+                        Multiplier  = e.Multiplier,
+                        Numerator   = e.Numerator,
+                        Denominator = e.Denominator
                     });
 
             var bpm = new BpmTimeline(events);

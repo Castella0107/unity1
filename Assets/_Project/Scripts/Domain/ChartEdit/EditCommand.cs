@@ -201,7 +201,8 @@ public sealed class RemoveTempoEventCommand : IEditCommand
     {
         _snapshot = new TempoEvent
         {
-            Type = ev.Type, TimeMs = ev.TimeMs, Bpm = ev.Bpm, Multiplier = ev.Multiplier
+            Type = ev.Type, TimeMs = ev.TimeMs, Bpm = ev.Bpm, Multiplier = ev.Multiplier,
+            Numerator = ev.Numerator, Denominator = ev.Denominator
         };
         _originalIndex = originalIndex;
     }
@@ -227,13 +228,15 @@ public sealed class RemoveTempoEventCommand : IEditCommand
         state.Chart.Events.Add(new TempoEvent
         {
             Type = _snapshot.Type, TimeMs = _snapshot.TimeMs,
-            Bpm = _snapshot.Bpm, Multiplier = _snapshot.Multiplier
+            Bpm = _snapshot.Bpm, Multiplier = _snapshot.Multiplier,
+            Numerator = _snapshot.Numerator, Denominator = _snapshot.Denominator
         });
         AddTempoEventCommand.SortEvents(state.Chart.Events);
     }
     static bool SameEvent(TempoEvent a, TempoEvent b)
         => a.Type == b.Type && a.TimeMs == b.TimeMs
-           && a.Bpm == b.Bpm && a.Multiplier == b.Multiplier;
+           && a.Bpm == b.Bpm && a.Multiplier == b.Multiplier
+           && a.Numerator == b.Numerator && a.Denominator == b.Denominator;
 }
 
 /// <summary>SectorDef を SongMetadata.Sectors に追加する。</summary>
