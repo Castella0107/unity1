@@ -114,13 +114,22 @@ public class ConfigController : MonoBehaviour
         JacketBackgroundController.Instance?.SetFallback();
         if (_backButton  != null) _backButton.onClick.AddListener(OnBack);
         if (_resetButton != null) _resetButton.onClick.AddListener(ConfirmResetAll);
-        if (_saveButton  != null) _saveButton.onClick.AddListener(OnSave);
+        if (_saveButton  != null)
+        {
+            _saveButton.onClick.AddListener(OnSave);
+            // 設定は「保存(F5)」で確定し、未保存のまま離脱すると破棄される。保存しないと次回起動に
+            // 反映されないため、保存ボタンを紫アクセント+「保存 (F5)」表記で目立たせる。
+            var saveImg = _saveButton.GetComponent<UnityEngine.UI.Image>();
+            if (saveImg != null) saveImg.color = new Color(0.42f, 0.32f, 0.88f, 1f);
+            var saveLbl = _saveButton.GetComponentInChildren<TMPro.TextMeshProUGUI>();
+            if (saveLbl != null) saveLbl.text = "保存 (F5)";
+        }
         BuildTabBar();
         SwitchTab(initialTab);
         TakeGlobalSnapshot();   // 入場時の確定済みベースライン(保存ボタン押下まで巻き戻し対象)
 
         RhythmGame.UI.Common.ShortcutHintOverlay.Set(
-            "L/R Shift・←→: タブ切替   ↑↓: 項目   Space: 決定   保存ボタンで確定   ESC: 閉じる");
+            "L/R Shift・←→: タブ切替   ↑↓: 項目   Space: 決定   保存(F5)で確定※未保存で離脱すると破棄   ESC: 閉じる");
     }
 
     // ── Tab bar ───────────────────────────────────────────────────────────────

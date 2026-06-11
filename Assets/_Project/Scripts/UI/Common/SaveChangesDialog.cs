@@ -9,7 +9,7 @@ namespace RhythmGame.UI.Common
     /// コンフィグ画面で設定変更が保存されないままタブ移動・クローズした際に挟む (ユーザー提供モック準拠)。
     /// シーン配線不要の自己生成シングルトン (OnGUI 描画、ConfirmDialog と同方式)。
     ///
-    /// 操作: ←→ で選択、Space/Enter (パッド A) で確定、ESC (パッド B) でキャンセル。既定フォーカスは「適用」。
+    /// 操作: ←→ で選択、Space/Enter (パッド A) で確定、ESC (パッド B) でキャンセル。既定フォーカスは「保存して退出」。
     /// <see cref="IsOpen"/> が真の間、呼び出し画面は入力処理を抑止すること。
     /// </summary>
     public class SaveChangesDialog : MonoBehaviour
@@ -156,9 +156,10 @@ namespace RhythmGame.UI.Common
             float bx = x + (w - totalW) * 0.5f;
             float by = y + h - bh - 26f;
 
-            DrawButton(new Rect(bx,                 by, bw, bh), "キャンセル",  _selected == 0, new Color(.45f,.45f,.5f,1f),  () => Close(0));
-            DrawButton(new Rect(bx + bw + gap,      by, bw, bh), "保存しない",  _selected == 1, new Color(.85f,.29f,.48f,1f), () => Close(1));
-            DrawButton(new Rect(bx + (bw+gap)*2,    by, bw, bh), "適用",        _selected == 2, new Color(.42f,.32f,.88f,1f), () => Close(2));
+            // 既定フォーカスは「保存して退出」(_selected==2)。文言は保存/破棄を取り違えないよう明示する。
+            DrawButton(new Rect(bx,                 by, bw, bh), "キャンセル",      _selected == 0, new Color(.45f,.45f,.5f,1f),  () => Close(0));
+            DrawButton(new Rect(bx + bw + gap,      by, bw, bh), "破棄して退出",    _selected == 1, new Color(.85f,.29f,.48f,1f), () => Close(1));
+            DrawButton(new Rect(bx + (bw+gap)*2,    by, bw, bh), "保存して退出",    _selected == 2, new Color(.42f,.32f,.88f,1f), () => Close(2));
         }
 
         void DrawButton(Rect rect, string label, bool focused, Color accent, Action onClick)
