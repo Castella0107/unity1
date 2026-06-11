@@ -33,18 +33,23 @@ ChartEditor に「変拍子の入力」と「基準拍（小節の頭）アン�
 ```
 quarterMs(t)      = 60000 / bpm(t)                       // 四分音符長
 measureMs(t)      = quarterMs(t) * numerator(t) * (4 / denominator(t))
-holdTickIntervalMs(t) = measureMs(t) / 2                 // HoldTicksPerMeasure = 2 据え置き
+holdTickIntervalMs(t) = measureMs(t) / 8                 // HoldTicksPerMeasure = 8
 ```
+
+> ⚠️ **HoldTicksPerMeasure は 2→8 に変更**(2026-06-11, 別件のゲーム性変更)。tick 間隔が
+> 小節長の 1/2 → 1/8(4/4 で八分音符刻み)になり、4/4 含め全譜面の tick 数・満点正規化が変わる。
+> 詳細と「ホールド復帰(離す→押し直しで継続)」の判定仕様は `docs/handoff/2026-06-11_hold_judgment/spec.md` 参照。
 
 例（bpm=120, quarterMs=500）:
 | 拍子 | measureMs | tick間隔 |
 |---|---|---|
-| 4/4 | 500×4×(4/4)=2000 | 1000 |
-| 3/4 | 500×3×(4/4)=1500 | 750 |
-| 6/8 | 500×6×(4/8)=1500 | 750 |
-| 7/8 | 500×7×(4/8)=1750 | 875 |
+| 4/4 | 500×4×(4/4)=2000 | 250 |
+| 3/4 | 500×3×(4/4)=1500 | 187.5 |
+| 6/8 | 500×6×(4/8)=1500 | 187.5 |
+| 7/8 | 500×7×(4/8)=1750 | 218.75 |
 
-4/4 は従来値（measureMs=4拍, tick=2拍）と一致 → 後方互換。
+timesig の有無は 4/4 の結果を変えない(後方互換)。ただし上記 HoldTicksPerMeasure=8 の変更は
+timesig とは独立に 4/4 を含む全譜面へ適用される。
 
 ホールドの tick 生成ループ（既存と同じ。間隔だけが拍子依存になる）:
 ```
