@@ -70,7 +70,8 @@ public sealed class EditorState
     // ── Snap helpers (tempo-map aware) ───────────────────────────────────────
 
     /// <summary>
-    /// BPM 区間 (テンポマップの1セグメント)。StartMs を起点に Bpm の拍格子が貼られる。
+    /// テンポマップの1セグメント。StartMs を起点に Bpm × 拍子 (Num/Den) の拍格子が貼られる。
+    /// bpm / timesig どちらの変化点でも新しい区間が始まる (= 格子の貼り直し起点)。
     /// </summary>
     public readonly struct BpmSegment
     {
@@ -78,47 +79,65 @@ public sealed class EditorState
         public readonly double StartMs;
         /// <summary>この区間の BPM。</summary>
         public readonly double Bpm;
-        public BpmSegment(double startMs, double bpm) { StartMs = startMs; Bpm = bpm; }
+        /// <summary>この区間の拍子の分子(1小節の拍数)。</summary>
+        public readonly int Num;
+        /// <summary>この区間の拍子の分母(1拍の音価。4=四分/8=八分)。</summary>
+        public readonly int Den;
+        public BpmSegment(double startMs, double bpm, int num, int den)
+        { StartMs = startMs; Bpm = bpm; Num = num; Den = den; }
     }
 
     /// <summary>
-    /// Chart.Events の "bpm" イベントから、時刻昇順の BPM 区間列を構築する。
-    /// 先頭区間は ChartOffsetMs (Beat1) を起点に基準 BPM。ChartOffsetMs より後の
-    /// bpm イベントごとに新しい区間が始まり、その時刻が拍/小節の格子起点になる
-    /// (= BPM変化点で格子を貼り直す)。
+    /// Chart.Events の "bpm" / "timesig" イベントから、時刻昇順のテンポ区間列を構築する。
+    /// 先頭区間は ChartOffsetMs (Beat1) を起点に基準 BPM・基準拍子。ChartOffsetMs より後の
+    /// bpm / timesig イベントごとに新しい区間が始まり、その時刻が拍/小節の格子起点になる
+    /// (= 変化点で格子を貼り直す。TimelineRenderer の小節線アンカーと同一規則)。
     /// </summary>
     public List<BpmSegment> BuildBpmSegments()
     {
         var segs = new List<BpmSegment>();
 
-        // 基準 BPM: ChartOffsetMs 以前にある最後の bpm イベント、無ければ this.Bpm。
+        // 基準値: ChartOffsetMs 以前にある最後の bpm / timesig イベント。無ければ this.Bpm と 4/4。
         double baseBpm = Bpm > 0.0 ? Bpm : 120.0;
-        List<TempoEvent> bpmEvents = null;
+        int baseNum = 4, baseDen = 4;
+        List<TempoEvent> tempoEvents = null;
         if (Chart != null && Chart.Events != null)
         {
-            bpmEvents = new List<TempoEvent>();
+            tempoEvents = new List<TempoEvent>();
             for (int i = 0; i < Chart.Events.Count; i++)
             {
                 var e = Chart.Events[i];
-                if (e != null && e.Type == "bpm" && e.Bpm > 0.0) bpmEvents.Add(e);
+                if (e == null) continue;
+                if (e.Type == "bpm" && e.Bpm > 0.0) tempoEvents.Add(e);
+                else if (e.Type == "timesig" && e.Numerator > 0 && e.Denominator > 0) tempoEvents.Add(e);
             }
-            bpmEvents.Sort((a, b) => a.TimeMs.CompareTo(b.TimeMs));
-            for (int i = 0; i < bpmEvents.Count; i++)
-                if (bpmEvents[i].TimeMs <= ChartOffsetMs + 0.001) baseBpm = bpmEvents[i].Bpm;
+            tempoEvents.Sort((a, b) => a.TimeMs.CompareTo(b.TimeMs));
+            for (int i = 0; i < tempoEvents.Count; i++)
+            {
+                var e = tempoEvents[i];
+                if (e.TimeMs > ChartOffsetMs + 0.001) break;
+                if (e.Type == "bpm") baseBpm = e.Bpm;
+                else { baseNum = e.Numerator; baseDen = e.Denominator; }
+            }
         }
 
-        segs.Add(new BpmSegment(ChartOffsetMs, baseBpm));
-        if (bpmEvents != null)
+        segs.Add(new BpmSegment(ChartOffsetMs, baseBpm, baseNum, baseDen));
+        if (tempoEvents != null)
         {
-            for (int i = 0; i < bpmEvents.Count; i++)
+            double curBpm = baseBpm;
+            int curNum = baseNum, curDen = baseDen;
+            for (int i = 0; i < tempoEvents.Count; i++)
             {
-                var e = bpmEvents[i];
+                var e = tempoEvents[i];
                 if (e.TimeMs <= ChartOffsetMs + 0.001) continue;   // 基準として消化済み
+                if (e.Type == "bpm") curBpm = e.Bpm;
+                else { curNum = e.Numerator; curDen = e.Denominator; }
+                var seg = new BpmSegment(e.TimeMs, curBpm, curNum, curDen);
                 var last = segs[segs.Count - 1];
                 if (Math.Abs(e.TimeMs - last.StartMs) < 0.001)
-                    segs[segs.Count - 1] = new BpmSegment(e.TimeMs, e.Bpm);   // 同時刻重複は最後を採用
+                    segs[segs.Count - 1] = seg;   // 同時刻重複は最後を採用
                 else
-                    segs.Add(new BpmSegment(e.TimeMs, e.Bpm));
+                    segs.Add(seg);
             }
         }
         return segs;
@@ -156,15 +175,42 @@ public sealed class EditorState
     /// <summary>現在ヘッド時刻におけるスナップ単位(ms)。</summary>
     public double SnapStepMs() => SnapStepMsAt(CurrentTimeMs);
 
-    /// <summary>任意の時刻を、その区間の格子に沿って最寄りのスナップ位置へ丸める。</summary>
+    /// <summary>
+    /// 任意の時刻を、その区間の格子に沿って最寄りのスナップ位置へ丸める。
+    /// 格子は TimelineRenderer の描画と同一規則:
+    /// 区間起点(bpm/timesig 変化点)から「分母音価の拍」を刻み、スナップ細分は各拍頭でリセット。
+    /// スナップ単位が1拍より粗い場合は拍頭(=描画される拍線)に吸着する。
+    /// </summary>
     public double SnapTime(double timeMs)
     {
-        var seg = SegmentAt(timeMs);
-        if (seg.Bpm <= 0.0) return timeMs;
-        double step = (4.0 * (60000.0 / seg.Bpm)) / SnapDenominator;
-        if (step <= 0.0) return timeMs;
+        var segs = BuildBpmSegments();
+        int idx = 0;
+        for (int i = 0; i < segs.Count; i++)
+        {
+            if (timeMs >= segs[i].StartMs - 0.001) idx = i;
+            else break;
+        }
+        var seg = segs[idx];
+        if (seg.Bpm <= 0.0 || SnapDenominator <= 0) return timeMs;
+
+        double quarterMs = 60000.0 / seg.Bpm;
+        double step      = (4.0 * quarterMs) / SnapDenominator;
+        int    den       = seg.Den > 0 ? seg.Den : 4;
+        double denBeatMs = quarterMs * 4.0 / den;       // 1拍(分母音価)の長さ
+        if (step <= 0.0 || denBeatMs <= 0.0) return timeMs;
+
         double rel = timeMs - seg.StartMs;
-        double snapped = Math.Round(rel / step) * step + seg.StartMs;
+        if (rel < 0.0) rel = 0.0;
+        double beatStart = Math.Floor(rel / denBeatMs) * denBeatMs;
+        double relB      = rel - beatStart;
+        double downAbs   = seg.StartMs + beatStart + Math.Floor(relB / step) * step;
+        double upAbs     = seg.StartMs + beatStart
+                         + Math.Min(Math.Floor(relB / step) * step + step, denBeatMs);   // 拍内に収まらない分は次の拍頭へ
+        // 次のアンカー(bpm/timesig 変化点)では小節が切られ必ず線が引かれる → up 候補をそこへクランプ。
+        if (idx + 1 < segs.Count && upAbs > segs[idx + 1].StartMs)
+            upAbs = segs[idx + 1].StartMs;
+        double snapped = (timeMs - downAbs <= upAbs - timeMs) ? downAbs : upAbs;
+
         if (snapped < 0.0) snapped = 0.0;
         if (snapped > AudioDurationMs) snapped = AudioDurationMs;
         return snapped;
