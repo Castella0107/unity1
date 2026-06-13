@@ -1,0 +1,179 @@
+{
+  "case_name": "all_miss_test_song",
+  "chart_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+  "total_notes": 32,
+  "x_micro": 31250000000,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 1000,
+        "duration_ms": 0
+      },
+      {
+        "id": 2,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 2000,
+        "duration_ms": 0
+      },
+      {
+        "id": 3,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 3000,
+        "duration_ms": 0
+      },
+      {
+        "id": 4,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 4000,
+        "duration_ms": 0
+      },
+      {
+        "id": 5,
+        "type": "fxTap",
+        "lane": "fxL",
+        "time_ms": 5000,
+        "duration_ms": 0
+      },
+      {
+        "id": 6,
+        "type": "fxTap",
+        "lane": "fxR",
+        "time_ms": 6000,
+        "duration_ms": 0
+      },
+      {
+        "id": 7,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 7000,
+        "duration_ms": 500
+      },
+      {
+        "id": 8,
+        "type": "hold",
+        "lane": "1",
+        "time_ms": 8000,
+        "duration_ms": 500
+      },
+      {
+        "id": 9,
+        "type": "hold",
+        "lane": "2",
+        "time_ms": 9000,
+        "duration_ms": 500
+      },
+      {
+        "id": 10,
+        "type": "hold",
+        "lane": "3",
+        "time_ms": 10000,
+        "duration_ms": 500
+      },
+      {
+        "id": 11,
+        "type": "fxHold",
+        "lane": "fxL",
+        "time_ms": 11000,
+        "duration_ms": 500
+      },
+      {
+        "id": 12,
+        "type": "fxHold",
+        "lane": "fxR",
+        "time_ms": 12000,
+        "duration_ms": 500
+      },
+      {
+        "id": 13,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 13000,
+        "duration_ms": 0
+      },
+      {
+        "id": 14,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 14000,
+        "duration_ms": 0
+      },
+      {
+        "id": 15,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 15000,
+        "duration_ms": 0
+      },
+      {
+        "id": 16,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 16000,
+        "duration_ms": 0
+      },
+      {
+        "id": 17,
+        "type": "fxTap",
+        "lane": "fxL",
+        "time_ms": 17000,
+        "duration_ms": 0
+      },
+      {
+        "id": 18,
+        "type": "fxTap",
+        "lane": "fxR",
+        "time_ms": 18000,
+        "duration_ms": 0
+      },
+      {
+        "id": 19,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 19000,
+        "duration_ms": 0
+      },
+      {
+        "id": 20,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 19500,
+        "duration_ms": 0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "replay_base64": "H4sIAHEVJWoC/zP0CQhiZMAEnCWpxSXxxfl56cwM+AGa7g9OUAaroZ6BngFM2AWLThE0fgmUnp69ng0AHN9EIZgAAAA=",
+  "input_events": [],
+  "expected": {
+    "score": 0,
+    "score_micro": 0,
+    "rank": "D",
+    "perfect_plus_count": 0,
+    "perfect_count": 0,
+    "great_count": 0,
+    "good_count": 0,
+    "miss_count": 20,
+    "max_combo": 0,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

@@ -1,0 +1,833 @@
+{
+  "case_name": "judgment_mix_test_song_1",
+  "chart_hash": "0000000000000000000000000000000000000000000000000000000000000002",
+  "total_notes": 56,
+  "x_micro": 17857142858,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 1000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 2,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 1500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 3,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 2000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 4,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 2500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 5,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 3000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 6,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 3500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 7,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 4000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 8,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 4500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 9,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 5000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 10,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 5500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 11,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 6000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 12,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 6500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 13,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 7000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 14,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 7500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 15,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 8000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 16,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 8500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 17,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 9000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 18,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 9500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 19,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 10000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 20,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 10500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 21,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 11000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 22,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 11500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 23,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 12000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 24,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 12500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 25,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 13000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 26,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 13500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 27,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 14000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 28,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 14500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 29,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 15000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 30,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 15500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 31,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 16000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 32,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 16500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 33,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 17000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 34,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 17500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 35,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 18000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 36,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 18500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 37,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 19000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 38,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 19500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 39,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 20000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 40,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 20500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 41,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 21000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 42,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 21500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 43,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 22000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 44,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 22500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 45,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 23000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 46,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 23500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 47,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 24000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 48,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 24500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 49,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 25000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 50,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 25500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 51,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 26000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 52,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 26500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 53,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 27000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 54,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 27500.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 55,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 28000.0,
+        "duration_ms": 0.0
+      },
+      {
+        "id": 56,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 28500.0,
+        "duration_ms": 0.0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0.0,
+        "bpm": 120.0,
+        "multiplier": 1.0
+      }
+    ]
+  },
+  "replay_base64": "H4sIAHEVJWoC/zP0CQhiZMAE3CWpxSXxxfl56fGGzAz4ARMq94MTlMFqqGegZ+BnwsUAwi5AES40LADEGlDVckBsAcQBQHyBn4HBhoFxDTsjgw0jkGJisGECUswMNsxAili5K2TqQ5W7wk4Nt7ygils8DFpqABzfRCGyAQAA",
+  "input_events": [
+    {
+      "delta_ms": 1000,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 490,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 490,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    }
+  ],
+  "expected": {
+    "score": 668750,
+    "score_micro": 668750000020,
+    "rank": "D",
+    "perfect_plus_count": 10,
+    "perfect_count": 10,
+    "great_count": 10,
+    "good_count": 10,
+    "miss_count": 16,
+    "max_combo": 40,
+    "fast_count": 0,
+    "late_count": 30,
+    "sector_scores": [
+      668750,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}
