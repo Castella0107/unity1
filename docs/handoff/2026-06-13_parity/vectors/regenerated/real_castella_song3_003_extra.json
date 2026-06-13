@@ -1,0 +1,344 @@
+{
+  "case_name": "real_castella_song3_003_extra",
+  "chart_hash": "001c884fa3452c1c07a30f41ba2c7353fcc8a53e90ddae72c7c28fcdff5e8097",
+  "total_notes": 15,
+  "x_micro": 66666666667,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 75,
+        "duration_ms": 0
+      },
+      {
+        "id": 2,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 150,
+        "duration_ms": 0
+      },
+      {
+        "id": 3,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 225,
+        "duration_ms": 0
+      },
+      {
+        "id": 4,
+        "type": "hold",
+        "lane": "3",
+        "time_ms": 300,
+        "duration_ms": 150
+      },
+      {
+        "id": 5,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 375,
+        "duration_ms": 0
+      },
+      {
+        "id": 6,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 450,
+        "duration_ms": 0
+      },
+      {
+        "id": 7,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 525,
+        "duration_ms": 0
+      },
+      {
+        "id": 8,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 600,
+        "duration_ms": 0
+      },
+      {
+        "id": 9,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 750,
+        "duration_ms": 300
+      },
+      {
+        "id": 10,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 1050,
+        "duration_ms": 0
+      },
+      {
+        "id": 11,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 1200,
+        "duration_ms": 0
+      },
+      {
+        "id": 12,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 1500,
+        "duration_ms": 0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 200
+      }
+    ]
+  },
+  "replay_base64": "H4sIAAAAAAAACjP0CQhiZMAEHMX5eenxBgbGzAwyHf6LXXVk2BfzO+7SKQ7+c2Kp3YS764qOH+o/+z+uYfqxiNmL5gGNUPAD6fNwZoUYwGqoZ6Bn8DSPmwGEnYEiLEDMDMRMSJgNikFO4ANiHSC+LMrEoMXIoAVUy8QYxgiS0gKqZWZsALMZdcASIYyMOmBRoFAIM0MYE6MWM6MOA2ODIANDAyPYBKBaoBagOIMOE+MVEJ+ZcQ3EDKDlYCkmRqCTVjGCdDJcYWViCANpYWJcBVTVwMTI2MDEDFQHtENf+zoAHN9EISoBAAA=",
+  "input_events": [
+    {
+      "delta_ms": -1386,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 21,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 21,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 43,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 0,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 21,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 64,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 22,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 42,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 22,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 0,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 42,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 43,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 21,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 22,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 1088,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 64,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 21,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 64,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 21,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 22,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 106,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 86,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 0,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 0,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 64,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 21,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 0,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 85,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 22,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 362,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 43,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 64,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 85,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 128,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 128,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 64,
+      "lane": 3,
+      "action": 1
+    }
+  ],
+  "expected": {
+    "score": 699333,
+    "score_micro": 699333333335,
+    "rank": "D",
+    "perfect_plus_count": 4,
+    "perfect_count": 3,
+    "great_count": 2,
+    "good_count": 2,
+    "miss_count": 2,
+    "max_combo": 5,
+    "fast_count": 6,
+    "late_count": 1,
+    "sector_scores": [
+      699333,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}
