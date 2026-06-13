@@ -169,9 +169,8 @@ public class HistoryController : MonoBehaviour
             if (rec != null) _soloBests.Add(rec);
         }
 
-        // PVP: 直近10戦
-        _pvpMatches.Clear();
-        _pvpMatches.AddRange(await repo.GetRecentPvpMatchesAsync(10));
+        // PVP: サーバー履歴(正本・端末跨ぎで残る)とローカル記録(リプレイ+セクター詳細)を統合
+        await LoadPvpMatchesMergedAsync(repo);
 
         // 曲名の事前解決 (検索/ソートを同期処理にするため)
         var ids = new HashSet<string>();
@@ -187,6 +186,104 @@ public class HistoryController : MonoBehaviour
             }
             catch { _titles[id] = id; }
         }
+    }
+
+    /// <summary>
+    /// PVP 対戦履歴を「サーバー優先 + ローカル統合」で読み込む。
+    ///   - サーバー /users/me/matches を正本(全期間・端末跨ぎで残る)とする。
+    ///   - match_id がローカルにもある試合はローカル(リプレイ再生 + セクター内訳付き)を採用。
+    ///   - サーバーのみの試合は曲スコアから合成(リプレイ無し・曲単位の勝敗+正答率%)。
+    ///   - サーバー未取得(オフライン/失敗)時はローカルのみにフォールバック。
+    /// </summary>
+    async Task LoadPvpMatchesMergedAsync(IPlayRecordRepository repo)
+    {
+        _pvpMatches.Clear();
+
+        var local = await repo.GetRecentPvpMatchesAsync(50);
+        var localById = new Dictionary<string, PvpMatchRecord>();
+        foreach (var r in local)
+            if (!string.IsNullOrEmpty(r.MatchId) && !localById.ContainsKey(r.MatchId))
+                localById[r.MatchId] = r;
+
+        var merged   = new List<PvpMatchRecord>();
+        var consumed = new HashSet<string>();
+
+        if (!RhythmGame.Network.Api.AuthManager.OfflineMode)
+        {
+            var resp = await RhythmGame.Network.Api.PvpApi.GetMyMatchesAsync(50, 0);
+            if (resp.Ok && resp.Data?.Matches != null)
+            {
+                foreach (var sm in resp.Data.Matches)
+                {
+                    if (sm == null) continue;
+                    if (!string.IsNullOrEmpty(sm.MatchId) && localById.TryGetValue(sm.MatchId, out var localRec))
+                        merged.Add(localRec);                  // ローカル: リプレイ + セクター詳細
+                    else
+                        merged.Add(SynthesizeFromServer(sm));  // サーバーのみ: 合成
+                    if (!string.IsNullOrEmpty(sm.MatchId)) consumed.Add(sm.MatchId);
+                }
+            }
+        }
+
+        // サーバーに無いローカル記録(オフライン保存/サーバー反映前の直近戦)は欠落させない
+        foreach (var r in local)
+            if (string.IsNullOrEmpty(r.MatchId) || !consumed.Contains(r.MatchId))
+                merged.Add(r);
+
+        merged.Sort((a, b) => b.CompletedAtUnixMs.CompareTo(a.CompletedAtUnixMs));   // 新しい順
+        _pvpMatches.AddRange(merged);
+    }
+
+    // サーバー履歴 DTO をローカル記録形式に合成する(リプレイ無し)。セクター内訳は持たないため、
+    // 曲スコアを5等分して「曲単位の勝敗ダイヤ + 正答率%」を表現(余りはS1に寄せ Σ=my_score を厳密化)。
+    static PvpMatchRecord SynthesizeFromServer(RhythmGame.Network.Api.UserMatchDto sm)
+    {
+        int n = sm.Songs?.Count ?? 0;
+        var songIds = new string[n];
+        var diffs   = new string[n];
+        var selfSec = new int[n * 5];
+        var oppSec  = new int[n * 5];
+        for (int j = 0; j < n; j++)
+        {
+            var s = sm.Songs[j];
+            songIds[j] = s.SongId;
+            diffs[j]   = s.Difficulty;
+            int sb = s.MyScore / 5, ob = s.OpponentScore / 5;
+            for (int k = 0; k < 5; k++) { selfSec[j * 5 + k] = sb; oppSec[j * 5 + k] = ob; }
+            selfSec[j * 5] = s.MyScore - sb * 4;            // 余りを S1 に寄せ Σ=my_score
+            oppSec[j * 5]  = s.OpponentScore - ob * 4;
+        }
+        return new PvpMatchRecord
+        {
+            MatchId              = sm.MatchId,
+            SelfUserId           = string.IsNullOrEmpty(RhythmGame.Network.Api.AuthManager.DisplayName)
+                                       ? RhythmGame.Network.Api.AuthManager.UserId
+                                       : RhythmGame.Network.Api.AuthManager.DisplayName,
+            OpponentId           = sm.Opponent != null
+                                       ? (string.IsNullOrEmpty(sm.Opponent.DisplayName) ? sm.Opponent.UserId : sm.Opponent.DisplayName)
+                                       : null,
+            ResultKind           = sm.Outcome == "win" ? 1 : (sm.Outcome == "lose" ? 2 : 0),
+            SelfPoints           = sm.MyPoints / 1000.0,
+            OpponentPoints       = sm.OpponentPoints / 1000.0,
+            SelfRatingBefore     = sm.RatingBefore,
+            SelfRatingAfter      = sm.RatingAfter,
+            SongIds              = songIds,
+            Difficulties         = diffs,
+            SelfSectorScores     = selfSec,
+            OpponentSectorScores = oppSec,
+            SelfReplayPaths      = null,    // サーバーのみ=ローカルリプレイ無し
+            CompletedAtUnixMs    = ParseIsoMs(sm.PlayedAt),
+        };
+    }
+
+    static long ParseIsoMs(string iso)
+    {
+        if (!string.IsNullOrEmpty(iso) &&
+            DateTimeOffset.TryParse(iso, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.AssumeUniversal | System.Globalization.DateTimeStyles.AdjustToUniversal,
+                out var dto))
+            return dto.ToUnixTimeMilliseconds();
+        return 0;
     }
 
     string TitleOf(string songId) =>

@@ -64,19 +64,18 @@ namespace RhythmGame.UI.Pvp
 
         async Task LoadStatsAsync()
         {
-            // Go サーバー /users/me (rating + 勝敗カウント) に結線 (M6)
+            // Go サーバー Phase 7 /users/me/stats (rating/勝敗/win_rate/best_rating) に結線。
             if (RhythmGame.Network.Api.AuthManager.OfflineMode) return;
-            var r = await RhythmGame.Network.Api.ApiClient
-                .GetAsync<RhythmGame.Network.Api.UserMeDto>("/users/me");
+            var r = await RhythmGame.Network.Api.PvpApi.GetMyStatsAsync();
             if (!r.Ok || r.Data == null) return;
+            var s = r.Data;
 
-            int total = r.Data.WinCount + r.Data.LossCount + r.Data.DrawCount;
-            if (_totalMatchText != null) _totalMatchText.text = total.ToString();
-            if (_matchWinText   != null) _matchWinText.text   = r.Data.WinCount.ToString();
-            if (_winRatioText   != null) _winRatioText.text   =
-                total > 0 ? $"{(double)r.Data.WinCount / total * 100.0:0.00}%" : "0.00%";
-            if (_ladderTierText != null) _ladderTierText.text = $"RATING {r.Data.Rating:F0}";
-            if (_centerTierText != null) _centerTierText.text = $"{r.Data.Rating:F0}";
+            if (_totalMatchText != null) _totalMatchText.text = s.TotalMatches.ToString();
+            if (_matchWinText   != null) _matchWinText.text   = s.Wins.ToString();
+            if (_winRatioText   != null) _winRatioText.text   = $"{s.WinRate * 100.0:0.00}%";
+            // ティア/ラダーは leaderboard(Phase7 後半) 待ち。当面は rating を表示。
+            if (_ladderTierText != null) _ladderTierText.text = $"RATING {s.Rating:F0}  (BEST {s.BestRating:F0})";
+            if (_centerTierText != null) _centerTierText.text = $"{s.Rating:F0}";
         }
 
         void Update()

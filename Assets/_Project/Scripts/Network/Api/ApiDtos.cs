@@ -298,4 +298,61 @@ namespace RhythmGame.Network.Api
         [JsonProperty("forfeit_reason")]   public string ForfeitReason;
         [JsonProperty("forfeited_player")] public string ForfeitedPlayer;
     }
+
+    // ── Phase 7: ロビー統計 / 対戦履歴 (docs/phase7_api_dto_spec.md) ─────────────
+
+    /// <summary>GET /users/me/stats — ロビー戦績サマリ (全期間集計)。</summary>
+    public class UserStatsDto
+    {
+        [JsonProperty("user_id")]          public string UserId;
+        [JsonProperty("display_name")]     public string DisplayName;
+        [JsonProperty("rating")]           public double Rating;
+        [JsonProperty("rating_deviation")] public double RatingDeviation;
+        [JsonProperty("total_matches")]    public int    TotalMatches;
+        [JsonProperty("wins")]             public int    Wins;
+        [JsonProperty("losses")]           public int    Losses;
+        [JsonProperty("draws")]            public int    Draws;
+        [JsonProperty("win_rate")]         public double WinRate;      // 0.0〜1.0
+        [JsonProperty("best_rating")]      public double BestRating;
+    }
+
+    /// <summary>GET /users/me/matches — PVP 対戦履歴 (新しい順, ページング)。</summary>
+    public class UserMatchesDto
+    {
+        [JsonProperty("matches")] public System.Collections.Generic.List<UserMatchDto> Matches;
+        [JsonProperty("total")]   public int Total;
+    }
+
+    /// <summary>対戦履歴 1 件 (自分視点に正規化済み)。</summary>
+    public class UserMatchDto
+    {
+        [JsonProperty("match_id")]        public string MatchId;
+        [JsonProperty("played_at")]       public string PlayedAt;       // ISO8601 UTC
+        [JsonProperty("opponent")]        public MatchOpponentDto Opponent;
+        [JsonProperty("outcome")]         public string Outcome;        // "win" | "lose" | "draw"
+        [JsonProperty("outcome_kind")]    public string OutcomeKind;    // "win_a" | "win_b" | "draw"
+        [JsonProperty("forfeit")]         public bool   Forfeit;
+        [JsonProperty("my_points")]       public int    MyPoints;       // ミリポイント (最大15000)
+        [JsonProperty("opponent_points")] public int    OpponentPoints;
+        [JsonProperty("rating_before")]   public double RatingBefore;
+        [JsonProperty("rating_after")]    public double RatingAfter;
+        [JsonProperty("rating_delta")]    public double RatingDelta;
+        [JsonProperty("songs")]           public System.Collections.Generic.List<UserMatchSongDto> Songs;
+    }
+
+    public class MatchOpponentDto
+    {
+        [JsonProperty("user_id")]      public string UserId;
+        [JsonProperty("display_name")] public string DisplayName;
+    }
+
+    /// <summary>対戦履歴の曲別簡易結果 (曲スコアは5セクター合計, 0〜1,000,000)。</summary>
+    public class UserMatchSongDto
+    {
+        [JsonProperty("song_order")]     public int    SongOrder;       // 1始まり
+        [JsonProperty("song_id")]        public string SongId;
+        [JsonProperty("difficulty")]     public string Difficulty;
+        [JsonProperty("my_score")]       public int    MyScore;
+        [JsonProperty("opponent_score")] public int    OpponentScore;
+    }
 }

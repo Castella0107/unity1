@@ -53,6 +53,16 @@ namespace RhythmGame.Network.Api
         /// <summary>終了済み試合の最終結果を取得する。</summary>
         public static Task<ApiResult<MatchResultDto>> GetResultAsync(string matchId)
             => ApiClient.GetAsync<MatchResultDto>($"/matches/{matchId}/result");
+
+        // ── Phase 7 (DB変更不要の3本) ──────────────────────────────────────────
+
+        /// <summary>ログインユーザーのロビー戦績サマリ (rating/勝敗/win_rate, 全期間)。</summary>
+        public static Task<ApiResult<UserStatsDto>> GetMyStatsAsync()
+            => ApiClient.GetAsync<UserStatsDto>("/users/me/stats");
+
+        /// <summary>ログインユーザーの PVP 対戦履歴 (新しい順, limit≤50)。</summary>
+        public static Task<ApiResult<UserMatchesDto>> GetMyMatchesAsync(int limit = 50, int offset = 0)
+            => ApiClient.GetAsync<UserMatchesDto>($"/users/me/matches?limit={limit}&offset={offset}");
     }
 
     /// <summary>
