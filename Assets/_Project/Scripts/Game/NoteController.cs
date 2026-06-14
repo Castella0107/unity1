@@ -21,12 +21,12 @@ public class NoteController : MonoBehaviour
     // ── Lane colour table (indexed by (int)LaneRef) ────────────────────────
     protected static readonly Color[] LaneColors =
     {
-        new Color(1.00f, 0.27f, 0.27f), // Lane0 – red
-        new Color(1.00f, 0.87f, 0.27f), // Lane1 – yellow
-        new Color(0.27f, 1.00f, 0.53f), // Lane2 – green
-        new Color(0.27f, 0.53f, 1.00f), // Lane3 – blue
-        new Color(1.00f, 0.53f, 0.10f), // FxL   – orange
-        new Color(1.00f, 0.53f, 0.10f), // FxR   – orange
+        new Color(0.27f, 0.53f, 1.00f), // Lane0 (鍵1) – blue
+        new Color(1.00f, 1.00f, 1.00f), // Lane1 (鍵2) – white
+        new Color(1.00f, 1.00f, 1.00f), // Lane2 (鍵3) – white
+        new Color(0.27f, 0.53f, 1.00f), // Lane3 (鍵4) – blue
+        new Color(1.00f, 1.00f, 1.00f), // FxL  (side) – white
+        new Color(1.00f, 1.00f, 1.00f), // FxR  (side) – white
     };
 
     // ── Cached components ──────────────────────────────────────────────────

@@ -10,8 +10,10 @@ using System.Collections.Generic;
 ///   2. HFC (High-Frequency Content) 重み付きスペクトラル・フラックス
 ///   3. 中央値減算による適応閾値正規化(楽曲ダイナミクスに頑健)
 ///   4. オンセット関数の自己相関 + オクターブ調和スコア
-///   5. 放物線補間で小数 BPM (0.01 精度)
+///   5. 放物線補間で小数 BPM (粗推定: ここでは seed)
 ///   6. 位相最適化で FirstOnsetMs をサブフレーム精度に
+///   7. 全曲オンセットに対する段階的ウィンドウ拡張つき反復最小二乗で BPM/位相を高精度化
+///      (自己相関の frame 解像度・丸め由来の終盤累積ズレをほぼ解消)
 /// FFT は自前実装 (Cooley-Tukey radix-2)。
 /// </summary>
 public static class BeatDetector
@@ -19,7 +21,7 @@ public static class BeatDetector
     /// <summary>検出結果。</summary>
     public sealed class Result
     {
-        /// <summary>推定 BPM(検出失敗時は 0)。小数 2 桁精度。</summary>
+        /// <summary>推定 BPM(検出失敗時は 0)。最小二乗精緻化により小数 3 桁精度。</summary>
         public double      EstimatedBpm;
         /// <summary>最初のビート時刻 (ms)。BPM 推定後の位相最適化で精密化される。</summary>
         public double      FirstOnsetMs;
@@ -73,12 +75,108 @@ public static class BeatDetector
             double periodFrames = 60.0 / bpm * frameRate;
             double phaseFrames  = OptimizePhase(norm, periodFrames);
             result.FirstOnsetMs = phaseFrames * frameToMs;
+
+            // 7. 全曲オンセットへの最小二乗で BPM/位相を精緻化。
+            //    自己相関は frame 解像度(約 11.6ms)が上限で、わずかな BPM 誤差でも曲後半に向けて
+            //    累積し格子が音とズレる。全曲にわたる長い時間基線で直線回帰すると BPM 精度が桁違いに
+            //    上がり、終盤ズレをほぼ解消できる。result.EstimatedBpm / FirstOnsetMs を上書きする。
+            RefineTempoLeastSquares(result, bpm, result.FirstOnsetMs, minBpm, maxBpm);
         }
         else if (result.OnsetTimesMs.Count > 0)
         {
             result.FirstOnsetMs = result.OnsetTimesMs[0];
         }
         return result;
+    }
+
+    /// <summary>
+    /// 既知/概算 BPM を seed に、検出済みオンセット列から BPM と最初の拍位置を高精度化する。
+    ///
+    /// 用途: 自動推定(<see cref="Detect"/>)が拍レベル(オクターブ/分割)を取り違えたとき、人が概算 BPM
+    /// (例: ジャケット表記の 180)を与えて精密値(例: 180.003)+ ダウンビートへ追い込む。テンポの
+    /// 「どの拍レベルか」の判定は自動では原理的に不安定なため人に委ね、精度は最小二乗で機械が出す分担。
+    ///
+    /// seed 付近のビート格子へオンセットを当て、<see cref="RefineTempoLeastSquares"/> で精緻化する。
+    /// 前段の FFT/オンセット検出は <paramref name="onsetTimesMs"/> を再利用するため再実行不要(軽量)。
+    /// </summary>
+    public static Result RefineFromOnsets(List<double> onsetTimesMs, double seedBpm,
+                                          double minBpm = 60.0, double maxBpm = 240.0)
+    {
+        var result = new Result { EstimatedBpm = seedBpm, FirstOnsetMs = 0 };
+        if (onsetTimesMs == null || onsetTimesMs.Count < 8 || seedBpm <= 0) return result;
+        result.OnsetTimesMs.AddRange(onsetTimesMs);
+
+        // 入力 BPM の周辺 ±6% だけを F1(オンセット網羅率×格子占有率)で探索し、最寄りの実拍格子へ
+        // スナップしてから精緻化する。局所探索なので 1/2・2・4/3 等の別拍レベルへ飛ばず(=人が与えた
+        // 拍レベルを尊重)、概算入力(例 178/182)でも真の格子(180)に吸着できる。
+        double snapped   = SnapToLocalGrid(result.OnsetTimesMs, seedBpm, minBpm, maxBpm);
+        double seedPhase = BestPhaseMs(result.OnsetTimesMs, snapped);
+        result.FirstOnsetMs = seedPhase;
+        RefineTempoLeastSquares(result, snapped, seedPhase, minBpm, maxBpm);
+        return result;
+    }
+
+    /// <summary>seedBpm の ±6% を 0.25 BPM 刻みで掃引し、F1(網羅率×占有率)最大の BPM を返す。</summary>
+    static double SnapToLocalGrid(List<double> onsets, double seedBpm, double minBpm, double maxBpm)
+    {
+        double lo = Math.Max(minBpm, seedBpm * 0.94);
+        double hi = Math.Min(maxBpm, seedBpm * 1.06);
+        double best = -1, snap = seedBpm;
+        for (double b = lo; b <= hi + 1e-9; b += 0.25)
+        {
+            double f1 = GridF1(onsets, b);
+            if (f1 > best) { best = f1; snap = b; }
+        }
+        return snap;
+    }
+
+    /// <summary>
+    /// 指定 BPM のビート格子に対するオンセットの当てはまり度を F1 で返す。
+    /// coverage = 格子近傍にあるオンセットの割合、occupancy = オンセットを持つ拍の割合。
+    /// 細かすぎる格子(高 BPM)は occupancy が下がり、粗すぎる/ズレた格子は coverage が下がるため、
+    /// 真の拍レベル付近で最大化する。
+    /// </summary>
+    static double GridF1(List<double> onsets, double bpm)
+    {
+        double period = 60_000.0 / bpm;
+        if (period <= 0 || onsets.Count == 0) return 0;
+        double phase = BestPhaseMs(onsets, bpm);
+        double tol = 0.10 * period;
+        int aligned = 0;
+        var occupied = new HashSet<long>();
+        for (int i = 0; i < onsets.Count; i++)
+        {
+            long k = (long)Math.Round((onsets[i] - phase) / period);
+            if (Math.Abs(onsets[i] - (phase + k * period)) <= tol) { aligned++; occupied.Add(k); }
+        }
+        long kFirst = (long)Math.Round((onsets[0] - phase) / period);
+        long kLast  = (long)Math.Round((onsets[onsets.Count - 1] - phase) / period);
+        long gridBeats = Math.Max(1, kLast - kFirst + 1);
+        double coverage  = (double)aligned / onsets.Count;
+        double occupancy = (double)occupied.Count / gridBeats;
+        return (coverage + occupancy > 0) ? 2.0 * coverage * occupancy / (coverage + occupancy) : 0;
+    }
+
+    /// <summary>
+    /// 指定 BPM のビート周期に対し、オンセットを 1 周期へ畳み込んだヒストグラムの最頻位相(ms)を返す。
+    /// 最小二乗精緻化の初期位相(ダウンビート候補)に使う。
+    /// </summary>
+    static double BestPhaseMs(List<double> onsets, double bpm)
+    {
+        double period = 60_000.0 / bpm;
+        if (period <= 0) return 0;
+        const int B = 120;
+        var hist = new int[B];
+        for (int i = 0; i < onsets.Count; i++)
+        {
+            double m = onsets[i] - Math.Floor(onsets[i] / period) * period;
+            int bin = (int)(m / period * B);
+            if (bin < 0) bin = 0; else if (bin >= B) bin = B - 1;
+            hist[bin]++;
+        }
+        int pk = 0;
+        for (int i = 1; i < B; i++) if (hist[i] > hist[pk]) pk = i;
+        return (pk + 0.5) / B * period;
     }
 
     /// <summary>Hann 窓 + STFT で HFC 重み付きスペクトラル・フラックス (positive only) を計算する。</summary>
@@ -256,6 +354,79 @@ public static class BeatDetector
             if (frac < -0.5) frac = -0.5; else if (frac > 0.5) frac = 0.5;
         }
         return bestPhase + frac;
+    }
+
+    /// <summary>
+    /// 段階的ウィンドウ拡張つき反復最小二乗で BPM(=拍周期 period)と位相を精緻化する。
+    ///
+    /// 動機: 自己相関 BPM は frame 解像度(約 11.6ms)が上限で、わずかな誤差(例 0.3 BPM)でも
+    /// 1 拍ごとに蓄積し、3〜4 分の曲後半では格子が音と数百 ms ズレる。これが「後半でずれる」主因。
+    ///
+    /// 手法: 各オンセットを最寄りのビート格子に割当て(k = round((t-phase)/period))、拍頭近傍
+    /// (|残差| ≤ tol) の inlier だけで「t ≈ phase + k·period」を直線回帰する。全曲にわたる長い
+    /// 時間基線が傾き(period)を高精度化し、終盤ズレをほぼ解消する。tol = 0.18·period とすることで
+    /// 裏拍(0.5·period)や十六分(0.25·period)は自動的に除外される。
+    ///
+    /// 粗 period に誤差があると曲末で k 割当てがズレるため、まず曲頭の短い窓(k が確実に正しい範囲)で
+    /// 精緻化し、窓を倍々に広げながら全曲へ拡張する。各拡張で period 精度が上がるので広い窓でも
+    /// k 割当てが崩れない。inlier 不足や暴走時は粗推定のまま据え置く(安全側)。
+    /// </summary>
+    static void RefineTempoLeastSquares(Result result, double coarseBpm, double coarsePhaseMs,
+                                        double minBpm, double maxBpm)
+    {
+        var onsets = result.OnsetTimesMs;
+        if (coarseBpm <= 0 || onsets == null || onsets.Count < 8) return;
+
+        double period = 60_000.0 / coarseBpm;   // ms / beat
+        double phase  = coarsePhaseMs;
+        double lastT  = onsets[onsets.Count - 1];
+
+        double window = Math.Max(12_000.0, 32.0 * period);   // 初期窓 ≧ 約12秒
+        bool full = false;
+        for (int pass = 0; pass < 24 && !full; pass++)
+        {
+            if (window >= lastT) { window = lastT + 1.0; full = true; }
+
+            bool tooFew = false;   // 窓内の inlier 不足。中断せず窓拡張で救済(疎なイントロ対策)。
+            for (int iter = 0; iter < 8; iter++)
+            {
+                double tol = 0.18 * period;   // 拍頭近傍のみ採用(裏拍/連符を除外)
+                double sumK = 0, sumK2 = 0, sumT = 0, sumKT = 0;
+                int n = 0;
+                for (int i = 0; i < onsets.Count; i++)
+                {
+                    double t = onsets[i];
+                    if (t > window) break;               // onsets は時刻昇順
+                    double k = Math.Round((t - phase) / period);
+                    if (Math.Abs(t - (phase + k * period)) > tol) continue;
+                    sumK += k; sumK2 += k * k; sumT += t; sumKT += k * t; n++;
+                }
+                double denom = n * sumK2 - sumK * sumK;
+                if (n < 4 || Math.Abs(denom) < 1e-9) { tooFew = true; break; }  // 回帰不能 → 窓拡張
+                double newPeriod = (n * sumKT - sumK * sumT) / denom;
+                double newPhase  = (sumT - newPeriod * sumK) / n;
+                if (newPeriod <= 0 || Math.Abs(newPeriod - period) > 0.5 * period) return; // 暴走ガード→粗推定据え置き
+
+                bool converged = Math.Abs(newPeriod - period) < 1e-6
+                              && Math.Abs(newPhase  - phase)  < 1e-4;
+                period = newPeriod;
+                phase  = newPhase;
+                if (converged) break;
+            }
+            if (tooFew && full) return;   // 全曲窓でも inlier 不足 → 粗推定据え置き
+            window *= 2.0;
+        }
+
+        double bpm = 60_000.0 / period;
+        while (bpm < minBpm) bpm *= 2.0;
+        while (bpm > maxBpm) bpm *= 0.5;
+        bpm = Math.Round(bpm * 1000.0) / 1000.0;          // 0.001 BPM 精度(終盤ズレ < 約2ms)
+
+        // FirstOnsetMs は丸め後 BPM の period と整合させ、最初の非負アンカー [0, period) へ正規化
+        double p     = 60_000.0 / bpm;
+        double first = phase - Math.Floor(phase / p) * p;
+        result.EstimatedBpm = bpm;
+        result.FirstOnsetMs = first;
     }
 
     /// <summary>In-place Cooley-Tukey radix-2 forward FFT。入力長は 2 の冪。正規化なし。</summary>
