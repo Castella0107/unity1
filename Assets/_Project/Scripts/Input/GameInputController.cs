@@ -42,6 +42,12 @@ public sealed class GameInputController : MonoBehaviour, IInputSource
             return;
         }
 
+        // シーンロードのたびに InputActionAsset はディスクからフレッシュに再ロードされ、
+        // 起動時(Bootstrap)に適用したキーバインド override が失われる(override はアセット
+        // ファイルではなくメモリ上のランタイム状態のため)。実プレイで保存済みキーを使うよう、
+        // アセットを消費する直前にここで PlayerPrefs から再適用する。
+        InputTabController.LoadBindingsFromPrefs(_inputActions);
+
         _gameplay    = _inputActions.FindActionMap("Gameplay", throwIfNotFound: true);
         _laneActions = new InputAction[6];
 

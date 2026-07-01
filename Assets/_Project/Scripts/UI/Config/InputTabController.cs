@@ -37,6 +37,12 @@ public class InputTabController : MonoBehaviour
 
     void Start()
     {
+        // Config を開いた時点で InputActionAsset がデフォルトに戻っている場合がある
+        // (シーンロードでアセットが再ロードされ、起動時に適用した override が失われるため)。
+        // まず PlayerPrefs から再適用する。これをしないと表示がデフォルトになり、さらに
+        // 1レーンだけ変更して保存すると SaveBindingOverridesAsJson が他レーンの override を
+        // 含めずに書き出し、保存済みキーを全消ししてしまう。
+        if (_inputAsset != null) LoadBindingsFromPrefs(_inputAsset);
         LoadSettings();
         SetupButtons();
         RefreshAllDisplays();
@@ -223,7 +229,14 @@ public class InputTabController : MonoBehaviour
         string json = PlayerPrefs.GetString("InputBindings_Gameplay", "");
         if (string.IsNullOrEmpty(json)) return;
         var map = asset?.FindActionMap("Gameplay");
-        if (map == null) return;
+        if (map == null)
+        {
+            // 起動時にここへ来たらアセット結線ミス(Bootstrap の _inputAsset が "Gameplay" マップを
+            // 持たない別アセットを指している等)。黙って失敗するとキーバインドが毎回リセットに見えるため警告。
+            Debug.LogWarning("[InputTab] LoadBindingsFromPrefs: 'Gameplay' action map not found on " +
+                             (asset != null ? asset.name : "null") + " — saved key bindings were NOT restored.");
+            return;
+        }
         map.LoadBindingOverridesFromJson(json);
         Debug.Log("[InputTab] Binding overrides restored from PlayerPrefs");
     }
