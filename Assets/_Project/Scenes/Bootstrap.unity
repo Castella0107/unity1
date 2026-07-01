@@ -148,7 +148,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 86c57d4365f431b459abf114766de71d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::BootstrapController
-  _inputAsset: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
+  _inputAsset: {fileID: -944628639613478452, guid: 501ae1f9f46012e409d45a052a280b5b, type: 3}
 --- !u!4 &646795531
 Transform:
   m_ObjectHideFlags: 0
