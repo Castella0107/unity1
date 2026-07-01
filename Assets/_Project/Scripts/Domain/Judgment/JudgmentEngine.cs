@@ -137,7 +137,10 @@ public sealed class JudgmentEngine
                                        tick.Judgment, 0, tick.TickTimeMs, _progress.CurrentCombo));
             }
 
-            // Tail auto-resolves at EndMs: held-through (or guard-tolerant release) = P+, else Miss.
+            // Tail auto-resolves at EndMs. 終端の 1/8 は無敵ゾーン(押下/離上を再評価しない):
+            // 通常ホールドは直前の実ティック判定を複製(手前でコンボが切れていれば Miss を複製)、
+            // 1/8 以下の短いホールドは(支点が通っていれば)P+。
+            // 支点が MISS のホールドは _abandoned 済みで ResolveTail が null を返す(頭のオートミスで処理済み)。
             Judgment? tailJ = tracker.ResolveTail(timeMs);
             if (tailJ.HasValue)
             {

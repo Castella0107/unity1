@@ -40,13 +40,16 @@ public class HoldJudgmentTracker
     /// <summary>各ティックの時刻一覧(1 小節 8 ノーツ刻み = 4/4 で八分音符ごと)。</summary>
     public IReadOnlyList<double> TickTimes { get; }
 
-    bool   _headJudged;
-    bool   _tailJudged;
-    bool   _isHeld;
-    double _lastReleaseMs = -1;   // -1 = never released
-    int    _nextTickIdx;
-    bool   _abandoned;
-    bool   _recovering;           // ガード超過離上から再押下で復帰した直後の1判定だけ Great に落とす
+    bool     _headJudged;
+    Judgment _headJudgment;       // 支点(ヘッド)の確定判定。実 tick が 1 つも無い場合の踏襲元フォールバック。
+    Judgment _lastTickJudgment;   // 直前の「実 tick」(無敵ゾーンより手前のティック)の判定。終端 1/8 はこれを複製する。
+    bool     _tailJudged;
+    bool     _isHeld;
+    double   _lastReleaseMs = -1;   // -1 = never released
+    int      _nextTickIdx;
+    bool     _abandoned;
+    bool     _recovering;           // ガード超過離上から再押下で復帰した直後の1判定だけ Great に落とす
+    readonly bool _isShort;         // 1/8 以下の長さ(ボディティックが 1 本も無い)ホールドか
 
     const double GUARD_MS = 50.0;
 
@@ -67,6 +70,9 @@ public class HoldJudgmentTracker
         StartMs   = note.TimeMs;
         EndMs     = note.TimeMs + note.DurationMs;
         TickTimes = ComputeTickTimes(StartMs, EndMs, bpm);
+        // ボディティックが 1 本も無い = 長さが 1/8(八分音符 = 小節/8)以下のホールド。
+        // この場合は終端(尾)が唯一の無敵ゾーンで、支点(ヘッド)さえ通れば無条件 P+ で通す。
+        _isShort  = TickTimes.Count == 0;
     }
 
     // Body ticks are placed strictly inside (startMs, endMs) at the hold-tick interval
@@ -94,9 +100,11 @@ public class HoldJudgmentTracker
         if (_headJudged) return null;
         double delta = timeMs - StartMs;
         if (System.Math.Abs(delta) > JudgmentWindow.GoodMs) return null;
-        _headJudged = true;
-        _isHeld     = true;
-        return JudgmentWindow.FromDeltaMs(delta);
+        _headJudged       = true;
+        _isHeld           = true;
+        _headJudgment     = JudgmentWindow.FromDeltaMs(delta);
+        _lastTickJudgment = _headJudgment;   // 実 tick が来るまでの踏襲元フォールバック(ヘッド)
+        return _headJudgment;
     }
 
     /// <summary>ホールド頭がタイムアウトした最初の呼び出しで true を返す(オートミス)。</summary>
@@ -143,6 +151,11 @@ public class HoldJudgmentTracker
     /// 押下中は PerfectPlus(復帰直後の最初の1ティックのみ Great)、ガード(50ms)内の短い離上は許容。
     /// ガード超過の離上中に来たティックは Miss(コンボ断)になるが、放棄はしない:
     /// 再押下(OnPressed)すれば以降のティックは復帰して継続できる。
+    /// 例外: 最終ボディティック(= 終端の 1/8 無敵ゾーン)では「離上に対する新たなペナルティ」を課さない:
+    ///   ・押下中(再押下含む) → 通常どおり復帰判定に従う(復帰直後 Great → 以降 PerfectPlus)。
+    ///     直前が Miss でも終端で押していれば復帰する。
+    ///   ・離上中 → 直前の実ティック判定(_lastTickJudgment)を複製する
+    ///     (手前でコンボが切れていた=直前 Miss ならそのまま Miss、押せていた=P+ なら救済)。
     /// </summary>
     public IEnumerable<TickResult> AdvanceTo(double currentMs)
     {
@@ -150,14 +163,22 @@ public class HoldJudgmentTracker
 
         while (_nextTickIdx < TickTimes.Count && currentMs >= TickTimes[_nextTickIdx])
         {
-            double   tickTime = TickTimes[_nextTickIdx];
+            double   tickTime  = TickTimes[_nextTickIdx];
+            // 最終ボディティックは終端の 1/8(八分音符)無敵ゾーン。ティック間隔は 1/8 なので
+            // 「最後の 1/8」に入るボディティックは必ずこの 1 本だけ(浮動小数境界に依らず index で判定)。
+            bool     inInvincibleZone = _nextTickIdx == TickTimes.Count - 1;
             Judgment j;
 
             if (_isHeld)
             {
-                // 復帰後の最初の1ティックだけ Great に落とし、以降は PerfectPlus に戻す。
+                // 押下中(無敵ゾーンでも同じ): 復帰後の最初の1ティックだけ Great、以降 PerfectPlus。
                 if (_recovering) { j = Judgment.Great; _recovering = false; }
                 else             { j = Judgment.PerfectPlus; }
+            }
+            else if (inInvincibleZone)
+            {
+                // 無敵ゾーンかつ離上中: 新たな離上ペナルティを課さず直前の実ティック判定を複製。
+                j = _lastTickJudgment;
             }
             else
             {
@@ -168,6 +189,7 @@ public class HoldJudgmentTracker
                 j = sinceRelease <= GUARD_MS ? Judgment.PerfectPlus : Judgment.Miss;
             }
 
+            _lastTickJudgment = j;
             yield return new TickResult(_nextTickIdx, j, tickTime);
             _nextTickIdx++;
         }
@@ -176,9 +198,14 @@ public class HoldJudgmentTracker
     // ── Tail ──────────────────────────────────────────────────────────────────
 
     /// <summary>
-    /// 尾を解決する。currentMs が EndMs に達した最初の呼び出しで判定を返す。離上は不要で、
-    /// 押下継続中(またはガード 50ms 内の離上)なら PerfectPlus、ガード超過の離上なら Miss。
-    /// 尾が復帰後の最初の1判定(間にティックが無い)になる場合は Great。
+    /// 尾を解決する。currentMs が EndMs に達した最初の呼び出しで判定を返す。
+    /// 尾は終端の 1/8 無敵ゾーンに属するため「離上に対する新たなペナルティ」を課さない:
+    ///   ・1/8 以下の短いホールド(ボディティック無し): 支点(ヘッド)さえ通っていれば無条件 P+。
+    ///     (支点が MISS の場合はそもそも _abandoned で先に null 復帰し、頭のオートミスで MISS 扱い)
+    ///   ・押下中(再押下含む): 通常どおり復帰判定に従う(復帰直後 Great → 以降 PerfectPlus)。
+    ///     直前が Miss でも終端で押していれば復帰する。
+    ///   ・離上中: 直前の実ティック判定(_lastTickJudgment)を複製する
+    ///     (無敵ゾーン最終ティックと同値。手前で離してコンボが切れていれば Miss を複製)。
     /// 判定済み/放棄済みなら null。毎フレーム呼ぶ。
     /// </summary>
     public Judgment? ResolveTail(double currentMs)
@@ -186,12 +213,15 @@ public class HoldJudgmentTracker
         if (_tailJudged || _abandoned) return null;
         if (currentMs < EndMs)         return null;
         _tailJudged = true;
+        // 1/8 以下の短いホールドは終端が唯一の無敵ゾーン。支点が通っていれば無条件 P+。
+        if (_isShort) return Judgment.PerfectPlus;
+        // 押下中の尾は復帰判定に従う(直前が Miss でも押していれば復帰)。
         if (_isHeld)
         {
             if (_recovering) { _recovering = false; return Judgment.Great; }
             return Judgment.PerfectPlus;
         }
-        double sinceRelease = EndMs - (_lastReleaseMs >= 0 ? _lastReleaseMs : EndMs);
-        return sinceRelease <= GUARD_MS ? Judgment.PerfectPlus : Judgment.Miss;
+        // 離上中の尾は新たなペナルティ無し。直前の実ティック判定を複製。
+        return _lastTickJudgment;
     }
 }

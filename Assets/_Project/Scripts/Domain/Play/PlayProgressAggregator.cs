@@ -118,7 +118,7 @@ public class PlayProgressAggregator
         UpdateFastLate(j, deltaMs);
     }
 
-    /// <summary>ホールドティック(PerfectPlus または Miss のみ)を反映する。</summary>
+    /// <summary>ホールドティックを反映する(押下中=PerfectPlus、復帰直後/終端無敵ゾーン=Great や支点踏襲の Perfect、離上=Miss)。</summary>
     public void ApplyTick(Judgment j, double tickTimeMs)
     {
         UpdateSectorIfNeeded(tickTimeMs);
