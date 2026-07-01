@@ -16,10 +16,11 @@ public class ConfigController : MonoBehaviour
     [SerializeField] RectTransform _tabBarContent;
     [SerializeField] GameObject    _tabButtonPrefab;
 
-    [Header("Content Panels (Gameplay / Keys / Graphics / Audio / Account)")]
+    [Header("Content Panels (Gameplay / Keys / Graphics / Colors / Audio / Account)")]
     [SerializeField] GameObject _gameplayPanel;
     [SerializeField] GameObject _keysPanel;
     [SerializeField] GameObject _graphicsPanel;
+    [SerializeField] GameObject _colorsPanel;
     [SerializeField] GameObject _audioPanel;
     [SerializeField] GameObject _accountPanel;
 
@@ -38,7 +39,7 @@ public class ConfigController : MonoBehaviour
     // ── Tab definitions ───────────────────────────────────────────────────────
 
     /// <summary>コンフィグ画面のタブ種別を表す列挙型。</summary>
-    public enum ConfigTab { Gameplay = 0, Keys = 1, Graphics = 2, Audio = 3, Account = 4 }
+    public enum ConfigTab { Gameplay = 0, Keys = 1, Graphics = 2, Colors = 3, Audio = 4, Account = 5 }
 
     static readonly (ConfigTab tab, string label, string descTitle, string descBody)[] Tabs =
     {
@@ -48,6 +49,8 @@ public class ConfigController : MonoBehaviour
             "レーンキーの割り当てと\nゲームパッドの設定ができます。\n\nキー変更ボタンをクリックしてから、\n希望のキーを押してください。"),
         (ConfigTab.Graphics, "グラフィック",   "グラフィック",
             "画質およびグラフィック性能に\n関するオプションを設定できます。"),
+        (ConfigTab.Colors,   "色",             "色",
+            "ノーツ(レーン別)・レーン仕切り線・\n判定線の色を RGB で設定できます。\n\nノーツの色は各レーンごとに\n個別に変更できます。"),
         (ConfigTab.Audio,    "オーディオ",     "オーディオ",
             "音量およびサウンド出力に関する\nオプションを設定できます。"),
         (ConfigTab.Account,  "アカウント設定", "アカウント設定",
@@ -107,6 +110,7 @@ public class ConfigController : MonoBehaviour
             { ConfigTab.Gameplay, _gameplayPanel },
             { ConfigTab.Keys,     _keysPanel     },
             { ConfigTab.Graphics, _graphicsPanel },
+            { ConfigTab.Colors,   _colorsPanel   },
             { ConfigTab.Audio,    _audioPanel    },
             { ConfigTab.Account,  _accountPanel  },
         };
@@ -318,6 +322,12 @@ public class ConfigController : MonoBehaviour
                 ("VSync", PrefType.Int), ("CameraAngleIdx", PrefType.Int), ("BloomLevelIdx", PrefType.Int),
                 ("MotionEffects", PrefType.Int), ("ShowFps", PrefType.Int),
             } },
+        { ConfigTab.Colors, new[]
+            {
+                ("NoteColor0", PrefType.String), ("NoteColor1", PrefType.String), ("NoteColor2", PrefType.String),
+                ("NoteColor3", PrefType.String), ("NoteColor4", PrefType.String), ("NoteColor5", PrefType.String),
+                ("DividerColor", PrefType.String), ("JudgmentLineColor", PrefType.String),
+            } },
         { ConfigTab.Audio, new[]
             {
                 ("Vol_Master", PrefType.Float), ("Vol_Music", PrefType.Float), ("Vol_Sfx", PrefType.Float),
@@ -472,6 +482,8 @@ public class ConfigController : MonoBehaviour
         "Vol_Master", "Vol_Music", "Vol_Sfx", "MuteOnFocusLoss",
         "ControllerEnabled", "GamepadLayout", "InputBindings_Gameplay",
         "NotificationsEnabled",
+        "NoteColor0", "NoteColor1", "NoteColor2", "NoteColor3", "NoteColor4", "NoteColor5",
+        "DividerColor", "JudgmentLineColor",
     };
 
     void ConfirmResetAll()

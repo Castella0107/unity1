@@ -4,7 +4,7 @@ using UnityEngine;
 /// <summary>
 /// タップノートの基底コントローラー。NoteData を保持し、スクロール位置の更新・ヒット／ミス時の非表示処理を担う。
 /// HoldNoteController がこのクラスを継承して長押しノートの挙動を拡張する。
-/// レーンごとの色は LaneColors テーブルで定義し、MaterialPropertyBlock 経由でレンダラーに適用する。
+/// レーンごとの色は GameColorSettings(ユーザーカスタマイズ可)から取得し、MaterialPropertyBlock 経由で適用する。
 /// </summary>
 public class NoteController : MonoBehaviour
 {
@@ -18,16 +18,7 @@ public class NoteController : MonoBehaviour
     /// <summary>ヒット/ミス処理済みか。</summary>
     public bool     IsHit      { get; private set; }
 
-    // ── Lane colour table (indexed by (int)LaneRef) ────────────────────────
-    protected static readonly Color[] LaneColors =
-    {
-        new Color(0.27f, 0.53f, 1.00f), // Lane0 (鍵1) – blue
-        new Color(1.00f, 1.00f, 1.00f), // Lane1 (鍵2) – white
-        new Color(1.00f, 1.00f, 1.00f), // Lane2 (鍵3) – white
-        new Color(0.27f, 0.53f, 1.00f), // Lane3 (鍵4) – blue
-        new Color(1.00f, 1.00f, 1.00f), // FxL  (side) – white
-        new Color(1.00f, 1.00f, 1.00f), // FxR  (side) – white
-    };
+    // レーン色はユーザーがカスタマイズ可能 (Config「色」タブ)。正本は GameColorSettings。
 
     // ── Cached components ──────────────────────────────────────────────────
     protected MeshRenderer[]      _renderers;
@@ -48,19 +39,26 @@ public class NoteController : MonoBehaviour
         IsHit = false;
         gameObject.SetActive(true);
 
-        _propBlock.SetColor("_BaseColor", LaneColors[(int)data.Lane]);
+        _propBlock.SetColor("_BaseColor", GameColorSettings.NoteColor((int)data.Lane));
         foreach (var r in _renderers)
             r.SetPropertyBlock(_propBlock);
     }
 
+    /// <summary>speed イベント未指定の従来呼び出し向けオーバーロード(等速)。</summary>
+    public void UpdatePosition(double currentVisualMs, float scrollSpeed)
+        => UpdatePosition(currentVisualMs, scrollSpeed, null);
+
     /// <summary>
     /// 毎フレーム呼ばれ、現在の視覚時刻とスクロール速度からノートの Z 位置を更新する。
     /// 時間差 &gt; 0 はノートが未来(カメラ前方)にあることを意味する。
+    /// <paramref name="speed"/> が指定されると "speed" イベントの倍率を時間積分した
+    /// 視覚距離でスクロールする(視覚専用・判定/スコアには影響しない)。null なら等速。
     /// </summary>
-    public virtual void UpdatePosition(double currentVisualMs, float scrollSpeed)
+    public virtual void UpdatePosition(double currentVisualMs, float scrollSpeed, ScrollSpeedTimeline speed)
     {
         if (Data == null) return;
-        double dtMs = Data.TimeMs - currentVisualMs;
+        double dtMs = speed != null ? speed.VisualDistanceMs(currentVisualMs, Data.TimeMs)
+                                    : Data.TimeMs - currentVisualMs;
         float  z    = (float)(dtMs / 1000.0 * scrollSpeed);
         transform.localPosition = new Vector3(LaneLayout.GetX(Data.Lane), 0f, LaneLayout.JudgmentLineZ + z);
 

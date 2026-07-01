@@ -116,6 +116,55 @@ public static class BeatDetector
         return result;
     }
 
+    /// <summary>
+    /// オンセット列から「もっともらしい拍 BPM 候補」を F1(網羅率×占有率)上位順に返す。
+    /// 各候補は <see cref="RefineFromOnsets"/> 相当で精密化済み(小数3桁 BPM + FirstOnsetMs)。
+    ///
+    /// テンポの拍レベル(オクターブ/分割)は自動では一意に決められない(例: 180 の曲が 200 や 90 とも
+    /// 部分的に整合する)ため、上位候補を UI に並べて人に選ばせる用途。F1 のピーク(局所最大)を集め、
+    /// 近い(±2%)ものを統合して上位 <paramref name="maxCount"/> 件を返す。真の拍が 1 位でなくても
+    /// 候補に含まれるよう、オクターブ/分割の関係にある複数レベルを残す。
+    /// </summary>
+    public static List<Result> RankTempoCandidates(List<double> onsetTimesMs, int maxCount = 4,
+                                                   double minBpm = 60.0, double maxBpm = 240.0)
+    {
+        var outList = new List<Result>();
+        if (onsetTimesMs == null || onsetTimesMs.Count < 8) return outList;
+        var onsets = new List<double>(onsetTimesMs);
+
+        int steps = (int)((maxBpm - minBpm) / 0.5) + 1;
+        if (steps < 3) return outList;
+        var bpms = new double[steps];
+        var f1s  = new double[steps];
+        for (int i = 0; i < steps; i++) { bpms[i] = minBpm + i * 0.5; f1s[i] = GridF1(onsets, bpms[i]); }
+
+        var peaks = new List<(double bpm, double f1)>();
+        for (int i = 1; i < steps - 1; i++)
+            if (f1s[i] >= f1s[i - 1] && f1s[i] >= f1s[i + 1] && f1s[i] > 0)
+                peaks.Add((bpms[i], f1s[i]));
+        peaks.Sort((a, b) => b.f1.CompareTo(a.f1));
+
+        foreach (var (bpm, _) in peaks)
+        {
+            bool dup = false;
+            for (int j = 0; j < outList.Count; j++)
+                if (Math.Abs(outList[j].EstimatedBpm - bpm) < bpm * 0.02) { dup = true; break; }
+            if (dup) continue;
+
+            var r = RefineFromOnsets(onsets, bpm, minBpm, maxBpm);
+            if (r.EstimatedBpm <= 0) continue;
+
+            bool dup2 = false;
+            for (int j = 0; j < outList.Count; j++)
+                if (Math.Abs(outList[j].EstimatedBpm - r.EstimatedBpm) < r.EstimatedBpm * 0.02) { dup2 = true; break; }
+            if (dup2) continue;
+
+            outList.Add(r);
+            if (outList.Count >= maxCount) break;
+        }
+        return outList;
+    }
+
     /// <summary>seedBpm の ±6% を 0.25 BPM 刻みで掃引し、F1(網羅率×占有率)最大の BPM を返す。</summary>
     static double SnapToLocalGrid(List<double> onsets, double seedBpm, double minBpm, double maxBpm)
     {

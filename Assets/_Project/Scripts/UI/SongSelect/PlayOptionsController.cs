@@ -63,6 +63,13 @@ public class PlayOptionsController : MonoBehaviour
     /// <summary>現在のノーツ配置名 ("None"/"Mirror"/"Random")。</summary>
     public static string ModifierName => ModifierNames[ModifierIdx];
 
+    /// <summary>オートプレイ(自動演奏)が有効か (PlayerPrefs "AutoPlay")。スコアは履歴に保存されない。</summary>
+    public static bool AutoPlay
+    {
+        get => PlayerPrefs.GetInt("AutoPlay", 0) == 1;
+        set { PlayerPrefs.SetInt("AutoPlay", value ? 1 : 0); PlayerPrefs.Save(); }
+    }
+
     static PlayOptionsController _instance;
     int _closeFrame  = -1;
     int _openedFrame = -1;
@@ -71,7 +78,7 @@ public class PlayOptionsController : MonoBehaviour
     static readonly Color RowIdle     = new Color(1f, 1f, 1f, 0.06f);
     static readonly Color RowSelected = new Color(0.42f, 0.32f, 0.85f, 0.45f);
 
-    const int RowCount = 6;
+    const int RowCount = 8;
 
     static readonly string[] GuideTexts =
     {
@@ -81,6 +88,8 @@ public class PlayOptionsController : MonoBehaviour
         "判定確定時(PERFECT等)の効果音を切り替えます。",
         "判定時の FAST/SLOW 表示を切り替えます。",
         "判定エフェクトの強さを変更します。",
+        "レーン(背景)の明るさを変更します。\n0=真っ黒 〜 10=通常。ノーツの見やすさ調整に。",
+        "オートプレイ: 譜面どおりに自動で完璧に演奏します。\nデモ・観賞用でスコアは履歴に残りません。",
     };
 
     /// <summary>ポップアップ表示中か。閉じたフレームも true (閉じ入力の同フレーム再拾い防止)。</summary>
@@ -213,6 +222,12 @@ public class PlayOptionsController : MonoBehaviour
                 PlayerPrefs.Save();
                 break;
             }
+            case 6:   // レーンの明るさ 0〜10
+                LaneBrightness.Level = Mathf.Clamp(LaneBrightness.Level + dir, 0, LaneBrightness.MaxLevel);
+                break;
+            case 7:   // オートプレイ ON/OFF
+                AutoPlay = !AutoPlay;
+                break;
         }
         RefreshAllValues();
     }
@@ -231,5 +246,7 @@ public class PlayOptionsController : MonoBehaviour
         Set(3, PlayerPrefs.GetInt("HitSoundJudgment", 1) == 1 ? "ON" : "OFF");
         Set(4, PlayerPrefs.GetInt("ShowFastLate", 1) == 1 ? "ON" : "OFF");
         Set(5, new[] { "SUBTLE", "NORMAL", "BOLD" }[Mathf.Clamp(PlayerPrefs.GetInt("JudgmentEffectStyleIdx", 1), 0, 2)]);
+        Set(6, LaneBrightness.Level.ToString());
+        Set(7, AutoPlay ? "ON" : "OFF");
     }
 }

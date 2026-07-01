@@ -34,6 +34,9 @@ public static class StageInitializer
         hud?.Initialize(meta, chart, isPvP: false);
 
         EnsureBeatLines(conductor, chart, scroller);
+
+        // レーン(背景・帯・区切り線)の明るさを PLAY OPTIONS の設定値で減光。ノーツ・拍線は対象外。
+        LaneBrightness.Apply();
     }
 
     /// <summary>拍線・小節線スクローラーを生成(または再利用)し、譜面で初期化する。</summary>

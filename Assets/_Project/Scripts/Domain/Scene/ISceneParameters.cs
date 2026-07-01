@@ -32,6 +32,9 @@ public sealed class GamePlayParameters : ISceneParameters
     /// <summary>モディファイア (None/Mirror/Random)。</summary>
     public string Modifier     { get; set; }
 
+    /// <summary>オートプレイ(自動演奏)モードか。入力なしで譜面どおり完璧に演奏する。スコアは履歴に保存しない。</summary>
+    public bool   IsAutoPlay          { get; set; }
+
     /// <summary>リプレイ再生モードか。</summary>
     public bool   IsReplay            { get; set; }
     /// <summary>リプレイファイルのパス。</summary>

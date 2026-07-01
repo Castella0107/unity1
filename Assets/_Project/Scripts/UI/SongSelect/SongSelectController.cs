@@ -172,7 +172,8 @@ public class SongSelectController : MonoBehaviour
         if (_playOptionInfoText == null) return;
         string mod = PlayOptionsController.ModifierIdx == 0
             ? "OFF" : PlayOptionsController.ModifierName.ToUpperInvariant();
-        _playOptionInfoText.text = $"SPEED {PlayOptionsController.HiSpeed:F1}    MODIFIER {mod}";
+        string auto = PlayOptionsController.AutoPlay ? "    AUTO ON" : "";
+        _playOptionInfoText.text = $"SPEED {PlayOptionsController.HiSpeed:F1}    MODIFIER {mod}{auto}";
     }
 
     async void Start()
@@ -582,6 +583,7 @@ public class SongSelectController : MonoBehaviour
             JudgeOffset  = 0,   // offsets now come from DeviceProfile via RepositoryService
             VisualOffset = 0,
             Modifier     = PlayOptionsController.ModifierName,
+            IsAutoPlay   = PlayOptionsController.AutoPlay,
         };
 
         SceneRouter.Instance.GoTo(SceneId.GamePlay, parameters);

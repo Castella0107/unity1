@@ -28,6 +28,9 @@ public static class BuildConfigScene
     static readonly Color Danger    = Hex("D8497A");
     static readonly Color Dim       = new Color(.72f, .72f, .78f);
     static readonly Color Faint     = new Color(1f, 1f, 1f, .12f);
+    static readonly Color ChR       = Hex("E0584F");   // R チャンネルラベル
+    static readonly Color ChG       = Hex("5FB85F");   // G
+    static readonly Color ChB       = Hex("5A8EE0");   // B
 
     // コンテンツ領域
     const float ContentX = 80f,  ContentW = 1060f;
@@ -89,11 +92,11 @@ public static class BuildConfigScene
         MakeShiftHint(tabRowGO.transform, "R Shift", "▶", left: false);
 
         var tabContentGO = Child("TabBarContent", tabRowGO.transform);
-        var tabContentRT = SR(tabContentGO, V(.5f,0), V(.5f,1), V(.5f,.5f), V(0,0), V(960,0));
+        var tabContentRT = SR(tabContentGO, V(.5f,0), V(.5f,1), V(.5f,.5f), V(0,0), V(980,0));
         var tHLG = tabContentGO.AddComponent<HorizontalLayoutGroup>();
         tHLG.childControlWidth = false; tHLG.childForceExpandWidth = false;
         tHLG.childControlHeight = true; tHLG.childForceExpandHeight = true;
-        tHLG.spacing = 14; tHLG.childAlignment = TextAnchor.MiddleCenter;
+        tHLG.spacing = 12; tHLG.childAlignment = TextAnchor.MiddleCenter;
 
         // ── 右側 説明カード ───────────────────────────────────────────────────
         var cardGO = Child("DescriptionCard", ct);
@@ -117,10 +120,11 @@ public static class BuildConfigScene
         var (saveBtn, _)  = MakeChipButton(ct, "F5", "保存", Accent,
             anchorLeft: false, pos: V(-420, 38), size: V(190, 54));
 
-        // ── 5 パネル ─────────────────────────────────────────────────────────
+        // ── 6 パネル ─────────────────────────────────────────────────────────
         var gameplayPanel = MakePanel(ct, "GameplayPanel");
         var keysPanel     = MakePanel(ct, "KeysPanel");
         var graphicsPanel = MakePanel(ct, "GraphicsPanel");
+        var colorsPanel   = MakePanel(ct, "ColorsPanel");
         var audioPanel    = MakePanel(ct, "AudioPanel");
         var accountPanel  = MakePanel(ct, "AccountPanel");
 
@@ -145,6 +149,7 @@ public static class BuildConfigScene
         BuildGameplayTab(gameplayPanel, calibrationPanel);
         BuildKeysTab(keysPanel, inputAsset);
         BuildGraphicsTab(graphicsPanel);
+        BuildColorsTab(colorsPanel);
         BuildAudioTab(audioPanel, devicesPanelRoot);
         BuildAccountTab(accountPanel, manageSongsPanel);
 
@@ -160,6 +165,7 @@ public static class BuildConfigScene
         SetRef(so, "_gameplayPanel",   gameplayPanel);
         SetRef(so, "_keysPanel",       keysPanel);
         SetRef(so, "_graphicsPanel",   graphicsPanel);
+        SetRef(so, "_colorsPanel",     colorsPanel);
         SetRef(so, "_audioPanel",      audioPanel);
         SetRef(so, "_accountPanel",    accountPanel);
         SetRef(so, "_descTitleText",   descTitleTMP);
@@ -173,6 +179,7 @@ public static class BuildConfigScene
         // 初期表示: ゲームプレイ以外は隠す (ConfigController.SwitchTab でも制御される)
         keysPanel.SetActive(false);
         graphicsPanel.SetActive(false);
+        colorsPanel.SetActive(false);
         audioPanel.SetActive(false);
         accountPanel.SetActive(false);
 
@@ -305,6 +312,254 @@ public static class BuildConfigScene
         SetRef(so, "_motionEffectsToggle", motTgl);
         SetRef(so, "_showFpsToggle",       fpsTgl);
         so.ApplyModifiedProperties();
+    }
+
+    // ── 色タブ: ノーツ(レーン別6) / 仕切り線 / 判定線 を RGB(0-255)スライダーで設定 ──
+    //   選択中の行(行頭の色見本クリックで選択)へ、プリセットパレット適用 / 行間コピー・貼り付けができる。
+    static readonly string[] PaletteHex =
+    {
+        "FFFFFF","B8B8B8","707070","303030","FF4D4D","FF7A33","FFA640","FFD740","FFF066","C2F24D","7ED957","45C66B",
+        "2EA86B","33E0C8","33C6E0","33A0FF","4C8CFF","5A6BE0","6B52E0","9B5CFF","C24DFF","FF5AD0","FF6FA0","FF8FB0",
+    };
+
+    static void BuildColorsTab(GameObject panel)
+    {
+        float y = -8f;
+        var pt = panel.transform;
+
+        var swatch = new Image[8]; var selBtn = new Button[8]; var rowBg = new Image[8];
+        var rS = new Slider[8]; var gS = new Slider[8]; var bS = new Slider[8];
+        var rV = new TextMeshProUGUI[8]; var gV = new TextMeshProUGUI[8]; var bV = new TextMeshProUGUI[8];
+        int idx = 0;
+
+        void Add(string label, Color c)
+        {
+            var (sw, sb, rb, r, g, b, rv, gv, bv) = ColorRow(pt, ref y, label, c);
+            swatch[idx] = sw; selBtn[idx] = sb; rowBg[idx] = rb;
+            rS[idx] = r; gS[idx] = g; bS[idx] = b; rV[idx] = rv; gV[idx] = gv; bV[idx] = bv;
+            idx++;
+        }
+
+        ColorSection(pt, ref y, "ノーツ (レーン別)");
+        Add("鍵1 (左)", GameColorSettings.NoteColor(0));
+        Add("鍵2",      GameColorSettings.NoteColor(1));
+        Add("鍵3",      GameColorSettings.NoteColor(2));
+        Add("鍵4 (右)", GameColorSettings.NoteColor(3));
+        Add("FX 左",    GameColorSettings.NoteColor(4));
+        Add("FX 右",    GameColorSettings.NoteColor(5));
+        ColorSection(pt, ref y, "レーン / 判定線");
+        Add("レーン仕切り線", GameColorSettings.DividerColor);
+        Add("判定線",         GameColorSettings.JudgmentLineColor);
+
+        // ── ツールバー (選択中の行に適用) ──────────────────────────────────────
+        var hdrGO = Child("ToolHeader", pt);
+        SR(hdrGO, V(0,1), V(1,1), V(.5f,1), V(0,y), V(0,24));
+        var hdrL = Child("Label", hdrGO.transform);
+        SR(hdrL, V(0,0), V(1,1), V(0,.5f), V(24,0), V(-24,0));
+        T(hdrL, "── ツール (選択中の行に適用) ──", 16, Hex("F7C740"), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        y -= 30f;
+
+        float infoY = y;
+        var selGO = Child("SelLabel", pt);
+        SR(selGO, V(0,1), V(0,1), V(0,1), V(24, infoY), V(90,40));
+        T(selGO, "選択中", 16, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var actSwGO = Child("ActiveSwatch", pt);
+        SR(actSwGO, V(0,1), V(0,1), V(0,1), V(116, infoY-1), V(40,40));
+        var actSw = actSwGO.AddComponent<Image>(); actSw.raycastTarget = false;
+
+        var actNameGO = Child("ActiveName", pt);
+        SR(actNameGO, V(0,1), V(0,1), V(0,1), V(168, infoY), V(230,40));
+        var actName = T(actNameGO, "-", 18, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var copyBtn  = SmallButton(pt, "コピー",   V(0,1), V(408, infoY), V(150,40), anchorLeftTop: true);
+        var pasteBtn = SmallButton(pt, "貼り付け", V(0,1), V(570, infoY), V(150,40), anchorLeftTop: true);
+        y -= 50f;
+
+        var palLblGO = Child("PaletteLabel", pt);
+        SR(palLblGO, V(0,1), V(0,1), V(0,1), V(24, y), V(360,22));
+        T(palLblGO, "プリセットパレット (クリックで選択中の行に適用)", 14, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        y -= 26f;
+
+        var palBtns = new Button[PaletteHex.Length];
+        var palSw   = new Image[PaletteHex.Length];
+        const int cols = 12; const float cell = 38f, gap = 6f;
+        for (int i = 0; i < PaletteHex.Length; i++)
+        {
+            int col = i % cols, rowi = i / cols;
+            var cGO = Child("Pal" + i, pt);
+            SR(cGO, V(0,1), V(0,1), V(0,1), V(24 + col * (cell + gap), y - rowi * (cell + gap)), V(cell, cell));
+            var img = cGO.AddComponent<Image>(); img.color = Hex(PaletteHex[i]);
+            var btn = cGO.AddComponent<Button>(); btn.targetGraphic = img; btn.transition = Selectable.Transition.None;
+            palSw[i] = img; palBtns[i] = btn;
+        }
+
+        // ── 2D カラーピッカー (右側・Windows「色の編集」風) ──────────────────────
+        var picker = BuildColorPicker(pt);
+
+        string[] rowNames = { "鍵1 (左)", "鍵2", "鍵3", "鍵4 (右)", "FX 左", "FX 右", "レーン仕切り線", "判定線" };
+
+        var tab = panel.AddComponent<ColorsTabController>();
+        var so  = new SerializedObject(tab);
+        SetArr(so, "_swatches",         swatch);
+        SetArr(so, "_rowSelectButtons", selBtn);
+        SetArr(so, "_rowBackgrounds",   rowBg);
+        SetArr(so, "_rSliders",         rS);
+        SetArr(so, "_gSliders",         gS);
+        SetArr(so, "_bSliders",         bS);
+        SetArr(so, "_rValues",          rV);
+        SetArr(so, "_gValues",          gV);
+        SetArr(so, "_bValues",          bV);
+        SetArr(so, "_paletteButtons",   palBtns);
+        SetArr(so, "_paletteSwatches",  palSw);
+        SetRef(so, "_activeSwatch",     actSw);
+        SetRef(so, "_activeNameLabel",  actName);
+        SetRef(so, "_copyButton",       copyBtn);
+        SetRef(so, "_pasteButton",      pasteBtn);
+        SetRef(so, "_picker",           picker);
+        var rn = so.FindProperty("_rowNames");
+        if (rn != null)
+        {
+            rn.arraySize = rowNames.Length;
+            for (int i = 0; i < rowNames.Length; i++)
+                rn.GetArrayElementAtIndex(i).stringValue = rowNames[i];
+        }
+        so.ApplyModifiedProperties();
+    }
+
+    // 右側に SV 四角(横=彩度 / 縦=明度) + 縦の色相バーを置く。テクスチャは実行時生成(ColorSquarePicker)。
+    static ColorSquarePicker BuildColorPicker(Transform pt)
+    {
+        const float pX = 780f, sq = 220f, pTop = -34f, hueGap = 12f, hueW = 22f;
+
+        var lbl = Child("PickerLabel", pt);
+        SR(lbl, V(0,1), V(0,1), V(0,1), V(pX, -8f), V(280,22));
+        T(lbl, "カラーピッカー (ドラッグで調整)", 14, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold)
+            .raycastTarget = false;
+
+        var root = Child("ColorPicker", pt);
+        SR(root, V(0,1), V(0,1), V(0,1), V(pX, pTop), V(sq + hueGap + hueW + 8f, sq + 8f));
+        var picker = root.AddComponent<ColorSquarePicker>();
+
+        // SV 四角 (pivot(0,0) = 左下基準で座標計算を単純化)
+        var svGO = Child("SVArea", root.transform);
+        var svRT = SR(svGO, V(0,1), V(0,1), V(0,0), V(0,-sq), V(sq,sq));
+
+        Image Layer(string n)
+        {
+            var g = Child(n, svGO.transform);
+            SR(g, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));   // 全面ストレッチ・sizeDelta 0
+            var im = g.AddComponent<Image>(); im.raycastTarget = false; im.type = Image.Type.Simple;
+            return im;
+        }
+        var svBase  = Layer("Base");  svBase.color = Color.red;   // 実行時に純色相へ
+        var svWhite = Layer("White");
+        var svBlack = Layer("Black");
+
+        var svCurGO = Child("Cursor", svGO.transform);
+        var svCurRT = SR(svCurGO, V(0,0), V(0,0), V(.5f,.5f), V(sq,sq), V(14,14));
+        var svCur   = svCurGO.AddComponent<Image>(); svCur.color = Color.white; svCur.raycastTarget = false;
+        var svCurOl = svCurGO.AddComponent<Outline>(); svCurOl.effectColor = Color.black; svCurOl.effectDistance = V(2,2);
+
+        var svCatch = Child("Catcher", svGO.transform);     // 透明・最前面で入力を拾う
+        SR(svCatch, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var svCatchImg = svCatch.AddComponent<Image>(); svCatchImg.color = new Color(0,0,0,0); svCatchImg.raycastTarget = true;
+        var svArea = svCatch.AddComponent<ColorPickerArea>();
+
+        // 色相バー (縦)
+        float hueX = sq + hueGap;
+        var hueGO = Child("HueBar", root.transform);
+        var hueRT = SR(hueGO, V(0,1), V(0,1), V(0,0), V(hueX,-sq), V(hueW,sq));
+        var hueImg = hueGO.AddComponent<Image>(); hueImg.raycastTarget = true; hueImg.type = Image.Type.Simple;
+        var hueArea = hueGO.AddComponent<ColorPickerArea>();
+
+        var hueCurGO = Child("Cursor", hueGO.transform);
+        var hueCurRT = SR(hueCurGO, V(0,0), V(0,0), V(.5f,.5f), V(hueW/2f, sq), V(hueW + 6f, 6f));
+        var hueCur   = hueCurGO.AddComponent<Image>(); hueCur.color = Color.white; hueCur.raycastTarget = false;
+        var hueCurOl = hueCurGO.AddComponent<Outline>(); hueCurOl.effectColor = Color.black; hueCurOl.effectDistance = V(2,2);
+
+        // 配線
+        var pso = new SerializedObject(picker);
+        SetRef(pso, "_svRect",    svRT);
+        SetRef(pso, "_svBase",    svBase);
+        SetRef(pso, "_svWhite",   svWhite);
+        SetRef(pso, "_svBlack",   svBlack);
+        SetRef(pso, "_svCursor",  svCurRT);
+        SetRef(pso, "_hueRect",   hueRT);
+        SetRef(pso, "_hueImage",  hueImg);
+        SetRef(pso, "_hueCursor", hueCurRT);
+        pso.ApplyModifiedProperties();
+
+        WirePickerArea(svArea,  picker, isHue: false);
+        WirePickerArea(hueArea, picker, isHue: true);
+        return picker;
+    }
+
+    static void WirePickerArea(ColorPickerArea area, ColorSquarePicker owner, bool isHue)
+    {
+        var so = new SerializedObject(area);
+        SetRef(so, "_owner", owner);
+        var p = so.FindProperty("_isHue");
+        if (p != null) p.boolValue = isHue;
+        so.ApplyModifiedProperties();
+    }
+
+    static (Image, Button, Image, Slider, Slider, Slider, TextMeshProUGUI, TextMeshProUGUI, TextMeshProUGUI)
+        ColorRow(Transform parent, ref float y, string label, Color init)
+    {
+        // 行は左カラム(幅 760)に収める。右側は 2D カラーピッカー用に空ける。
+        var row = Child("CRow_" + label, parent);
+        SR(row, V(0,1), V(0,1), V(0,1), V(0,y), V(760,52));
+        var rowImg = row.AddComponent<Image>(); rowImg.color = RowBg; rowImg.raycastTarget = false;
+
+        // 行頭の色見本はクリックで「この行を選択」するボタン。色をそのまま見せるため transition=None。
+        var swGO = Child("Swatch", row.transform);
+        SR(swGO, V(0,.5f), V(0,.5f), V(0,.5f), V(26,0), V(36,36));
+        var sw = swGO.AddComponent<Image>();
+        sw.color = new Color(init.r, init.g, init.b, 1f);
+        var selBtn = swGO.AddComponent<Button>(); selBtn.targetGraphic = sw; selBtn.transition = Selectable.Transition.None;
+
+        var lblGO = Child("Label", row.transform);
+        SR(lblGO, V(0,.5f), V(0,.5f), V(0,.5f), V(70,0), V(146,40));
+        T(lblGO, label, 17, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+
+        var (r, rv) = ColorChannel(row.transform, "R", ChR, 220f, init.r);
+        var (g, gv) = ColorChannel(row.transform, "G", ChG, 400f, init.g);
+        var (b, bv) = ColorChannel(row.transform, "B", ChB, 580f, init.b);
+
+        y -= 56f;
+        return (sw, selBtn, rowImg, r, g, b, rv, gv, bv);
+    }
+
+    static (Slider, TextMeshProUGUI) ColorChannel(
+        Transform row, string letter, Color letterColor, float x, float v01)
+    {
+        var lGO = Child("Ch" + letter, row);
+        SR(lGO, V(0,.5f), V(0,.5f), V(0,.5f), V(x,0), V(20,40));
+        T(lGO, letter, 17, letterColor, TextAlignmentOptions.Center, FontStyles.Bold);
+
+        var slider = MakeSliderAt(row, x + 24f, x + 126f, 0, 255, Mathf.Round(v01 * 255f), true);
+
+        var boxGO = Child("Val" + letter, row);
+        SR(boxGO, V(0,.5f), V(0,.5f), V(0,.5f), V(x + 132f, 0), V(44,32));
+        var boxImg = boxGO.AddComponent<Image>(); boxImg.color = BoxBg; boxImg.raycastTarget = false;
+        var vGO = Child("V", boxGO.transform);
+        SR(vGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        var vTMP = T(vGO, Mathf.RoundToInt(v01 * 255f).ToString(), 15, Color.white,
+            TextAlignmentOptions.Center, FontStyles.Bold);
+        vTMP.raycastTarget = false;
+        return (slider, vTMP);
+    }
+
+    static void ColorSection(Transform parent, ref float y, string title)
+    {
+        var secGO = Child("CSection_" + title, parent);
+        SR(secGO, V(0,1), V(1,1), V(.5f,1), V(0,y), V(0,26));
+        var lbl = Child("Label", secGO.transform);
+        SR(lbl, V(0,0), V(1,1), V(0,.5f), V(24,0), V(-24,0));
+        var lblT = T(lbl, "── " + title + " ──", 16, Hex("F7C740"), TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        lblT.raycastTarget = false;   // 右側ピッカー上のクリックを奪わない
+        y -= 34f;
     }
 
     static void BuildAudioTab(GameObject panel, GameObject devicesPanelRoot)
@@ -667,8 +922,8 @@ public static class BuildConfigScene
     static GameObject BuildTabButtonPrefab()
     {
         var root   = new GameObject("ConfigTabButton");
-        var rootRT = root.AddComponent<RectTransform>(); rootRT.sizeDelta = V(180, 52);
-        root.AddComponent<LayoutElement>().minWidth = 180;
+        var rootRT = root.AddComponent<RectTransform>(); rootRT.sizeDelta = V(150, 52);
+        root.AddComponent<LayoutElement>().minWidth = 150;
         var btn = root.AddComponent<Button>();
 
         var bgGO  = Child("Background", root.transform);
@@ -678,7 +933,7 @@ public static class BuildConfigScene
 
         var lblGO = Child("Label", root.transform);
         SR(lblGO, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-        var lbl = T(lblGO, "TAB", 19, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
+        var lbl = T(lblGO, "TAB", 17, Color.white, TextAlignmentOptions.Center, FontStyles.Bold);
         lbl.raycastTarget = false;
 
         var saved = PrefabUtility.SaveAsPrefabAsset(root, TabPrefabPath);

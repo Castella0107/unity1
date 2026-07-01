@@ -337,11 +337,11 @@ public static class SongSelectSceneBuilder
         const float LX = 50f, LW = 660f;
         float y = -110f;
 
-        var rowBgs    = new Image[6];
-        var rowBtns   = new Button[6];
-        var valTexts  = new TextMeshProUGUI[6];
-        var prevBtns  = new Button[6];
-        var nextBtns  = new Button[6];
+        var rowBgs    = new Image[8];
+        var rowBtns   = new Button[8];
+        var valTexts  = new TextMeshProUGUI[8];
+        var prevBtns  = new Button[8];
+        var nextBtns  = new Button[8];
         int rowIdx = 0;
 
         void Section(string text)
@@ -401,6 +401,9 @@ public static class SongSelectSceneBuilder
         Section("DISPLAY");
         OptionRow("FAST/SLOW表示");
         OptionRow("判定エフェクト");
+        OptionRow("レーンの明るさ");
+        Section("AUTO PLAY");
+        OptionRow("オートプレイ");
 
         // 操作ヒント (パネル下部左)
         var fhGO = Child("FooterHint", pt);

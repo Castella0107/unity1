@@ -32,6 +32,8 @@ public class GamePlayController : MonoBehaviour
 
     GamePlayParameters _params;
 
+    AutoPlayInputSource _autoInput;   // オートプレイ時のみ非null
+
     string SongId     => _params?.SongId     ?? _fallbackSongId;
     string Difficulty => _params?.Difficulty  ?? _fallbackDifficulty;
 
@@ -117,7 +119,17 @@ public class GamePlayController : MonoBehaviour
                     sock.OnOpponentProgress += _opponentProgressHandler;
                 }
             }
-            if (_judgment != null) _judgment.Initialize(_chart, _meta, _input, GameplayTabController.GetSavedComboBorder());
+            // オートプレイ: ライブ入力を止め、譜面から合成した完璧な入力を判定システムへ供給する。
+            bool isAuto = _params != null && _params.IsAutoPlay;
+            IInputSource inputSource = _input;
+            if (isAuto)
+            {
+                _input.enabled = false;
+                _autoInput     = new AutoPlayInputSource(_chart);
+                inputSource    = _autoInput;
+                Debug.Log("[GamePlay] AutoPlay enabled — events=" + _autoInput.EventCount);
+            }
+            if (_judgment != null) _judgment.Initialize(_chart, _meta, inputSource, GameplayTabController.GetSavedComboBorder());
             // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
             int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
             _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: audioShift);
@@ -135,6 +147,10 @@ public class GamePlayController : MonoBehaviour
     {
         if (_timeText != null && _conductor != null)
             _timeText.text = string.Format("SongTime:  {0:F0} ms", _conductor.SongTimeMs);
+
+        // オートプレイ: 判定エンジンと同じ時計(JudgmentTimeMs)で合成入力を発火する。
+        if (_autoInput != null && _conductor != null && _conductor.IsPlaying)
+            _autoInput.Advance(_conductor.JudgmentTimeMs);
 
         if (!_resultTriggered && _conductor != null && _conductor.IsPlaying
             && _durationMs > 0 && _conductor.SongTimeMs >= _durationMs + 1000.0)
@@ -196,7 +212,9 @@ public class GamePlayController : MonoBehaviour
         if (_judgment == null || _judgment.Aggregator == null) return;
 
         var snap   = _judgment.SnapshotForResult();
-        bool isPvpPlay = _params != null && _params.IsPvp;
+        bool isPvpPlay  = _params != null && _params.IsPvp;
+        // オートプレイ(自動演奏)はデモ扱い。リプレイ/プレイ記録/ベスト更新/刈り込みを一切保存しない。
+        bool isAutoPlay = _params != null && _params.IsAutoPlay;
         var record = PlayRecordFactory.Create(
             snap, SongId, Difficulty,
             _chart != null ? (_chart.ChartHash ?? "") : "",
@@ -248,7 +266,11 @@ public class GamePlayController : MonoBehaviour
         };
 
         // ── Save replay file ─────────────────────────────────────────────────
-        if (repoSvc?.Replays != null)
+        if (isAutoPlay)
+        {
+            Debug.Log("[GamePlay] AutoPlay — replay/record の保存をスキップ");
+        }
+        else if (repoSvc?.Replays != null)
         {
             record.ReplayPath = await repoSvc.Replays.SaveAsync(
                 record.PlayId, replayData, record.PlayedAtUnixMs);
@@ -268,20 +290,21 @@ public class GamePlayController : MonoBehaviour
         bool   isNewBest          = false;
         string previousBestPlayId = null;
 
+        // オートプレイは表示用にベストを読むだけ(書き込みなし・NEW BEST も出さない)。
         var playRepo = repoSvc?.PlayRecords;
         if (!isPvpPlay && playRepo != null)
         {
             var best   = await playRepo.GetBestAsync(record.SongId, record.Difficulty);
             bestBefore = best?.BestEffectiveScore ?? 0;
-            isNewBest  = record.EffectiveScore > bestBefore;
+            isNewBest  = !isAutoPlay && record.EffectiveScore > bestBefore;
             previousBestPlayId = best?.BestPlayId;
-            await playRepo.SaveAsync(record);
+            if (!isAutoPlay) await playRepo.SaveAsync(record);
         }
         else if (!isPvpPlay)
         {
             string bestKey = string.Format("Best_{0}_{1}", SongId, Difficulty);
             bestBefore = PlayerPrefs.GetInt(bestKey, 0);
-            isNewBest  = record.EffectiveScore > bestBefore;
+            isNewBest  = !isAutoPlay && record.EffectiveScore > bestBefore;
             if (isNewBest) { PlayerPrefs.SetInt(bestKey, record.EffectiveScore); PlayerPrefs.Save(); }
         }
 
@@ -292,7 +315,7 @@ public class GamePlayController : MonoBehaviour
         // ── ソロのリプレイ刈り込み ───────────────────────────────────────────
         // 各楽曲×難易度の最高スコアのリプレイだけローカルに残す。
         // PVP リプレイは PvpResultBridge の送信 + PVP 履歴のリングバッファが管理するので触らない。
-        if ((_params == null || !_params.IsPvp) && playRepo != null && repoSvc?.Replays != null)
+        if (!isAutoPlay && (_params == null || !_params.IsPvp) && playRepo != null && repoSvc?.Replays != null)
             await PruneSoloReplaysAsync(playRepo, repoSvc.Replays, record, isNewBest, previousBestPlayId);
 
         var view = new PlayResultView

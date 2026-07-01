@@ -31,6 +31,7 @@ public class NoteScroller : MonoBehaviour
     public void SetScrollSpeed(float speed) => _scrollSpeed = Mathf.Clamp(speed, 0.5f, 20f);
 
     private List<NoteData>                  _allNotes;
+    private ScrollSpeedTimeline             _speed;        // "speed" イベントによるスクロール演出(視覚専用)
     private int                             _nextSpawnIdx;
     private List<NoteController>            _activeNotes = new List<NoteController>();
     private Dictionary<int, NoteController> _noteById    = new Dictionary<int, NoteController>();
@@ -95,11 +96,15 @@ public class NoteScroller : MonoBehaviour
 
     // ── Public API ─────────────────────────────────────────────────────────────
 
+    /// <summary>現在のスクロール速度演出(speed イベント)。BeatLineScroller 等が共有する。</summary>
+    public ScrollSpeedTimeline Speed => _speed;
+
     /// <summary>譜面でスクローラーを初期化する(時刻昇順に並べ替えて準備)。</summary>
     public void Initialize(ChartData chart)
     {
         Reset();
         _allNotes     = chart.Notes.OrderBy(n => n.TimeMs).ToList();
+        _speed        = new ScrollSpeedTimeline(chart.Events);
         _nextSpawnIdx = 0;
     }
 
@@ -127,11 +132,13 @@ public class NoteScroller : MonoBehaviour
         double spawnLookaheadMs = (LaneLayout.NoteSpawnZ   - LaneLayout.JudgmentLineZ) / speed * 1000.0;
         double despawnAfterMs   = (LaneLayout.JudgmentLineZ - LaneLayout.NoteDespawnZ) / speed * 1000.0;
 
-        // Spawn notes entering the lookahead window.
+        // Spawn notes entering the lookahead window. Distances are measured in
+        // speed-weighted "visual ms" so spawn/despawn Z stay correct under speed events.
         while (_nextSpawnIdx < _allNotes.Count)
         {
             var noteData = _allNotes[_nextSpawnIdx];
-            double dt    = noteData.TimeMs - visualMs;
+            double dt    = _speed != null ? _speed.VisualDistanceMs(visualMs, noteData.TimeMs)
+                                          : noteData.TimeMs - visualMs;
 
             if (dt > spawnLookaheadMs) break;
 
@@ -159,7 +166,8 @@ public class NoteScroller : MonoBehaviour
 
             bool isHold  = note.Data.Type == NoteType.Hold || note.Data.Type == NoteType.FxHold;
             double endMs = isHold ? note.Data.TimeMs + note.Data.DurationMs : note.Data.TimeMs;
-            double dtEnd = endMs - visualMs;
+            double dtEnd = _speed != null ? _speed.VisualDistanceMs(visualMs, endMs)
+                                          : endMs - visualMs;
 
             if (dtEnd < -despawnAfterMs)
             {
@@ -169,7 +177,7 @@ public class NoteScroller : MonoBehaviour
             }
             else
             {
-                note.UpdatePosition(visualMs, _scrollSpeed);
+                note.UpdatePosition(visualMs, _scrollSpeed, _speed);
             }
         }
     }

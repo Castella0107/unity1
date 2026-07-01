@@ -30,7 +30,9 @@ public class BeatLineScroller : MonoBehaviour
     NoteScroller   _scroller;
 
     double[] _lineTimes;     // 昇順
+    double[] _lineVis;       // 各線の視覚位置 VisualPos(time)(speed 演出反映)。昇順。
     bool[]   _isMeasure;
+    ScrollSpeedTimeline _speed;   // ノートと共有するスクロール速度演出(視覚専用)
 
     readonly List<Transform>           _pool      = new List<Transform>();
     readonly List<MeshRenderer>        _renderers = new List<MeshRenderer>();
@@ -57,15 +59,29 @@ public class BeatLineScroller : MonoBehaviour
     {
         _conductor = conductor;
         _scroller  = scroller;
+        _speed     = scroller != null ? scroller.Speed : null;
         BuildLineTimes(chart);
+        BuildLineVisualPositions();
         HideAll();
+    }
+
+    /// <summary>各線の視覚位置(speed 倍率を積分した位置)を前計算する。speed 無しなら時刻と一致。</summary>
+    void BuildLineVisualPositions()
+    {
+        _lineVis = null;
+        if (_lineTimes == null) return;
+        _lineVis = new double[_lineTimes.Length];
+        for (int i = 0; i < _lineTimes.Length; i++)
+            _lineVis[i] = _speed != null ? _speed.VisualPos(_lineTimes[i]) : _lineTimes[i];
     }
 
     /// <summary>全ての線を非表示にする(セッション終了時)。</summary>
     public void Clear()
     {
         _lineTimes = null;
+        _lineVis   = null;
         _isMeasure = null;
+        _speed     = null;
         HideAll();
     }
 
@@ -149,22 +165,24 @@ public class BeatLineScroller : MonoBehaviour
         double visualMs = _conductor.VisualTimeMs;
         float  speed    = Mathf.Max(0.1f, _scroller != null ? _scroller.ScrollSpeed : 4.5f);
 
-        // 可視 Z 窓 [NoteDespawnZ, NoteSpawnZ] に対応する時刻窓。
+        // 可視 Z 窓 [NoteDespawnZ, NoteSpawnZ] を「視覚距離(ms 換算)」窓に変換し、
+        // 各線の視覚位置 _lineVis と比較する。speed 演出に追従して可視範囲が伸縮する。
+        double curVis   = _speed != null ? _speed.VisualPos(visualMs) : visualMs;
         double aheadMs  = (LaneLayout.NoteSpawnZ   - LaneLayout.JudgmentLineZ) / speed * 1000.0;
         double behindMs = (LaneLayout.JudgmentLineZ - LaneLayout.NoteDespawnZ) / speed * 1000.0;
-        double minT = visualMs - behindMs;
-        double maxT = visualMs + aheadMs;
+        double minVis = curVis - behindMs;
+        double maxVis = curVis + aheadMs;
 
-        int start = LowerBound(_lineTimes, minT);   // seek にも追従(毎フレーム二分探索)
+        int start = LowerBound(_lineVis, minVis);   // seek にも追従(毎フレーム二分探索)
         float denomZ = Mathf.Max(0.001f, LaneLayout.NoteSpawnZ - LaneLayout.JudgmentLineZ);
 
         int used = 0;
-        for (int i = start; i < _lineTimes.Length; i++)
+        for (int i = start; i < _lineVis.Length; i++)
         {
-            double t = _lineTimes[i];
-            if (t > maxT) break;
+            double vis = _lineVis[i];
+            if (vis > maxVis) break;
 
-            float z = LaneLayout.JudgmentLineZ + (float)((t - visualMs) / 1000.0 * speed);
+            float z = LaneLayout.JudgmentLineZ + (float)((vis - curVis) / 1000.0 * speed);
             bool  measure = _isMeasure[i];
 
             var tr = GetQuad(used++);

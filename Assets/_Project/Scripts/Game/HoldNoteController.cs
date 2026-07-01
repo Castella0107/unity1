@@ -23,12 +23,18 @@ public class HoldNoteController : NoteController
     }
 
     /// <inheritdoc/>
-    public override void UpdatePosition(double currentVisualMs, float scrollSpeed)
+    public override void UpdatePosition(double currentVisualMs, float scrollSpeed, ScrollSpeedTimeline speed)
     {
         if (Data == null) return;
 
-        float startZ = LaneLayout.JudgmentLineZ + (float)((Data.TimeMs - currentVisualMs)                   / 1000.0 * scrollSpeed);
-        float endZ   = LaneLayout.JudgmentLineZ + (float)((Data.TimeMs + Data.DurationMs - currentVisualMs) / 1000.0 * scrollSpeed);
+        // 頭/尾の判定線までの距離も speed 倍率を積分した視覚距離で求める(視覚専用)。
+        double headDt = speed != null ? speed.VisualDistanceMs(currentVisualMs, Data.TimeMs)
+                                      : Data.TimeMs - currentVisualMs;
+        double tailDt = speed != null ? speed.VisualDistanceMs(currentVisualMs, Data.TimeMs + Data.DurationMs)
+                                      : Data.TimeMs + Data.DurationMs - currentVisualMs;
+
+        float startZ = LaneLayout.JudgmentLineZ + (float)(headDt / 1000.0 * scrollSpeed);
+        float endZ   = LaneLayout.JudgmentLineZ + (float)(tailDt / 1000.0 * scrollSpeed);
         float width  = LaneLayout.GetNoteWidth(Data.Lane);
         float x      = LaneLayout.GetX(Data.Lane);
         float judgeZ = LaneLayout.JudgmentLineZ;
