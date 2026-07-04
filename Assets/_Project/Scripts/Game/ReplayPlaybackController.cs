@@ -72,6 +72,10 @@ public class ReplayPlaybackController : MonoBehaviour
 
             _replay = ReplayDecoder.Decode(bytes);
 
+            // 判定幅プロファイル: 記録時にワイド判定だったリプレイ(Modifiers の JudgeWide タグ)は
+            // 同じ判定幅で再判定する。タグが無ければ標準に固定(PVPリプレイは常に標準)。
+            JudgmentWindow.WideActive = HasJudgeWideTag(_replay);
+
             // ── Load chart / meta / audio ────────────────────────────────────
             // PVP(およびサーバー曲)のリプレイは記録時にサーバー譜面で再生されている。
             // ServerSongLibrary が未同期だと ChartLoader がローカル/別譜面へフォールバックして
@@ -183,6 +187,15 @@ public class ReplayPlaybackController : MonoBehaviour
         => _conductor?.SetPlaybackSpeed(speed);
 
     // ── Private ────────────────────────────────────────────────────────────────
+
+    static bool HasJudgeWideTag(ReplayData replay)
+    {
+        var mods = replay?.Metadata?.Modifiers;
+        if (mods == null) return false;
+        foreach (var m in mods)
+            if (m == JudgmentWindow.WideModifierTag) return true;
+        return false;
+    }
 
     void OnReplayFinished()
     {

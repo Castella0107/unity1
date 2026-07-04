@@ -14,6 +14,7 @@ public sealed class JudgmentEngine
     readonly PlayProgressAggregator                    _progress;
     readonly Dictionary<int,      HoldJudgmentTracker> _holds            = new Dictionary<int, HoldJudgmentTracker>();
     readonly Dictionary<LaneRef, HoldJudgmentTracker>  _activeHoldByLane = new Dictionary<LaneRef, HoldJudgmentTracker>();
+    readonly List<LaneRef>                             _activeLaneScratch = new List<LaneRef>();  // ProcessTime のキー走査用に再利用
 
     /// <summary>判定が確定するたびに発火する(タップ/ホールド頭/ティック/尾、オートミス含む)。</summary>
     public event Action<JudgmentEvent> OnJudgment;
@@ -125,8 +126,12 @@ public sealed class JudgmentEngine
         }
 
         // 3. Ticks + tail auto-miss for active holds
-        var lanes = new List<LaneRef>(_activeHoldByLane.Keys);
-        foreach (var lane in lanes)
+        // アクティブホールドが無い区間はゼロコスト。走査用リストは再利用してフレーム毎の GC を避ける
+        // (反復中に _activeHoldByLane を変更するため、キーのスナップショットは従来どおり取る)。
+        if (_activeHoldByLane.Count == 0) return;
+        _activeLaneScratch.Clear();
+        _activeLaneScratch.AddRange(_activeHoldByLane.Keys);
+        foreach (var lane in _activeLaneScratch)
         {
             if (!_activeHoldByLane.TryGetValue(lane, out var tracker)) continue;
 

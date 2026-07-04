@@ -71,6 +71,25 @@ public class GameHud : MonoBehaviour
     int          _shownSectorIdx = -1;   // highest sector index whose final value is locked in
     bool         _isPvp;                  // SetPvpContext turns on the opponent box / VS bar / outcome tags
 
+    // ── Update の変化検出キャッシュ ──────────────────────────────────────────────
+    // TMP の .text セッターはメッシュ再構築を強制する。毎フレーム同じ値を代入すると
+    // 60fps 中ずっと ~7 要素を再構築し続けるため、前回表示値を保持して変化時のみ更新する。
+    // -1 = 未初期化(初回 Update で必ず一度反映される)。
+    readonly int[] _shownCounts = { -1, -1, -1, -1, -1 };
+    int  _shownScore    = -1;
+    int  _shownRateKey  = -1;   // Rate をキー化(score,max 依存)して比較する
+    int  _shownVsSelf   = -1;
+    int  _shownVsOpp    = -1;
+    readonly int[] _shownDiamondKey = { -1, -1, -1, -1, -1 };  // セクター菱形の前回表示率(×100 整数キー)
+
+    // 判定カウントを変化時のみ更新するヘルパー(TMP 再構築を抑制)。
+    void SetCount(TextMeshProUGUI label, int slot, int value)
+    {
+        if (label == null || _shownCounts[slot] == value) return;
+        _shownCounts[slot] = value;
+        label.text = value.ToString();
+    }
+
     // ── Public API ────────────────────────────────────────────────────────────
 
     /// <summary>楽曲メタ・譜面・PvP フラグから HUD(曲情報・スコア・セクターパネル等)を初期化する。</summary>
@@ -92,6 +111,11 @@ public class GameHud : MonoBehaviour
         if (_scoreValue != null) _scoreValue.text = "0";
         if (_rateValue  != null) _rateValue.text  = "0.00%";
         if (_scoreGauge != null) _scoreGauge.fillAmount = 0f;
+
+        // 変化検出キャッシュをリセット(曲を跨いだ HUD 再利用でも初回 Update で必ず反映されるように)。
+        for (int c = 0; c < _shownCounts.Length; c++)    _shownCounts[c] = -1;
+        for (int c = 0; c < _shownDiamondKey.Length; c++) _shownDiamondKey[c] = -1;
+        _shownScore = _shownRateKey = _shownVsSelf = _shownVsOpp = -1;
 
         _shownSectorIdx = -1;
         for (int i = 0; i < _sectorDiamonds.Length; i++)
@@ -127,27 +151,49 @@ public class GameHud : MonoBehaviour
         var agg = _judgment.Aggregator;
         if (agg == null) return;
 
-        _ppCount.text = agg.Counts[(int)Judgment.PerfectPlus].ToString();
-        _pCount.text  = agg.Counts[(int)Judgment.Perfect].ToString();
-        _grCount.text = agg.Counts[(int)Judgment.Great].ToString();
-        _gdCount.text = agg.Counts[(int)Judgment.Good].ToString();
-        _mCount.text  = agg.Counts[(int)Judgment.Miss].ToString();
+        // 判定カウント: 各要素は変化時のみ再構築。
+        SetCount(_ppCount, 0, agg.Counts[(int)Judgment.PerfectPlus]);
+        SetCount(_pCount,  1, agg.Counts[(int)Judgment.Perfect]);
+        SetCount(_grCount, 2, agg.Counts[(int)Judgment.Great]);
+        SetCount(_gdCount, 3, agg.Counts[(int)Judgment.Good]);
+        SetCount(_mCount,  4, agg.Counts[(int)Judgment.Miss]);
 
         int score = agg.CurrentScore;
-        if (_scoreValue != null) _scoreValue.text = score.ToString("N0");
-        if (_scoreGauge != null) _scoreGauge.fillAmount = score / 1_000_000f;
+        if (score != _shownScore)
+        {
+            _shownScore = score;
+            if (_scoreValue != null) _scoreValue.text = score.ToString("N0");
+            if (_scoreGauge != null) _scoreGauge.fillAmount = score / 1_000_000f;
+        }
 
         // Overall RATE = accuracy = score / max-so-far. At song end == score/10000.
+        // score/max のどちらかが変わったときだけ再計算・再構築(小数第2位までの整数キーで比較)。
         if (_rateValue != null)
-            _rateValue.text = Rate(score, agg.CurrentMaxScore).ToString("F2") + "%";
+        {
+            float ratePct = Rate(score, agg.CurrentMaxScore);
+            int   rateKey = Mathf.RoundToInt(ratePct * 100f);
+            if (rateKey != _shownRateKey)
+            {
+                _shownRateKey = rateKey;
+                _rateValue.text = ratePct.ToString("F2") + "%";
+            }
+        }
 
         // PVP: VS バー。自分側=ライブスコア、相手側=WS opponent_progress 受信値 (M5 でライブ化)。
         if (_isPvp)
         {
-            if (_vsSelfScore != null) _vsSelfScore.text = score.ToString("N0");
+            if (_vsSelfScore != null && score != _shownVsSelf)
+            {
+                _shownVsSelf = score;
+                _vsSelfScore.text = score.ToString("N0");
+            }
             if (_oppLiveScore >= 0)
             {
-                if (_vsOppScore != null) _vsOppScore.text = _oppLiveScore.ToString("N0");
+                if (_vsOppScore != null && _oppLiveScore != _shownVsOpp)
+                {
+                    _shownVsOpp = _oppLiveScore;
+                    _vsOppScore.text = _oppLiveScore.ToString("N0");
+                }
                 SetLead(score, _oppLiveScore);
                 long sum = (long)score + _oppLiveScore;
                 SetVsSplit(sum > 0 ? (float)score / sum : 0.5f);
@@ -184,6 +230,10 @@ public class GameHud : MonoBehaviour
     void SetDiamond(int i, float ratePct, bool final)
     {
         if (i < 0 || i >= _sectorDiamonds.Length) return;
+        // 進行中セクターは毎フレーム呼ばれるため、表示率(×100 整数キー)が変わったときだけ再構築する。
+        int key = Mathf.RoundToInt(ratePct * 100f);
+        if (!final && _shownDiamondKey[i] == key) return;
+        _shownDiamondKey[i] = key;
         string rank = ScoreCalculator.ComputeRank(Mathf.RoundToInt(ratePct * 10000f));
         if (_sectorDiamonds[i] != null) _sectorDiamonds[i].color = RankColors.GetRankColor(rank);
         if (_sectorPercents[i] != null) _sectorPercents[i].text  = ratePct.ToString("F2") + "%";

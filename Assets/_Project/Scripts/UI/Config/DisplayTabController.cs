@@ -56,8 +56,10 @@ public class DisplayTabController : MonoBehaviour
 
         _vsyncToggle.onValueChanged.AddListener(OnVsyncChanged);
 
+        // 視点は 0°(flat) / 32°(steep) の2択(18° は廃止)。実際の俯角適用はプレイ開始時に
+        // StageInitializer.ApplyCameraAngle が行う(Config はゲームプレイ用カメラを持たないため保存のみ)。
         _cameraAngleDropdown.ClearOptions();
-        _cameraAngleDropdown.AddOptions(new List<string> { "0° (flat)", "18° (mild)", "32° (steep)" });
+        _cameraAngleDropdown.AddOptions(new List<string> { "0° (flat)", "32° (steep)" });
         _cameraAngleDropdown.onValueChanged.AddListener(idx =>
         {
             PlayerPrefs.SetInt("CameraAngleIdx", idx);
@@ -86,9 +88,10 @@ public class DisplayTabController : MonoBehaviour
     {
         _resolutionDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("ResolutionIdx", 0));
         _screenModeDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("ScreenModeIdx", 1));   // Borderless
-        _fpsLimitDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("FpsLimitIdx", 4));       // Unlimited
+        _fpsLimitDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("FpsLimitIdx", 2));       // 既定 144 (60/120/144/240/Unlimited)
         _vsyncToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("VSync", 0) == 1);
-        _cameraAngleDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("CameraAngleIdx", 2)); // 32°
+        // 旧 3択(0/18/32=idx 0..2)の保存値が残っていても 2択にクランプ(既定 1 = 32° steep)。
+        _cameraAngleDropdown.SetValueWithoutNotify(Mathf.Clamp(PlayerPrefs.GetInt("CameraAngleIdx", 1), 0, 1));
         _bloomLevelDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("BloomLevelIdx", 2));   // Medium
         _motionEffectsToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("MotionEffects", 1) == 1);
         _showFpsToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("ShowFps", 0) == 1);
@@ -190,7 +193,7 @@ public class DisplayTabController : MonoBehaviour
     {
         int resIdx  = PlayerPrefs.GetInt("ResolutionIdx",  0);
         int modeIdx = PlayerPrefs.GetInt("ScreenModeIdx",  1);
-        int fpsIdx  = PlayerPrefs.GetInt("FpsLimitIdx",    4);
+        int fpsIdx  = PlayerPrefs.GetInt("FpsLimitIdx",    2);   // 既定 144
         bool vsync  = PlayerPrefs.GetInt("VSync",          0) == 1;
         ApplyResolution(resIdx, modeIdx);
         ApplyFpsAndVSync(fpsIdx, vsync);
@@ -198,12 +201,18 @@ public class DisplayTabController : MonoBehaviour
     }
 
     // 各シーンの Volume はシーン毎に異なるため、ロード完了時に再適用する。
+    // FPS/VSync もシーン別 QualitySettings が vSyncCount を上書きし得るため毎ロード再適用し、
+    // 144 等の設定がプレイ/リザルト等の遷移後も確実に維持されるようにする。
     // RuntimeInitializeOnLoadMethod でアプリ起動時に一度だけハンドラを登録。
+    // ここでの適用は、BootstrapController を経由しない起動経路 (エディタでのサブシーン再生等) でも
+    // 目標フレームレートを効かせる保険にもなる。
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
     static void RegisterSceneLoadHook()
     {
+        ApplyFpsAndVSync(PlayerPrefs.GetInt("FpsLimitIdx", 2), PlayerPrefs.GetInt("VSync", 0) == 1);
         SceneManager.sceneLoaded += (scene, mode) =>
         {
+            ApplyFpsAndVSync(PlayerPrefs.GetInt("FpsLimitIdx", 2), PlayerPrefs.GetInt("VSync", 0) == 1);
             ApplyBloom(PlayerPrefs.GetInt("BloomLevelIdx", 2));
         };
     }

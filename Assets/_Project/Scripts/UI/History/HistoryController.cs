@@ -159,33 +159,49 @@ public class HistoryController : MonoBehaviour
         var repo = RepositoryService.Instance?.PlayRecords;
         if (repo == null) return;
 
-        // Solo: 全難易度のベスト記録を読み込む
+        // Solo: 全難易度のベスト記録を読み込む。ById 取得を1件ずつ直列 await していたのを
+        // バッチ並列化 (SQLiteAsyncConnection は内部で直列化されるため並列発行は安全)。順序は保持。
         _soloBests.Clear();
         var bests = await repo.GetAllBestsAsync();
-        foreach (var b in bests)
+        var bestIds = new List<string>();
+        foreach (var b in bests) if (!string.IsNullOrEmpty(b.BestPlayId)) bestIds.Add(b.BestPlayId);
+        const int Batch = 16;
+        for (int start = 0; start < bestIds.Count; start += Batch)
         {
-            if (string.IsNullOrEmpty(b.BestPlayId)) continue;
-            var rec = await repo.GetByIdAsync(b.BestPlayId);
-            if (rec != null) _soloBests.Add(rec);
+            int end = Math.Min(start + Batch, bestIds.Count);
+            var tasks = new Task<PlayRecord>[end - start];
+            for (int i = start; i < end; i++) tasks[i - start] = repo.GetByIdAsync(bestIds[i]);
+            var recs = await Task.WhenAll(tasks);
+            foreach (var rec in recs) if (rec != null) _soloBests.Add(rec);
         }
 
         // PVP: サーバー履歴(正本・端末跨ぎで残る)とローカル記録(リプレイ+セクター詳細)を統合
         await LoadPvpMatchesMergedAsync(repo);
 
-        // 曲名の事前解決 (検索/ソートを同期処理にするため)
+        // 曲名の事前解決 (検索/ソートを同期処理にするため)。meta 解決も直列→バッチ並列に。
         var ids = new HashSet<string>();
         foreach (var r in _soloBests) ids.Add(r.SongId);
         foreach (var m in _pvpMatches) if (m.SongIds != null) foreach (var s in m.SongIds) ids.Add(s);
-        foreach (var id in ids)
+        var idList = new List<string>();
+        foreach (var id in ids) if (!string.IsNullOrEmpty(id) && !_titles.ContainsKey(id)) idList.Add(id);
+        for (int start = 0; start < idList.Count; start += Batch)
         {
-            if (string.IsNullOrEmpty(id) || _titles.ContainsKey(id)) continue;
-            try
-            {
-                var meta = await ChartLoader.LoadMetaAsync(id);
-                _titles[id] = !string.IsNullOrEmpty(meta?.Title) ? meta.Title : id;
-            }
-            catch { _titles[id] = id; }
+            int end = Math.Min(start + Batch, idList.Count);
+            var tasks = new Task<(string id, string title)>[end - start];
+            for (int i = start; i < end; i++) tasks[i - start] = LoadTitleSafe(idList[i]);
+            var titles = await Task.WhenAll(tasks);
+            foreach (var (id, title) in titles) _titles[id] = title;
         }
+    }
+
+    static async Task<(string id, string title)> LoadTitleSafe(string id)
+    {
+        try
+        {
+            var meta = await ChartLoader.LoadMetaAsync(id);
+            return (id, !string.IsNullOrEmpty(meta?.Title) ? meta.Title : id);
+        }
+        catch { return (id, id); }
     }
 
     /// <summary>

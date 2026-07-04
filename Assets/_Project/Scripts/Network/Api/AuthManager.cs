@@ -28,16 +28,36 @@ namespace RhythmGame.Network.Api
         /// <summary>「オフラインで続行」中か (セッション限り・非永続)。ソロのみプレイ可。</summary>
         public static bool OfflineMode { get; set; }
 
-        public static string AccessToken  => PlayerPrefs.GetString(KeyAccess, "");
-        public static string RefreshToken => PlayerPrefs.GetString(KeyRefresh, "");
-        public static string UserId       => PlayerPrefs.GetString(KeyUserId, "");
-        public static string DisplayName  => PlayerPrefs.GetString(KeyName, "");
-        public static string Email        => PlayerPrefs.GetString(KeyEmail, "");
+        // ── メモリキャッシュ ─────────────────────────────────────────────────────
+        // AuthManager がトークン類の唯一の書き手なので、PlayerPrefs は起動時に一度だけ読み込み、
+        // 以後はメモリを正とする。EnsureValidAccessTokenAsync は認証付き API 呼び出しごとに
+        // AccessToken/ExpiresAt を参照するため、都度の PlayerPrefs.GetString を排除する。
+        static bool   _loaded;
+        static string _access, _refresh, _userId, _name, _email;
+        static long   _expiresAt;
+
+        static void EnsureLoaded()
+        {
+            if (_loaded) return;
+            _access    = PlayerPrefs.GetString(KeyAccess, "");
+            _refresh   = PlayerPrefs.GetString(KeyRefresh, "");
+            _userId    = PlayerPrefs.GetString(KeyUserId, "");
+            _name      = PlayerPrefs.GetString(KeyName, "");
+            _email     = PlayerPrefs.GetString(KeyEmail, "");
+            _expiresAt = long.TryParse(PlayerPrefs.GetString(KeyExpiresAt, "0"), out var v) ? v : 0;
+            _loaded    = true;
+        }
+
+        public static string AccessToken  { get { EnsureLoaded(); return _access;  } }
+        public static string RefreshToken { get { EnsureLoaded(); return _refresh; } }
+        public static string UserId       { get { EnsureLoaded(); return _userId;  } }
+        public static string DisplayName  { get { EnsureLoaded(); return _name;    } }
+        public static string Email        { get { EnsureLoaded(); return _email;   } }
 
         static long ExpiresAtUnixMs
         {
-            get => long.TryParse(PlayerPrefs.GetString(KeyExpiresAt, "0"), out var v) ? v : 0;
-            set { PlayerPrefs.SetString(KeyExpiresAt, value.ToString()); }
+            get { EnsureLoaded(); return _expiresAt; }
+            set { _expiresAt = value; _loaded = true; PlayerPrefs.SetString(KeyExpiresAt, value.ToString()); }
         }
 
         /// <summary>保存済みセッション (リフレッシュトークン) があるか。起動時の自動ログイン判定に使う。</summary>
@@ -137,9 +157,13 @@ namespace RhythmGame.Network.Api
 
         static void StoreSession(AuthResponseDto data, string emailFallback)
         {
-            PlayerPrefs.SetString(KeyUserId, data.UserId ?? "");
-            PlayerPrefs.SetString(KeyName,   data.DisplayName ?? "");
-            PlayerPrefs.SetString(KeyEmail,  string.IsNullOrEmpty(data.Email) ? (emailFallback ?? "") : data.Email);
+            _userId = data.UserId ?? "";
+            _name   = data.DisplayName ?? "";
+            _email  = string.IsNullOrEmpty(data.Email) ? (emailFallback ?? "") : data.Email;
+            _loaded = true;
+            PlayerPrefs.SetString(KeyUserId, _userId);
+            PlayerPrefs.SetString(KeyName,   _name);
+            PlayerPrefs.SetString(KeyEmail,  _email);
             StoreTokens(data.AccessToken, data.RefreshToken, data.ExpiresIn);
             OfflineMode = false;
             Debug.Log($"[AuthManager] session stored user={data.UserId}");
@@ -147,8 +171,11 @@ namespace RhythmGame.Network.Api
 
         static void StoreTokens(string access, string refresh, int expiresInSec)
         {
-            PlayerPrefs.SetString(KeyAccess,  access ?? "");
-            PlayerPrefs.SetString(KeyRefresh, refresh ?? "");
+            _access  = access ?? "";
+            _refresh = refresh ?? "";
+            _loaded  = true;
+            PlayerPrefs.SetString(KeyAccess,  _access);
+            PlayerPrefs.SetString(KeyRefresh, _refresh);
             ExpiresAtUnixMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + (long)expiresInSec * 1000L;
             PlayerPrefs.Save();
         }
@@ -156,6 +183,9 @@ namespace RhythmGame.Network.Api
         /// <summary>ローカルセッションを破棄する。</summary>
         public static void ClearSession()
         {
+            _access = _refresh = _userId = _name = _email = "";
+            _expiresAt = 0;
+            _loaded = true;
             PlayerPrefs.DeleteKey(KeyAccess);
             PlayerPrefs.DeleteKey(KeyRefresh);
             PlayerPrefs.DeleteKey(KeyUserId);

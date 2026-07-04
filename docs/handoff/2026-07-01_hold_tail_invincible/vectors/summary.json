@@ -1,0 +1,71 @@
+[
+  {
+    "case_name": "real_castella_song1_001_extra",
+    "total_notes": 17,
+    "baseline_2026_06_13": {
+      "score": 557941,
+      "perfect_plus_count": 4,
+      "perfect_count": 1,
+      "great_count": 3,
+      "good_count": 2,
+      "miss_count": 7,
+      "max_combo": 3
+    },
+    "new_2026_07_01": {
+      "score": 499117,
+      "perfect_plus_count": 3,
+      "perfect_count": 1,
+      "great_count": 3,
+      "good_count": 2,
+      "miss_count": 8,
+      "max_combo": 3
+    },
+    "sector_sum_equals_score": true
+  },
+  {
+    "case_name": "real_castella_song2_003_extra",
+    "total_notes": 15,
+    "baseline_2026_06_13": {
+      "score": 999000,
+      "perfect_plus_count": 9,
+      "perfect_count": 3,
+      "great_count": 3,
+      "good_count": 0,
+      "miss_count": 0,
+      "max_combo": 15
+    },
+    "new_2026_07_01": {
+      "score": 999000,
+      "perfect_plus_count": 9,
+      "perfect_count": 3,
+      "great_count": 3,
+      "good_count": 0,
+      "miss_count": 0,
+      "max_combo": 15
+    },
+    "sector_sum_equals_score": true
+  },
+  {
+    "case_name": "real_castella_song3_003_extra",
+    "total_notes": 15,
+    "baseline_2026_06_13": {
+      "score": 915333,
+      "perfect_plus_count": 6,
+      "perfect_count": 3,
+      "great_count": 4,
+      "good_count": 1,
+      "miss_count": 1,
+      "max_combo": 9
+    },
+    "new_2026_07_01": {
+      "score": 982000,
+      "perfect_plus_count": 7,
+      "perfect_count": 3,
+      "great_count": 4,
+      "good_count": 1,
+      "miss_count": 0,
+      "max_combo": 15
+    },
+    "sector_sum_equals_score": true
+  }
+]

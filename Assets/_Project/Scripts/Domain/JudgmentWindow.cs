@@ -21,6 +21,33 @@ public static class JudgmentWindow
     /// <summary>Good 判定の許容タイミング差(±ms)。これを超えると Miss。6 フレーム = 1000/60×6 = 100.0。</summary>
     public const double GoodMs     = FrameMs * 6;
 
+    // ── ワイドプロファイル (PLAY OPTIONS「判定幅」= WIDE) ──────────────────────
+    // Good/Miss 境界は標準と同じ 100ms (GoodMs = FrameMs*6 = 100.0) のため、
+    // ノーツ寿命・オートミス・コンボ/ミス数は両プロファイルで完全に一致する。
+    // 変わるのは P+/P/Great の内側等級のみ(= スコア配分のみ)。
+    // サーバー(Go)は標準プロファイルのみ実装のため、PVP では WideActive を常に false にすること。
+
+    /// <summary>ワイド時の PerfectPlus 許容差(±ms)。</summary>
+    public const double WidePerfectPlusMs = 25.0;
+    /// <summary>ワイド時の Perfect 許容差(±ms)。</summary>
+    public const double WidePerfectMs     = 50.0;
+    /// <summary>ワイド時の Great 許容差(±ms)。Good は標準と同じ GoodMs (100.0)。</summary>
+    public const double WideGreatMs       = 75.0;
+
+    /// <summary>ワイド判定でプレイしたことをリプレイ/プレイ記録の Modifiers に残すタグ。</summary>
+    public const string WideModifierTag = "JudgeWide";
+
+    /// <summary>ワイドプロファイルが有効か。GamePlayController / ReplayPlaybackController が
+    /// セッション開始時に毎回明示的に設定する(PVP・テストは常に false = 標準)。</summary>
+    public static bool WideActive { get; set; }
+
+    /// <summary>現在有効な PerfectPlus 許容差(±ms)。</summary>
+    public static double ActivePerfectPlusMs => WideActive ? WidePerfectPlusMs : PerfectPlusMs;
+    /// <summary>現在有効な Perfect 許容差(±ms)。</summary>
+    public static double ActivePerfectMs     => WideActive ? WidePerfectMs     : PerfectMs;
+    /// <summary>現在有効な Great 許容差(±ms)。</summary>
+    public static double ActiveGreatMs       => WideActive ? WideGreatMs       : GreatMs;
+
     /// <summary>
     /// Returns the judgment for a given timing delta.
     /// deltaMs = inputTimeMs - noteTimeMs  (positive = late, negative = early)
@@ -28,10 +55,10 @@ public static class JudgmentWindow
     public static Judgment FromDeltaMs(double deltaMs)
     {
         double abs = Math.Abs(deltaMs);
-        if (abs <= PerfectPlusMs) return Judgment.PerfectPlus;
-        if (abs <= PerfectMs)     return Judgment.Perfect;
-        if (abs <= GreatMs)       return Judgment.Great;
-        if (abs <= GoodMs)        return Judgment.Good;
+        if (abs <= ActivePerfectPlusMs) return Judgment.PerfectPlus;
+        if (abs <= ActivePerfectMs)     return Judgment.Perfect;
+        if (abs <= ActiveGreatMs)       return Judgment.Great;
+        if (abs <= GoodMs)              return Judgment.Good;
         return Judgment.Miss;
     }
 }

@@ -1,0 +1,47 @@
+{
+  "case_name": "short_hold_head_miss",
+  "note": "短ホールドで支点MISS(無入力): 頭のオートミスで放棄。尾は解決せず(miss=1のみ)",
+  "chart_hash": "b1b4ab78817c161009439ce68671cb36444305727c68dc60ebdf02bcf540a6bc",
+  "total_notes": 2,
+  "x_micro": 500000000000,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 1000.0,
+        "duration_ms": 200.0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "replay_base64": "H4sIAAAAAAAACjP0CQhiZMAEIsUZ+UUl8Rn5OSnxGamJKfG5mcXFzBu3rK5orBET4HSe86yt8LSZizNrUU3GnYTX95n2fHVYtoch4+n5bkYGhoRXIDM+OEEN4zIyMDLTNTDXNTCEme+CxU50dzBBacfQl2EAHN9EIagAAAA=",
+  "input_events": [],
+  "expected": {
+    "score": 0,
+    "score_micro": 0,
+    "rank": "D",
+    "perfect_plus_count": 0,
+    "perfect_count": 0,
+    "great_count": 0,
+    "good_count": 0,
+    "miss_count": 1,
+    "max_combo": 0,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      0,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

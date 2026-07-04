@@ -1,0 +1,58 @@
+{
+  "case_name": "tail_release_rescue",
+  "note": "無敵ゾーンで離上: 最終tick@2750と尾@3000が直前の実tick(P+)を複製=救済。旧仕様なら尾Miss。全P+",
+  "chart_hash": "3dedcbe71e633b04447e2b347598cdae1c8c31fa5836e21fe63dd88edce5ded8",
+  "total_notes": 9,
+  "x_micro": 111111111112,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 1000.0,
+        "duration_ms": 2000.0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "replay_base64": "H4sIAAAAAAAACjP0CQhiZMAEwiWJmTnxRak5qYnFqfFFqcXJpanMtm9PP5dLtmZxqdM2KZ1xdp1Mj+GvCLNH8s9sb/TdeXrvBkPG0/PdjAwMCa9ARnxwgprFZWRgZKZrYK5rYOjgxM8AwsHaDAycWKxFFgOxmRgYGC7wMzA0SDIwHpj0JQQAHN9EIa8AAAA=",
+  "input_events": [
+    {
+      "delta_ms": 1000,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 1600,
+      "lane": 0,
+      "action": 1
+    }
+  ],
+  "expected": {
+    "score": 1000000,
+    "score_micro": 1000000000008,
+    "rank": "S+",
+    "perfect_plus_count": 9,
+    "perfect_count": 0,
+    "great_count": 0,
+    "good_count": 0,
+    "miss_count": 0,
+    "max_combo": 9,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      1000000,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

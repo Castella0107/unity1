@@ -33,6 +33,10 @@ public static class StageInitializer
         scroller?.SetScrollSpeed(ResolveHiSpeed(hiSpeed));
         hud?.Initialize(meta, chart, isPvP: false);
 
+        // カメラ視点(0°=フラット/32°=傾斜)をプレイ用カメラへ適用(ライブ/リプレイ共通)。
+        // メニュー等のカメラは触らず、ゲームプレイの Camera.main のみ対象。
+        ApplyCameraAngle(Camera.main, PlayerPrefs.GetInt("CameraAngleIdx", DefaultCameraAngleIdx));
+
         EnsureBeatLines(conductor, chart, scroller);
 
         // レーン(背景・帯・区切り線)の明るさを PLAY OPTIONS の設定値で減光。ノーツ・拍線は対象外。
@@ -64,6 +68,46 @@ public static class StageInitializer
     /// <summary>HiSpeed を解決する。未指定(0以下)なら PlayerPrefs の保存値(既定4.5)。</summary>
     public static float ResolveHiSpeed(float hiSpeed)
         => hiSpeed > 0.01f ? hiSpeed : PlayerPrefs.GetFloat("HiSpeed", 4.5f);
+
+    // ── カメラ視点(2D/3D プリセット) ──────────────────────────────────────────
+    // ノーツは床面(y=0)を +Z→手前へ流れる薄板。判定ライン付近の注視点 FocusZ とカメラ距離 Distance を
+    // 固定し、俯角(pitch)から絶対ポーズを算出する(冪等)。視点の本質的な差は「投影方式」:
+    //   index 0 = "0° (flat)"  : 正射影(オルソ)。遠近の広がりが消え、レーン幅一定・平行の完全2D。
+    //   index 1 = "32° (steep)": 透視投影。奥に収束する3Dハイウェイ(現行の授権カメラと一致)。
+    // ※俯角は両者とも 40°(=現行授権値)で揃え、見え方の違いは投影方式だけにしている。
+    //   これによりノーツ描画は現行と同一のまま、flat では遠近の広がりだけが消える。
+    //   FocusZ=2.84 / Distance=6.86 / pitch=40° / Fov=70 は既存 GamePlay シーンのカメラ授権値。
+    //   OrthoSize(flat の正射影の半縦幅)は見た目のズームで、暫定値。近い/遠いと感じたら調整。
+    static readonly float[] CameraPitchDeg     = { 40f, 40f };
+    static readonly bool[]  CameraOrthographic = { true, false };
+    static readonly float[] CameraOrthoSize    = { 5.5f, 5f };
+    const float             CameraFocusZ       = 2.84f;
+    const float             CameraDistance     = 6.86f;
+    const float             CameraFov          = 70f;
+    /// <summary>カメラ視点設定の既定インデックス(1 = 32° steep = 従来の3D表示)。</summary>
+    public const int        DefaultCameraAngleIdx = 1;
+
+    /// <summary>
+    /// プレイ用カメラの視点を設定インデックスに合わせて絶対値で設定する(冪等)。
+    /// flat=正射影(完全2D)/steep=透視投影(3D)。範囲外(旧 18°/32° の idx=2 等)は末尾(steep)にクランプ。
+    /// cam が null なら何もしない。
+    /// </summary>
+    public static void ApplyCameraAngle(Camera cam, int idx)
+    {
+        if (cam == null) return;
+        if (idx < 0 || idx >= CameraPitchDeg.Length) idx = CameraPitchDeg.Length - 1;
+
+        float pitch = CameraPitchDeg[idx];
+        float r     = pitch * Mathf.Deg2Rad;
+        var   focus = new Vector3(0f, 0f, CameraFocusZ);
+        cam.transform.position = focus + new Vector3(0f, CameraDistance * Mathf.Sin(r), -CameraDistance * Mathf.Cos(r));
+        cam.transform.rotation = Quaternion.Euler(pitch, 0f, 0f);
+
+        // 投影方式で 2D/3D を切替。flat=正射影は遠近の広がりが消え、レーン幅が距離によらず一定・平行になる。
+        cam.orthographic = CameraOrthographic[idx];
+        if (cam.orthographic) cam.orthographicSize = CameraOrthoSize[idx];
+        else                  cam.fieldOfView      = CameraFov;
+    }
 
     /// <summary>セッション終了時にステージビジュアルのバインドを解除する。</summary>
     public static void UnbindStageVisuals()

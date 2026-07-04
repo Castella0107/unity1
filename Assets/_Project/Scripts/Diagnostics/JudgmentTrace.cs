@@ -74,7 +74,7 @@ public static class JudgmentTrace
                 // このオフセットはクライアントが JudgmentTimeMs に焼き込み済み → リプレイにも入っているので
                 // client/server で一致するはず。ズレていたら焼き込み経路を疑う。
                 _writer.WriteLine($"# appJudgmentOffsetMs={appJudgmentOffsetMs} perSongJudgmentOffsetMs={perSongJudgmentOffsetMs}");
-                _writer.WriteLine($"# windows(ms) P+={JudgmentWindow.PerfectPlusMs} P={JudgmentWindow.PerfectMs} G={JudgmentWindow.GreatMs} Good={JudgmentWindow.GoodMs} (boundary inclusive: abs<=window)");
+                _writer.WriteLine($"# windows(ms) P+={JudgmentWindow.ActivePerfectPlusMs} P={JudgmentWindow.ActivePerfectMs} G={JudgmentWindow.ActiveGreatMs} Good={JudgmentWindow.GoodMs} wide={JudgmentWindow.WideActive} (boundary inclusive: abs<=window)");
                 _writer.WriteLine("# columns: TAG seq=.. ..");
                 _writer.WriteLine("# TAG=INPUT  → one lane down/up event (rawMs = pre-round time, roundedMs = what the engine actually receives)");
                 _writer.WriteLine("# TAG=JUDGE  → one resolved judgment (deltaMs/abs only meaningful for hits; auto-miss has delta=0)");

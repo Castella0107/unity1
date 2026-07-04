@@ -21,8 +21,13 @@ public class JudgmentEffectsController : MonoBehaviour
     double  _lastJudgmentSoundMs = -1000.0;
     const double MIN_SOUND_INTERVAL_MS = 32.0;  // prevents Hold-tick spam
 
+    // 判定エフェクトスタイルは別シーンの PLAY OPTIONS でのみ変わるためプレイ中は不変。
+    // 判定毎の PlayerPrefs.GetInt を避け、セッション開始時に一度だけ読んでキャッシュする。
+    float _particleMul = 1f;
+
     void OnEnable()
     {
+        _particleMul = JudgmentEffectStyleHelper.GetParticleMultiplier(JudgmentEffectStyleHelper.GetSaved());
         if (_judgmentSystem != null)
             _judgmentSystem.OnJudged += HandleJudged;
     }
@@ -53,8 +58,7 @@ public class JudgmentEffectsController : MonoBehaviour
         // Particles — only when a lane was registered
         if (_particlePool != null && _hasLane)
         {
-            var style    = JudgmentEffectStyleHelper.GetSaved();
-            float mul    = JudgmentEffectStyleHelper.GetParticleMultiplier(style);
+            float mul    = _particleMul;
             if (j == Judgment.Miss) mul *= 0.5f;
 
             var pos = new Vector3(LaneLayout.GetX(_pendingLane), 0.1f, LaneLayout.JudgmentLineZ);

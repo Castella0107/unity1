@@ -188,11 +188,12 @@ public class JudgmentEngineTests
     }
 
     [Test]
-    public void Offset100ms_GivesMiss()
+    public void Offset101ms_GivesMiss()
     {
+        // |101| > 100 (GoodMs) → outside Good window → not matched → auto-miss
         var chart = new ChartBuilder().WithBpm(120).AddTap(LaneRef.Lane0, 1000).Build();
 
-        var snap = RunToEnd(chart, ReplayBuilder.AllWithOffset(chart, 100));
+        var snap = RunToEnd(chart, ReplayBuilder.AllWithOffset(chart, 101));
 
         Assert.AreEqual(1, snap.MissCount);
     }

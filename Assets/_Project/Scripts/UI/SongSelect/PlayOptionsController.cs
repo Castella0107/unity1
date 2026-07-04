@@ -20,7 +20,7 @@ public class PlayOptionsController : MonoBehaviour
     [SerializeField] GameObject _window;
     [SerializeField] Button     _closeButton;
 
-    [Header("Rows (6項目: 速度/配置/タップ音/判定音/FAST-SLOW/判定エフェクト)")]
+    [Header("Rows (9項目: 速度/配置/タップ音/判定音/FAST-SLOW/判定エフェクト/明るさ/オート/判定幅)")]
     [SerializeField] Image[]           _rowBgs;
     [SerializeField] Button[]          _rowButtons;
     [SerializeField] TextMeshProUGUI[] _valueTexts;
@@ -37,18 +37,17 @@ public class PlayOptionsController : MonoBehaviour
     /// <summary>ノーツ配置モディファイアの選択肢 (GamePlayParameters.Modifier に渡す表記)。</summary>
     public static readonly string[] ModifierNames = { "None", "Mirror", "Random" };
 
-    /// <summary>ノーツスピード (0.5〜20、PlayerPrefs "HiSpeed")。</summary>
+    /// <summary>ノーツスピード (0.5〜20、PlayerPrefs "HiSpeed")。
+    /// [ ] キー連打で頻繁に変わるため setter はメモリ(SetFloat)のみ更新し、ディスクフラッシュ(Save)は
+    /// ポップアップ閉/シーン離脱でまとめて行う (<see cref="Flush"/>)。</summary>
     public static float HiSpeed
     {
         get => PlayerPrefs.GetFloat("HiSpeed", 4.5f);
-        set
-        {
-            PlayerPrefs.SetFloat("HiSpeed", Mathf.Clamp(value, 0.5f, 20f));
-            PlayerPrefs.Save();
-        }
+        set => PlayerPrefs.SetFloat("HiSpeed", Mathf.Clamp(value, 0.5f, 20f));
     }
 
-    /// <summary>ノーツ配置インデックス (0=None/1=Mirror/2=Random、PlayerPrefs "ModifierIdx")。</summary>
+    /// <summary>ノーツ配置インデックス (0=None/1=Mirror/2=Random、PlayerPrefs "ModifierIdx")。
+    /// M キー連打で頻繁に変わるため setter はメモリのみ更新し、Save は <see cref="Flush"/> に集約。</summary>
     public static int ModifierIdx
     {
         get => Mathf.Clamp(PlayerPrefs.GetInt("ModifierIdx", 0), 0, ModifierNames.Length - 1);
@@ -56,9 +55,11 @@ public class PlayOptionsController : MonoBehaviour
         {
             int n = ModifierNames.Length;
             PlayerPrefs.SetInt("ModifierIdx", (value % n + n) % n);
-            PlayerPrefs.Save();
         }
     }
+
+    /// <summary>連打で溜めた設定変更をディスクへ書き出す。ポップアップ閉/シーン離脱の commit ポイントで呼ぶ。</summary>
+    public static void Flush() => PlayerPrefs.Save();
 
     /// <summary>現在のノーツ配置名 ("None"/"Mirror"/"Random")。</summary>
     public static string ModifierName => ModifierNames[ModifierIdx];
@@ -70,6 +71,14 @@ public class PlayOptionsController : MonoBehaviour
         set { PlayerPrefs.SetInt("AutoPlay", value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
+    /// <summary>判定幅ワイド (P+±25 / P±50 / GREAT±75 / GOOD±100ms) が有効か (PlayerPrefs "JudgeWide")。
+    /// ソロプレイのみ適用され、PVP は常に標準判定 (GamePlayController が強制)。</summary>
+    public static bool JudgeWide
+    {
+        get => PlayerPrefs.GetInt("JudgeWide", 0) == 1;
+        set { PlayerPrefs.SetInt("JudgeWide", value ? 1 : 0); PlayerPrefs.Save(); }
+    }
+
     static PlayOptionsController _instance;
     int _closeFrame  = -1;
     int _openedFrame = -1;
@@ -78,7 +87,7 @@ public class PlayOptionsController : MonoBehaviour
     static readonly Color RowIdle     = new Color(1f, 1f, 1f, 0.06f);
     static readonly Color RowSelected = new Color(0.42f, 0.32f, 0.85f, 0.45f);
 
-    const int RowCount = 8;
+    const int RowCount = 9;
 
     static readonly string[] GuideTexts =
     {
@@ -90,6 +99,7 @@ public class PlayOptionsController : MonoBehaviour
         "判定エフェクトの強さを変更します。",
         "レーン(背景)の明るさを変更します。\n0=真っ黒 〜 10=通常。ノーツの見やすさ調整に。",
         "オートプレイ: 譜面どおりに自動で完璧に演奏します。\nデモ・観賞用でスコアは履歴に残りません。",
+        "判定幅を変更します。\nWIDE: P+±25 / PERFECT±50 / GREAT±75 / GOOD±100ms\n※ソロのみ。PVPでは常に標準判定になります。",
     };
 
     /// <summary>ポップアップ表示中か。閉じたフレームも true (閉じ入力の同フレーム再拾い防止)。</summary>
@@ -114,6 +124,7 @@ public class PlayOptionsController : MonoBehaviour
 
     void OnDestroy()
     {
+        Flush();   // シーン離脱時に未保存の設定変更を確実に書き出す
         if (_instance == this) _instance = null;
     }
 
@@ -147,6 +158,7 @@ public class PlayOptionsController : MonoBehaviour
         if (_window == null) return;
         _window.SetActive(false);
         _closeFrame = Time.frameCount;
+        Flush();   // 連打で溜めた HiSpeed/Modifier 変更をここでまとめてディスク保存
     }
 
     void Update()
@@ -228,6 +240,9 @@ public class PlayOptionsController : MonoBehaviour
             case 7:   // オートプレイ ON/OFF
                 AutoPlay = !AutoPlay;
                 break;
+            case 8:   // 判定幅 標準/ワイド
+                JudgeWide = !JudgeWide;
+                break;
         }
         RefreshAllValues();
     }
@@ -248,5 +263,6 @@ public class PlayOptionsController : MonoBehaviour
         Set(5, new[] { "SUBTLE", "NORMAL", "BOLD" }[Mathf.Clamp(PlayerPrefs.GetInt("JudgmentEffectStyleIdx", 1), 0, 2)]);
         Set(6, LaneBrightness.Level.ToString());
         Set(7, AutoPlay ? "ON" : "OFF");
+        Set(8, JudgeWide ? "WIDE" : "NORMAL");
     }
 }

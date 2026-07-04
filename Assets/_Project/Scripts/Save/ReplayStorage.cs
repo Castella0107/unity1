@@ -95,4 +95,17 @@ public class ReplayStorage
             total += new FileInfo(f).Length;
         return total;
     }
+
+    /// <summary>リプレイの総数と合計バイト数を1回の走査で同時に返す (Count と Size の二重走査を回避)。</summary>
+    public (int count, long size) GetCountAndSize()
+    {
+        if (!Directory.Exists(_root)) return (0, 0);
+        int count = 0; long total = 0;
+        foreach (string f in Directory.GetFiles(_root, "*.replay", SearchOption.AllDirectories))
+        {
+            count++;
+            total += new FileInfo(f).Length;
+        }
+        return (count, total);
+    }
 }

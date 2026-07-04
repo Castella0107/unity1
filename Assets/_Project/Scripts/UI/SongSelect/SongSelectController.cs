@@ -71,6 +71,12 @@ public class SongSelectController : MonoBehaviour
     static readonly string[] DiffNames = { "easy", "normal", "hard", "extra" };
     static readonly string[] DiffShort = { "EZ", "NM", "HD", "EX" };
 
+    // ジャケットは LRU+破棄付きの JacketLoader を流用 (毎回 DL & Texture2D リークを防ぐ)。
+    readonly JacketLoader _jacketLoader = new JacketLoader();
+    // 難易度別 Level は曲を選ぶたびに譜面JSONを全パースしていた。表示に使うのは int 1個だけなので
+    // (songId|difficulty)→Level をセッション内キャッシュし、再選択時の再パースを避ける。
+    readonly Dictionary<string, int> _levelCache = new Dictionary<string, int>();
+
     /// <summary>リスト並び替えモード。</summary>
     enum SortMode { TitleAsc = 0, TitleDesc = 1, BpmAsc = 2, BpmDesc = 3 }
     static readonly string[] SortLabels =
@@ -116,6 +122,14 @@ public class SongSelectController : MonoBehaviour
         _navigateAction.performed -= OnNavigate;
         _submitAction.performed   -= OnSubmit;
         _cancelAction.performed   -= OnCancel;
+        // [ ] / M 連打で溜めた HiSpeed/Modifier 変更をシーン離脱時にまとめて保存 (B-9)。
+        PlayOptionsController.Flush();
+    }
+
+    void OnDestroy()
+    {
+        // JacketLoader が保持するテクスチャを破棄 (シーン離脱時の VRAM 解放)。
+        _jacketLoader.ClearCache();
     }
 
     void Update()
@@ -264,17 +278,29 @@ public class SongSelectController : MonoBehaviour
         var songsRoot = Path.Combine(Application.streamingAssetsPath, "Songs");
         if (!Directory.Exists(songsRoot)) return;
 
+        // meta を1曲ずつ直列 await していたのを、同時数を絞ったバッチ並列に (起動待ちが曲数比例で伸びていた)。
+        // 最終的に ApplySort で並べ替えるため取得順は不問。
+        var dirs = Directory.GetDirectories(songsRoot);
         _songs.Clear();
-        foreach (var dir in Directory.GetDirectories(songsRoot))
+        const int Batch = 16;
+        for (int start = 0; start < dirs.Length; start += Batch)
         {
-            var songId = Path.GetFileName(dir);
-            try   { _songs.Add(await ChartLoader.LoadMetaAsync(songId)); }
-            catch (System.Exception e)
-                  { Debug.LogWarning($"[SongSelect] Skip {songId}: {e.Message}"); }
+            int end = Mathf.Min(start + Batch, dirs.Length);
+            var tasks = new Task<SongMetadata>[end - start];
+            for (int i = start; i < end; i++)
+                tasks[i - start] = TryLoadMeta(Path.GetFileName(dirs[i]));
+            var metas = await Task.WhenAll(tasks);
+            foreach (var m in metas) if (m != null) _songs.Add(m);
         }
 
         ApplySort();
         RebuildSongViews();
+    }
+
+    static async Task<SongMetadata> TryLoadMeta(string songId)
+    {
+        try { return await ChartLoader.LoadMetaAsync(songId); }
+        catch (System.Exception e) { Debug.LogWarning($"[SongSelect] Skip {songId}: {e.Message}"); return null; }
     }
 
     void RebuildSongViews()
@@ -373,7 +399,7 @@ public class SongSelectController : MonoBehaviour
         ResetBestStats();
 
         JacketBackgroundController.Instance?.SetJacket(m.SongId);
-        StartCoroutine(LoadJacket(m.SongId, m.JacketFile));
+        StartCoroutine(LoadJacket(m.SongId, captured));
         StartCoroutine(LoadDifficultyLevels(m.SongId, captured));
 
         await LoadBestAsync(m.SongId, captured);
@@ -533,32 +559,30 @@ public class SongSelectController : MonoBehaviour
 
     // ── Async loaders ────────────────────────────────────────────────────────
 
-    IEnumerator LoadJacket(string songId, string jacketFile)
+    IEnumerator LoadJacket(string songId, int captured)
     {
-        var fileName = string.IsNullOrEmpty(jacketFile) ? "jacket.png" : jacketFile;
-        var path     = Path.Combine(Application.streamingAssetsPath, "Songs", songId, fileName)
-                           .Replace("\\", "/");
-        var url = (path.StartsWith("jar:") || path.StartsWith("http"))
-            ? path : "file:///" + path.TrimStart('/');
-
-        using var req = UnityWebRequestTexture.GetTexture(url);
-        yield return req.SendWebRequest();
-
-        _jacketImage.texture = req.result == UnityWebRequest.Result.Success
-            ? ((DownloadHandlerTexture)req.downloadHandler).texture
-            : null;
+        // LRU キャッシュ + 旧テクスチャ破棄は JacketLoader が担う。再選択時はキャッシュ即返しでDLなし。
+        var task = _jacketLoader.LoadAsync(songId);
+        while (!task.IsCompleted) yield return null;
+        if (_selectedIndex != captured || _jacketImage == null) yield break;   // 選択が変わっていたら破棄
+        _jacketImage.texture = (!task.IsFaulted) ? task.Result : null;
     }
 
     IEnumerator LoadDifficultyLevels(string songId, int captured)
     {
         for (int i = 0; i < 4; i++)
         {
-            var task = ChartLoader.LoadChartAsync(songId, DiffNames[i]);
-            while (!task.IsCompleted) yield return null;
-            if (_selectedIndex != captured) yield break;
-
-            int lvl = (task.IsCompleted && !task.IsFaulted && task.Result != null)
-                ? task.Result.Level : -1;
+            string key = songId + "|" + DiffNames[i];
+            if (!_levelCache.TryGetValue(key, out int lvl))
+            {
+                // キャッシュミス時のみ譜面を読む。Level(int) 1個の取得のための全パースはここに限定される。
+                var task = ChartLoader.LoadChartAsync(songId, DiffNames[i]);
+                while (!task.IsCompleted) yield return null;
+                if (_selectedIndex != captured) yield break;
+                lvl = (!task.IsFaulted && task.Result != null) ? task.Result.Level : -1;
+                _levelCache[key] = lvl;
+            }
+            else if (_selectedIndex != captured) yield break;
 
             if (_diffLevelTexts != null && i < _diffLevelTexts.Length)
                 _diffLevelTexts[i].text = $"{DiffShort[i]} {(lvl >= 0 ? lvl.ToString() : "-")}";

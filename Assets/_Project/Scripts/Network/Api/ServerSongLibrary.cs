@@ -120,27 +120,54 @@ namespace RhythmGame.Network.Api
                 var index = new IndexFile();
                 int okCharts = 0, ngCharts = 0;
 
-                foreach (var song in songList)
+                // 同時実行数の上限 (サーバー負荷とソケット枯渇を避けつつ直列 N 往復を排除)。
+                const int Batch = 8;
+
+                // 1. 全曲の詳細を並列取得 (旧: 曲ごとに直列 await で 200 往復が順番待ち)。
+                var details = new SongDetailDto[songList.Count];
+                for (int start = 0; start < songList.Count; start += Batch)
                 {
+                    int end = System.Math.Min(start + Batch, songList.Count);
+                    var tasks = new Task<ApiResult<SongDetailDto>>[end - start];
+                    for (int i = start; i < end; i++)
+                        tasks[i - start] = ApiClient.GetAsync<SongDetailDto>($"/songs/{songList[i].SongId}");
+                    var results = await Task.WhenAll(tasks);
+                    for (int i = start; i < end; i++)
+                    {
+                        var detail = results[i - start];
+                        if (detail.Ok && detail.Data?.Charts != null) details[i] = detail.Data;
+                        else Debug.LogWarning($"[ServerSongLibrary] {songList[i].SongId} 詳細取得失敗 ({detail.ErrorCode})");
+                    }
+                }
+
+                // 2. 曲登録 + 譜面ジョブ収集 (共有 Dictionary/List への書込はメインスレッド逐次で安全)。
+                var chartJobs = new List<(string songId, ChartInfoDto info)>();
+                for (int i = 0; i < songList.Count; i++)
+                {
+                    var song = songList[i];
                     _songs[song.SongId] = song;
                     index.Songs.Add(song);
+                    if (details[i]?.Charts == null) continue;
+                    foreach (var info in details[i].Charts) chartJobs.Add((song.SongId, info));
+                }
 
-                    var detail = await ApiClient.GetAsync<SongDetailDto>($"/songs/{song.SongId}");
-                    if (!detail.Ok || detail.Data?.Charts == null)
+                // 3. 譜面を並列でキャッシュ確保 (DL 同時 + hash/disk は EnsureChartCachedAsync 内で Task.Run)。
+                for (int start = 0; start < chartJobs.Count; start += Batch)
+                {
+                    int end = System.Math.Min(start + Batch, chartJobs.Count);
+                    var tasks = new Task<bool>[end - start];
+                    for (int i = start; i < end; i++)
+                        tasks[i - start] = EnsureChartCachedAsync(chartJobs[i].songId, chartJobs[i].info);
+                    var results = await Task.WhenAll(tasks);
+                    for (int i = start; i < end; i++)
                     {
-                        Debug.LogWarning($"[ServerSongLibrary] {song.SongId} 詳細取得失敗 ({detail.ErrorCode})");
-                        continue;
-                    }
-
-                    foreach (var info in detail.Data.Charts)
-                    {
-                        bool ok = await EnsureChartCachedAsync(song.SongId, info);
-                        if (ok)
+                        var info = chartJobs[i].info;
+                        if (results[i - start])
                         {
                             okCharts++;
                             index.Charts.Add(new IndexEntry
                             {
-                                SongId = song.SongId, Difficulty = info.Difficulty,
+                                SongId = chartJobs[i].songId, Difficulty = info.Difficulty,
                                 ChartId = info.ChartId, Version = info.Version,
                                 ChartHash = info.ChartHash, Level = info.Level,
                             });
@@ -169,14 +196,19 @@ namespace RhythmGame.Network.Api
         static async Task<bool> EnsureChartCachedAsync(string songId, ChartInfoDto info)
         {
             string cachePath = ChartCachePath(info.ChartId, info.Version);
+            string chartHash  = info.ChartHash;
             string json = null;
 
+            // ディスク読込 + SHA-256 照合はワーカースレッドへ (メインスレッドの同期IOブロックを排除)。
+            // Sha256Hex は呼び出し毎に SHA256.Create() するためスレッドセーフ。cachePath は chartId+version で
+            // 一意なので並列書込でも衝突しない。
             if (File.Exists(cachePath))
-            {
-                var bytes = File.ReadAllBytes(cachePath);
-                if (Sha256Hex(bytes) == info.ChartHash)
-                    json = System.Text.Encoding.UTF8.GetString(bytes);
-            }
+                json = await Task.Run(() =>
+                {
+                    var bytes = File.ReadAllBytes(cachePath);
+                    return Sha256Hex(bytes) == chartHash
+                        ? System.Text.Encoding.UTF8.GetString(bytes) : null;
+                });
 
             if (json == null)
             {
@@ -187,12 +219,16 @@ namespace RhythmGame.Network.Api
                     return false;
                 }
 
-                string actualHash = Sha256Hex(dl.Data);
-                if (actualHash != info.ChartHash)
-                    Debug.LogWarning($"[ServerSongLibrary] {info.ChartId} hash不一致: api={info.ChartHash} actual={actualHash} (サーバー申告値を採用)");
-
-                File.WriteAllBytes(cachePath, dl.Data);
-                json = System.Text.Encoding.UTF8.GetString(dl.Data);
+                var data = dl.Data;
+                var (actualHash, text) = await Task.Run(() =>
+                {
+                    string h = Sha256Hex(data);
+                    File.WriteAllBytes(cachePath, data);
+                    return (h, System.Text.Encoding.UTF8.GetString(data));
+                });
+                if (actualHash != chartHash)
+                    Debug.LogWarning($"[ServerSongLibrary] {info.ChartId} hash不一致: api={chartHash} actual={actualHash} (サーバー申告値を採用)");
+                json = text;
             }
 
             return RegisterChart(songId, info.Difficulty, json, info.Level, info.ChartHash, info.ChartId);

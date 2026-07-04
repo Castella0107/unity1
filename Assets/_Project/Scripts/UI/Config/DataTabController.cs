@@ -119,34 +119,37 @@ public class DataTabController : MonoBehaviour
 
     async Task RefreshStats()
     {
-        string dataDir = Path.Combine(Application.persistentDataPath, "data");
+        // パス取得と replaySvc 参照はメインスレッドで行う (Application.*Path はメイン専用)。
+        string dataDir   = Path.Combine(Application.persistentDataPath, "data");
+        string songsRoot = Path.Combine(Application.streamingAssetsPath, "Songs");
+        var    replaySvc = RepositoryService.Instance?.Replays;
         if (_dataDirText != null) _dataDirText.text = dataDir;
 
-        long dbSize = GetDirSize(dataDir);
-        if (_dbSizeText != null) _dbSizeText.text = "Database Size: " + FormatBytes(dbSize);
-
-        string songsRoot = Path.Combine(Application.streamingAssetsPath, "Songs");
-        long songsSize = 0; int songsCount = 0;
-        if (Directory.Exists(songsRoot))
+        // 重い再帰ディレクトリ走査をワーカースレッドへ。タブを開くたびのメインスレッドフリーズを解消。
+        long dbSize = 0, songsSize = 0, replaysSize = 0;
+        int  songsCount = 0, replaysCount = 0;
+        await Task.Run(() =>
         {
-            songsSize  = GetDirSize(songsRoot);
-            songsCount = Directory.GetDirectories(songsRoot).Length;
-        }
+            dbSize = GetDirSize(dataDir);
+            if (Directory.Exists(songsRoot))
+            {
+                songsSize  = GetDirSize(songsRoot);
+                songsCount = Directory.GetDirectories(songsRoot).Length;
+            }
+            if (replaySvc != null)
+            {
+                var (c, s)   = replaySvc.GetCountAndSize();   // 1回の走査で数とサイズを同時取得
+                replaysCount = c;
+                replaysSize  = s;
+            }
+        });
+
+        // 以降はメインスレッド (Unity 同期コンテキスト)。破棄後の代入を避けるため null チェック。
+        if (_dbSizeText != null) _dbSizeText.text = "Database Size: " + FormatBytes(dbSize);
         if (_songsSizeText != null)
             _songsSizeText.text = "Songs Library: " + FormatBytes(songsSize) + " / " + songsCount + " songs";
-
-        long replaysSize = 0; int replaysCount = 0;
-        var replaySvc = RepositoryService.Instance?.Replays;
-        if (replaySvc != null)
-        {
-            replaysCount = replaySvc.GetReplayCount();
-            replaysSize  = replaySvc.GetTotalSize();
-        }
         if (_replaysSizeText != null)
-            _replaysSizeText.text = "Replays: " + FormatBytes(replaysSize) +
-                                    " / " + replaysCount + " files";
-
-        await Task.CompletedTask;
+            _replaysSizeText.text = "Replays: " + FormatBytes(replaysSize) + " / " + replaysCount + " files";
     }
 
     // ── Import ────────────────────────────────────────────────────────────────

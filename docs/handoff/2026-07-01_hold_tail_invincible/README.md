@@ -87,10 +87,29 @@ tick 密度（1 小節 8 tick）も**不変**＝ `total_notes (N)` は変わり�
 
 ---
 
-## 5. パリティ確認（K 実装後）
+## 5. パリティ確認（K 実装後）— golden vector 同梱
 
-- `Tools/ParityVectors` で本仕様反映後の golden 期待値を再生成し、以下が一致すること:
-  `score` / `score_micro` / `total_notes` / `perfect_plus_count` / `perfect_count` /
-  `great_count` / `good_count` / `miss_count` / `max_combo` / `sector_scores` / **`sector_tiebreak`**。
-- 特に「終端で早離しするリプレイ」ケースを新規追加すること（旧: 尾 Miss → 新: 踏襲）。
-- `Σ sector_scores == score` の不変条件チェックも従来どおり。
+本仕様を反映したクライアント Domain の**実出力**を `vectors/` に同梱しました（7 ケース）。
+各 JSON は既存 golden と同じスキーマ（`chart_data` / `input_events` / `replay_base64` / `expected`）で、
+K の engine に `chart_data` + `input_events` を流して `expected` と一致すれば OK です。
+
+生成器 = `Tools/HoldTailVectors/`（`RhythmGame.Domain.csproj` 経由でクライアントと同一 Domain を実行、
+`dotnet run -c Release`）。全ケース BPM120・4/4・timesig 無し（K の `parseChart` は bpm のみ参照で足りる）。
+全ケースで `Σ sector_scores == score` を検証済み。
+
+| case | 何を示すか | N | score | P+ | P | Great | Miss | maxCombo |
+|------|-----------|---|-------|----|----|-------|------|----------|
+| `baseline_all_perfect` | 全押し = 全 P+（満点整合・不変の確認） | 9 | 1000000 | 9 | 0 | 0 | 0 | 9 |
+| `tail_release_rescue` | ゾーンで離上 → 最終tick+尾が直前実tick(P+)を複製=**救済**（旧仕様なら尾 Miss） | 9 | 1000000 | 9 | 0 | 0 | 0 | 9 |
+| `tail_miss_temono` | ゾーン手前でコンボ断 → 最終tick+尾は **Miss を複製**（救済せず温存） | 9 | 222222 | 2 | 0 | 0 | 7 | 2 |
+| `tail_recover_at_end` | 手前 Miss 後にゾーン手前で再押下 → tick=復帰 **Great**、尾=P+ | 9 | 443888 | 3 | 0 | 1 | 5 | 2 |
+| `single_tick_head_fallback` | ボディtick1本のみ=それ自身が無敵。離上で複製元無し → **ヘッド判定(P)にフォールバック** | 3 | 1000000 | 0 | 3 | 0 | 0 | 3 |
+| `short_hold_flat_pplus` | 1/8以下（ボディtick0本）。支点 P でも尾は**フラット P+** | 2 | 1000000 | 1 | 1 | 0 | 0 | 2 |
+| `short_hold_head_miss` | 短ホールドで支点 MISS（無入力）→ 放棄。尾は解決せず | 2 | 0 | 0 | 0 | 0 | 1 | 0 |
+
+- **注意（既存仕様）**: `short_hold_head_miss` は N=2 だが判定は miss=1 のみ（尾は放棄で未判定）。
+  頭ミス放棄で「判定カウント合計 < N」になるのは旧 golden から続く既存仕様で、回帰ではない。
+- P+ と P は表示スコアが同点のため `score` では差が出ない（`single_tick_head_fallback` も 1000000）。
+  **P+/P の区別＝セクタータイブレークに効く**ので、`perfect_plus_count` / `perfect_count` を**別々に**照合すること。
+- 特に効くのは `tail_release_rescue`（旧: 尾 Miss=222222 相当 → 新: 全 P+=1000000）と `tail_recover_at_end`。
+- 再生成: `cd Tools/HoldTailVectors && dotnet run -c Release`（既定で `vectors/` へ出力）。

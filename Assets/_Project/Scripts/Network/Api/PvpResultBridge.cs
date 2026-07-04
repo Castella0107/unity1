@@ -39,16 +39,21 @@ namespace RhythmGame.Network.Api
             // submit 成否に関わらず手元の実プレイは記録する。
             PvpMatchContext.RecordSongPlayed(record.SongId, record.Difficulty, record.ReplayPath, sectors);
 
-            // リプレイ (保存済みファイル → base64)
-            string replayB64 = null;
-            try
+            // リプレイ (保存済みファイル → base64)。読込+Base64化は重いのでワーカースレッドへ退避し、
+            // 曲間のメインスレッドフレーム落ちを防ぐ。
+            string replayB64  = null;
+            string replayPath = record.ReplayPath;
+            if (!string.IsNullOrEmpty(replayPath) && File.Exists(replayPath))
             {
-                if (!string.IsNullOrEmpty(record.ReplayPath) && File.Exists(record.ReplayPath))
-                    replayB64 = Convert.ToBase64String(File.ReadAllBytes(record.ReplayPath));
-            }
-            catch (Exception e)
-            {
-                Debug.LogWarning("[PvpSubmit] リプレイ読込失敗: " + e.Message);
+                try
+                {
+                    replayB64 = await System.Threading.Tasks.Task.Run(
+                        () => Convert.ToBase64String(File.ReadAllBytes(replayPath)));
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[PvpSubmit] リプレイ読込失敗: " + e.Message);
+                }
             }
 
             var dto = new SubmitRequestDto

@@ -1,0 +1,63 @@
+{
+  "case_name": "tail_recover_at_end",
+  "note": "手前でMiss後、無敵ゾーン手前で再押下: tick@2750=復帰Great、尾@3000=P+。直前MissでもゾーンでGreatＦ復帰",
+  "chart_hash": "3dedcbe71e633b04447e2b347598cdae1c8c31fa5836e21fe63dd88edce5ded8",
+  "total_notes": 9,
+  "x_micro": 111111111112,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 1000.0,
+        "duration_ms": 2000.0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "replay_base64": "H4sIAAAAAAAACjP0CQhiZMAEwiWJmTnxRanJ+WWpRfGJJfGpeSnMtm9PP5dLtmZxqdM2KZ1xdp1Mj+GvCLNH8s9sb/TdeXrvBkPG0/PdjAwMCa9ARnxwgprFZWRgZKZrYK5rYPjhKBsDCLswMDAwQ6Vh1rMyMDAwITmBE6rmAj8DwwI2BsYVIgwMy1/pmAIAHN9EIbMAAAA=",
+  "input_events": [
+    {
+      "delta_ms": 1000,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 400,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 1300,
+      "lane": 0,
+      "action": 0
+    }
+  ],
+  "expected": {
+    "score": 443888,
+    "score_micro": 443888888892,
+    "rank": "D",
+    "perfect_plus_count": 3,
+    "perfect_count": 0,
+    "great_count": 1,
+    "good_count": 0,
+    "miss_count": 5,
+    "max_combo": 2,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      443888,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

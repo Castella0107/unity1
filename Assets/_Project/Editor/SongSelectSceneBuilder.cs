@@ -311,7 +311,7 @@ public static class SongSelectSceneBuilder
 
         // 本体パネル
         var panelGO = Child("Panel", winGO.transform);
-        SR(panelGO, V(.5f,.5f), V(.5f,.5f), V(.5f,.5f), V(0,-10), V(1500,820));
+        SR(panelGO, V(.5f,.5f), V(.5f,.5f), V(.5f,.5f), V(0,-10), V(1500,900));
         panelGO.AddComponent<Image>().color = Hex("0A0E1C");
         var pt = panelGO.transform;
 
@@ -337,11 +337,11 @@ public static class SongSelectSceneBuilder
         const float LX = 50f, LW = 660f;
         float y = -110f;
 
-        var rowBgs    = new Image[8];
-        var rowBtns   = new Button[8];
-        var valTexts  = new TextMeshProUGUI[8];
-        var prevBtns  = new Button[8];
-        var nextBtns  = new Button[8];
+        var rowBgs    = new Image[9];
+        var rowBtns   = new Button[9];
+        var valTexts  = new TextMeshProUGUI[9];
+        var prevBtns  = new Button[9];
+        var nextBtns  = new Button[9];
         int rowIdx = 0;
 
         void Section(string text)
@@ -404,6 +404,8 @@ public static class SongSelectSceneBuilder
         OptionRow("レーンの明るさ");
         Section("AUTO PLAY");
         OptionRow("オートプレイ");
+        Section("JUDGE");
+        OptionRow("判定幅");
 
         // 操作ヒント (パネル下部左)
         var fhGO = Child("FooterHint", pt);

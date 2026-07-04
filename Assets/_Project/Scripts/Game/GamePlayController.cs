@@ -129,6 +129,10 @@ public class GamePlayController : MonoBehaviour
                 inputSource    = _autoInput;
                 Debug.Log("[GamePlay] AutoPlay enabled — events=" + _autoInput.EventCount);
             }
+            // 判定幅プロファイル: ソロのみ PLAY OPTIONS「判定幅」設定を適用。
+            // PVP はサーバー(Go)再判定との bit-perfect パリティが必須のため常に標準判定に固定。
+            JudgmentWindow.WideActive =
+                (_params == null || !_params.IsPvp) && PlayOptionsController.JudgeWide;
             if (_judgment != null) _judgment.Initialize(_chart, _meta, inputSource, GameplayTabController.GetSavedComboBorder());
             // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
             int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
@@ -143,10 +147,21 @@ public class GamePlayController : MonoBehaviour
         }
     }
 
+    float _timeTextTimer;
+
     void Update()
     {
+        // デバッグ用の時刻表示。値が毎フレーム変わり string.Format + TMP 再構築が高コストなので
+        // ~0.1 秒に間引く(表示精度は十分)。
         if (_timeText != null && _conductor != null)
-            _timeText.text = string.Format("SongTime:  {0:F0} ms", _conductor.SongTimeMs);
+        {
+            _timeTextTimer += Time.unscaledDeltaTime;
+            if (_timeTextTimer >= 0.1f)
+            {
+                _timeTextTimer = 0f;
+                _timeText.text = string.Format("SongTime:  {0:F0} ms", _conductor.SongTimeMs);
+            }
+        }
 
         // オートプレイ: 判定エンジンと同じ時計(JudgmentTimeMs)で合成入力を発火する。
         if (_autoInput != null && _conductor != null && _conductor.IsPlaying)
@@ -218,7 +233,7 @@ public class GamePlayController : MonoBehaviour
         var record = PlayRecordFactory.Create(
             snap, SongId, Difficulty,
             _chart != null ? (_chart.ChartHash ?? "") : "",
-            _totalNotes, ParseModifiers(_params?.Modifier), isPvpPlay, null);
+            _totalNotes, AppendJudgeWideTag(ParseModifiers(_params?.Modifier)), isPvpPlay, null);
 
         // ── Build replay data ────────────────────────────────────────────────
         var repoSvc       = RepositoryService.Instance;
@@ -400,6 +415,15 @@ public class GamePlayController : MonoBehaviour
     {
         if (string.IsNullOrEmpty(mod) || mod == "None") return new string[0];
         return new[] { mod };
+    }
+
+    // ワイド判定でのプレイは Modifiers にタグを残す。リプレイ再生時に同じ判定幅で
+    // 再現するための正本 (ReplayPlaybackController が参照)。
+    static string[] AppendJudgeWideTag(string[] mods)
+    {
+        if (!JudgmentWindow.WideActive) return mods;
+        var list = new List<string>(mods ?? new string[0]) { JudgmentWindow.WideModifierTag };
+        return list.ToArray();
     }
 
     static byte[] HexStringToBytes(string hex)

@@ -185,6 +185,10 @@ public static class BeatDetector
     /// 細かすぎる格子(高 BPM)は occupancy が下がり、粗すぎる/ズレた格子は coverage が下がるため、
     /// 真の拍レベル付近で最大化する。
     /// </summary>
+    // 占有拍集合の走査用バッファ。RankTempoCandidates は ~360 回 GridF1 を呼ぶため毎回の
+    // HashSet 確保が無視できない。[ThreadStatic] でスレッド毎に使い回す(バッチ解析の並列呼び出しでも安全)。
+    [ThreadStatic] static HashSet<long> _occupiedScratch;
+
     static double GridF1(List<double> onsets, double bpm)
     {
         double period = 60_000.0 / bpm;
@@ -192,7 +196,8 @@ public static class BeatDetector
         double phase = BestPhaseMs(onsets, bpm);
         double tol = 0.10 * period;
         int aligned = 0;
-        var occupied = new HashSet<long>();
+        var occupied = _occupiedScratch ??= new HashSet<long>();
+        occupied.Clear();
         for (int i = 0; i < onsets.Count; i++)
         {
             long k = (long)Math.Round((onsets[i] - phase) / period);

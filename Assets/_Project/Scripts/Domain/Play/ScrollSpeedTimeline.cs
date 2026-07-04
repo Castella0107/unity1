@@ -50,23 +50,39 @@ public class ScrollSpeedTimeline
     /// <summary>speed イベントが 1 件でもあるか(無ければ全編等速)。</summary>
     public bool HasChanges => _times.Length > 0;
 
+    // 直近呼び出しの1要素メモ。構築後この積分は不変(純関数)なので常に正しい。描画は毎フレーム
+    // 同一 visualMs を基点に全ノーツぶん VisualDistanceMs(visualMs, …) を呼ぶため、基点側の
+    // VisualPos(visualMs) の二分探索が memo ヒットで省ける (NaN は何とも一致せず初回は必ずミス)。
+    double _memoArg = double.NaN;
+    double _memoVal;
+
     /// <summary>時刻 t における視覚位置(時刻 0 からの倍率積分, ms 換算)。</summary>
     public double VisualPos(double t)
     {
-        int n = _times.Length;
-        if (n == 0)         return t;        // speed イベント無し = 等速(従来挙動)
-        if (t < _times[0])  return t;        // 最初の変化前は倍率 1.0
+        if (t == _memoArg) return _memoVal;
 
-        // _times[i] <= t < _times[i+1] となる最大 i を二分探索。
-        int lo = 0, hi = n;
-        while (lo < hi)
+        int n = _times.Length;
+        double r;
+        if (n == 0 || t < _times[0])         // speed イベント無し/最初の変化前は等速(従来挙動)
         {
-            int mid = (lo + hi) >> 1;
-            if (_times[mid] <= t) lo = mid + 1;
-            else                  hi = mid;
+            r = t;
         }
-        int i = lo - 1;
-        return _cum[i] + _mults[i] * (t - _times[i]);
+        else
+        {
+            // _times[i] <= t < _times[i+1] となる最大 i を二分探索。
+            int lo = 0, hi = n;
+            while (lo < hi)
+            {
+                int mid = (lo + hi) >> 1;
+                if (_times[mid] <= t) lo = mid + 1;
+                else                  hi = mid;
+            }
+            int i = lo - 1;
+            r = _cum[i] + _mults[i] * (t - _times[i]);
+        }
+
+        _memoArg = t; _memoVal = r;
+        return r;
     }
 
     /// <summary>区間 [fromMs, toMs] の視覚距離(ms 換算)。to &gt; from で正。</summary>
