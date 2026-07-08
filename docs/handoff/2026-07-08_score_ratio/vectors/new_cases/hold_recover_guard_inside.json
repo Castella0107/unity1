@@ -1,0 +1,68 @@
+{
+  "case_name": "hold_recover_guard_inside",
+  "note": "tick@1250 falls 40ms after release (<=50ms guard) -> P+; re-press at guard boundary -> no Great. All P+, no Miss",
+  "chart_hash": "d7df28e3bf189088cc909db49bbb87701ef60753af07600be6f98d3ef3e7f706",
+  "total_notes": 9,
+  "x_micro": 111111111112,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 1000,
+        "duration_ms": 2000
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "replay_base64": "H4sIAAAAAAAACjP0CQhiZMAEkhn5OSnxRanJ+WWpRfHppYlFKfGZecWZKanM1+9rPN4vMaHjzIS5W2bvbi+Q+8YevJ49gfvZz167z8+/szFkPD3fzcjAkPAKZNAHJ6iJXEYGRma6Bma6hsYOTvwMIBwczMDAicVyZDEQm4WBgeECPwPDEmYGxhQGhjXSDIwPF1v9AgAc30QhvAAAAA==",
+  "input_events": [
+    {
+      "delta_ms": 1000,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 210,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 50,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 1750,
+      "lane": 0,
+      "action": 1
+    }
+  ],
+  "expected": {
+    "score": 1000000,
+    "score_micro": 1000000000008,
+    "rank": "SS",
+    "perfect_plus_count": 9,
+    "perfect_count": 0,
+    "great_count": 0,
+    "good_count": 0,
+    "miss_count": 0,
+    "max_combo": 9,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      1000000,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

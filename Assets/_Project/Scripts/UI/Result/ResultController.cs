@@ -336,7 +336,7 @@ public class ResultController : MonoBehaviour
             Difficulty           = "extra",
             RawScore             = 1_000_000,
             EffectiveScore       = 1_000_000,
-            Rank                 = "S+",
+            Rank                 = "SS",
             PerfectPlusCount     = 1000,
             PerfectCount         = 0,
             GreatCount           = 0,

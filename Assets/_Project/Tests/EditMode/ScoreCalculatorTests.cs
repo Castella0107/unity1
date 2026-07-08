@@ -40,54 +40,54 @@ public class ScoreCalculatorTests
     // ── Penalty equivalences ──────────────────────────────────────────────
 
     /// <summary>
-    /// penalty(Good) = _xMicro/4, so 4 × penalty(Good) = _xMicro = penalty(Miss).
-    /// Verified: (N-4) PP + 4 Good == (N-1) PP + 1 Miss.
+    /// penalty(Good) = _xMicro/2, so 2 × penalty(Good) = _xMicro = penalty(Miss).
+    /// Verified: (N-2) PP + 2 Good == (N-1) PP + 1 Miss.
     ///
     /// N=100, _xMicro=10B:
-    ///   A: 96×10B + 4×7.5B = 960B+30B = 990B → score 990_000
-    ///   B: 99×10B + 0      = 990B        → score 990_000  ✓
+    ///   A: 98×10B + 2×5B = 980B+10B = 990B → score 990_000
+    ///   B: 99×10B + 0    = 990B         → score 990_000  ✓
     /// </summary>
     [Test]
-    public void FourGoods_EqualsOneMissPenalty()
+    public void TwoGoods_EqualsOneMissPenalty()
     {
         const int N = 100;
         var calcA = new ScoreCalculator(N);
         var calcB = new ScoreCalculator(N);
 
-        for (int i = 0; i < N - 4; i++) calcA.Add(Judgment.PerfectPlus);
-        for (int i = 0; i < 4; i++)     calcA.Add(Judgment.Good);
+        for (int i = 0; i < N - 2; i++) calcA.Add(Judgment.PerfectPlus);
+        for (int i = 0; i < 2; i++)     calcA.Add(Judgment.Good);
 
         for (int i = 0; i < N - 1; i++) calcB.Add(Judgment.PerfectPlus);
         calcB.Add(Judgment.Miss);
 
         Assert.AreEqual(calcB.CurrentScore, calcA.CurrentScore,
-            "4 Good notes should cost the same as 1 Miss");
+            "2 Good notes should cost the same as 1 Miss");
     }
 
     /// <summary>
-    /// penalty(Great) = _xMicro/200, penalty(Good) = _xMicro/4 = 50×(_xMicro/200).
-    /// So 50 Greats == 1 Good in terms of lost score.
-    /// Verified: (N-50) PP + 50 Great == (N-1) PP + 1 Good.
+    /// penalty(Great) = _xMicro/10, penalty(Good) = _xMicro/2 = 5×(_xMicro/10).
+    /// So 5 Greats == 1 Good in terms of lost score.
+    /// Verified: (N-5) PP + 5 Great == (N-1) PP + 1 Good.
     ///
     /// N=100, _xMicro=10B:
-    ///   A: 50×10B + 50×9.95B = 500B+497.5B = 997.5B → score 997_500
-    ///   B: 99×10B + 7.5B    = 990B+7.5B   = 997.5B → score 997_500  ✓
+    ///   A: 95×10B + 5×9B = 950B+45B = 995B → score 995_000
+    ///   B: 99×10B + 5B   = 990B+5B  = 995B → score 995_000  ✓
     /// </summary>
     [Test]
-    public void FiftyGreats_EqualsOneGoodPenalty()
+    public void FiveGreats_EqualsOneGoodPenalty()
     {
         const int N = 100;
         var calcA = new ScoreCalculator(N);
         var calcB = new ScoreCalculator(N);
 
-        for (int i = 0; i < N - 50; i++) calcA.Add(Judgment.PerfectPlus);
-        for (int i = 0; i < 50; i++)     calcA.Add(Judgment.Great);
+        for (int i = 0; i < N - 5; i++) calcA.Add(Judgment.PerfectPlus);
+        for (int i = 0; i < 5; i++)     calcA.Add(Judgment.Great);
 
         for (int i = 0; i < N - 1; i++) calcB.Add(Judgment.PerfectPlus);
         calcB.Add(Judgment.Good);
 
         Assert.AreEqual(calcB.CurrentScore, calcA.CurrentScore,
-            "50 Great notes should cost the same as 1 Good");
+            "5 Great notes should cost the same as 1 Good");
     }
 
     // ── Rank boundary values ──────────────────────────────────────────────
@@ -95,14 +95,18 @@ public class ScoreCalculatorTests
     [Test]
     public void ComputeRank_BoundaryValues()
     {
-        // S+ (≥ 997_000)
-        Assert.AreEqual("S+", ScoreCalculator.ComputeRank(1_000_000), "1000000 → S+");
-        Assert.AreEqual("S+", ScoreCalculator.ComputeRank(997_000),   "997000  → S+ lower bound");
-        Assert.AreEqual("S",  ScoreCalculator.ComputeRank(996_999),   "996999  → S  (just below S+)");
+        // SS (≥ 995_000)
+        Assert.AreEqual("SS", ScoreCalculator.ComputeRank(1_000_000), "1000000 → SS");
+        Assert.AreEqual("SS", ScoreCalculator.ComputeRank(995_000),   "995000  → SS lower bound");
+        Assert.AreEqual("S+", ScoreCalculator.ComputeRank(994_999),   "994999  → S+ (just below SS)");
 
-        // S (≥ 990_000)
-        Assert.AreEqual("S",  ScoreCalculator.ComputeRank(990_000),   "990000  → S  lower bound");
-        Assert.AreEqual("A+", ScoreCalculator.ComputeRank(989_999),   "989999  → A+ (just below S)");
+        // S+ (≥ 990_000)
+        Assert.AreEqual("S+", ScoreCalculator.ComputeRank(990_000),   "990000  → S+ lower bound");
+        Assert.AreEqual("S",  ScoreCalculator.ComputeRank(989_999),   "989999  → S  (just below S+)");
+
+        // S (≥ 975_000)
+        Assert.AreEqual("S",  ScoreCalculator.ComputeRank(975_000),   "975000  → S  lower bound");
+        Assert.AreEqual("A+", ScoreCalculator.ComputeRank(974_999),   "974999  → A+ (just below S)");
 
         // A+ (≥ 950_000)
         Assert.AreEqual("A+", ScoreCalculator.ComputeRank(950_000),   "950000  → A+ lower bound");

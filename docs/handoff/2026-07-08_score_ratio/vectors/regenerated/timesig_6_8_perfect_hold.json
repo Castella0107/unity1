@@ -1,0 +1,64 @@
+{
+  "case_name": "timesig_6_8_perfect_hold",
+  "note": "6/8 hold, measureMs = 500*6*(4/8) = 1500 == 3/4 density",
+  "chart_hash": "f77c5c14580311e0764e3080256c50b3fec8ff36c7f1ab7ae4e9172f6cdd6dbb",
+  "total_notes": 17,
+  "x_micro": 58823529412,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 0.0,
+        "duration_ms": 3000.0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      },
+      {
+        "type": "timesig",
+        "time_ms": 0.0,
+        "numerator": 6,
+        "denominator": 8
+      }
+    ]
+  },
+  "replay_base64": "H4sIAAAAAAAACjP0CQhiZMAEEiWZuanFmenxZvEW8QWpRWmpySXxGfk5Kczfa2JEIpgFH5T5GTSo5gRs/nfiv9nxj6urnrwU18+5m7ubIePp+W5GBoaEVyBzPjhBDeQyMjAy0zUw0zU0dnDiZwDhYG0GBkEsdiOLgdhMEGaLPgNjjJNCMQAc30QhswAAAA==",
+  "input_events": [
+    {
+      "delta_ms": 0,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 3010,
+      "lane": 0,
+      "action": 1
+    }
+  ],
+  "expected": {
+    "score": 1000000,
+    "score_micro": 1000000000004,
+    "rank": "SS",
+    "perfect_plus_count": 17,
+    "perfect_count": 0,
+    "great_count": 0,
+    "good_count": 0,
+    "miss_count": 0,
+    "max_combo": 17,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      1000000,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}

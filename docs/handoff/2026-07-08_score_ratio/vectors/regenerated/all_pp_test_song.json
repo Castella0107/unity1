@@ -1,0 +1,380 @@
+{
+  "case_name": "all_pp_test_song",
+  "chart_hash": "0000000000000000000000000000000000000000000000000000000000000001",
+  "total_notes": 32,
+  "x_micro": 31250000000,
+  "chart_data": {
+    "notes": [
+      {
+        "id": 1,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 1000,
+        "duration_ms": 0
+      },
+      {
+        "id": 2,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 2000,
+        "duration_ms": 0
+      },
+      {
+        "id": 3,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 3000,
+        "duration_ms": 0
+      },
+      {
+        "id": 4,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 4000,
+        "duration_ms": 0
+      },
+      {
+        "id": 5,
+        "type": "fxTap",
+        "lane": "fxL",
+        "time_ms": 5000,
+        "duration_ms": 0
+      },
+      {
+        "id": 6,
+        "type": "fxTap",
+        "lane": "fxR",
+        "time_ms": 6000,
+        "duration_ms": 0
+      },
+      {
+        "id": 7,
+        "type": "hold",
+        "lane": "0",
+        "time_ms": 7000,
+        "duration_ms": 500
+      },
+      {
+        "id": 8,
+        "type": "hold",
+        "lane": "1",
+        "time_ms": 8000,
+        "duration_ms": 500
+      },
+      {
+        "id": 9,
+        "type": "hold",
+        "lane": "2",
+        "time_ms": 9000,
+        "duration_ms": 500
+      },
+      {
+        "id": 10,
+        "type": "hold",
+        "lane": "3",
+        "time_ms": 10000,
+        "duration_ms": 500
+      },
+      {
+        "id": 11,
+        "type": "fxHold",
+        "lane": "fxL",
+        "time_ms": 11000,
+        "duration_ms": 500
+      },
+      {
+        "id": 12,
+        "type": "fxHold",
+        "lane": "fxR",
+        "time_ms": 12000,
+        "duration_ms": 500
+      },
+      {
+        "id": 13,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 13000,
+        "duration_ms": 0
+      },
+      {
+        "id": 14,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 14000,
+        "duration_ms": 0
+      },
+      {
+        "id": 15,
+        "type": "tap",
+        "lane": "2",
+        "time_ms": 15000,
+        "duration_ms": 0
+      },
+      {
+        "id": 16,
+        "type": "tap",
+        "lane": "3",
+        "time_ms": 16000,
+        "duration_ms": 0
+      },
+      {
+        "id": 17,
+        "type": "fxTap",
+        "lane": "fxL",
+        "time_ms": 17000,
+        "duration_ms": 0
+      },
+      {
+        "id": 18,
+        "type": "fxTap",
+        "lane": "fxR",
+        "time_ms": 18000,
+        "duration_ms": 0
+      },
+      {
+        "id": 19,
+        "type": "tap",
+        "lane": "0",
+        "time_ms": 19000,
+        "duration_ms": 0
+      },
+      {
+        "id": 20,
+        "type": "tap",
+        "lane": "1",
+        "time_ms": 19500,
+        "duration_ms": 0
+      }
+    ],
+    "events": [
+      {
+        "type": "bpm",
+        "time_ms": 0,
+        "bpm": 120
+      }
+    ]
+  },
+  "replay_base64": "H4sIAHEVJWoC/5XMMQrCQBAF0D87Oyyp9hqCEJJ+CkltIXoACxE7LbJH8Rhew94L2KfMEfyKVRTBgc+bYv60y9Va8DlV2fdl25+OB8XvmbTH7r1YWzd1s+gyntnMgfKlXSb7jLllwCHnLHAhAR6IwpVEeCQGNwIMCTIkoUIDDVSp0kgjNWr0n8+8vKTXpV7vuwcc30QhKgEAAA==",
+  "input_events": [
+    {
+      "delta_ms": 1000,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 4,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 4,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 5,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 5,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 500,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 500,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 500,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 500,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 4,
+      "action": 0
+    },
+    {
+      "delta_ms": 500,
+      "lane": 4,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 5,
+      "action": 0
+    },
+    {
+      "delta_ms": 500,
+      "lane": 5,
+      "action": 1
+    },
+    {
+      "delta_ms": 500,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 2,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 2,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 3,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 3,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 4,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 4,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 5,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 5,
+      "action": 1
+    },
+    {
+      "delta_ms": 970,
+      "lane": 0,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 0,
+      "action": 1
+    },
+    {
+      "delta_ms": 470,
+      "lane": 1,
+      "action": 0
+    },
+    {
+      "delta_ms": 30,
+      "lane": 1,
+      "action": 1
+    }
+  ],
+  "expected": {
+    "score": 1000000,
+    "score_micro": 1000000000000,
+    "rank": "SS",
+    "perfect_plus_count": 32,
+    "perfect_count": 0,
+    "great_count": 0,
+    "good_count": 0,
+    "miss_count": 0,
+    "max_combo": 32,
+    "fast_count": 0,
+    "late_count": 0,
+    "sector_scores": [
+      1000000,
+      0,
+      0,
+      0,
+      0
+    ]
+  }
+}
