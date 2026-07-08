@@ -577,8 +577,8 @@ public static class BuildHistoryScene
 
         var tViewport = MakeRT("Viewport", template);
         FullStretch(tViewport.GetComponent<RectTransform>());
-        tViewport.AddComponent<Image>().color = new Color(0, 0, 0, 0);
-        tViewport.AddComponent<Mask>().showMaskGraphic = false;
+        // UI.Mask + アルファ0 Image は子要素(項目ラベル)が描画されない。RectMask2D で矩形クリップに置換。
+        tViewport.AddComponent<RectMask2D>();
 
         var tContent = MakeRT("Content", tViewport);
         var tcRT = tContent.GetComponent<RectTransform>();

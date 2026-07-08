@@ -56,10 +56,11 @@ public class DisplayTabController : MonoBehaviour
 
         _vsyncToggle.onValueChanged.AddListener(OnVsyncChanged);
 
-        // 視点は 0°(flat) / 32°(steep) の2択(18° は廃止)。実際の俯角適用はプレイ開始時に
+        // 視点は 2D(正射影) / 3D(透視投影) の2択。実際の投影切替はプレイ開始時に
         // StageInitializer.ApplyCameraAngle が行う(Config はゲームプレイ用カメラを持たないため保存のみ)。
+        // idx 0 = 2D / idx 1 = 3D。
         _cameraAngleDropdown.ClearOptions();
-        _cameraAngleDropdown.AddOptions(new List<string> { "0° (flat)", "32° (steep)" });
+        _cameraAngleDropdown.AddOptions(new List<string> { "2D", "3D" });
         _cameraAngleDropdown.onValueChanged.AddListener(idx =>
         {
             PlayerPrefs.SetInt("CameraAngleIdx", idx);

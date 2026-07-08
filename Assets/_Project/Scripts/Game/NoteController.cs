@@ -22,11 +22,19 @@ public class NoteController : MonoBehaviour
 
     // ── Cached components ──────────────────────────────────────────────────
     protected MeshRenderer[]      _renderers;
+    protected Vector3[]           _baseScales;   // プレハブ既定のローカルスケール(2D の厚み計算の基準)
     private   MaterialPropertyBlock _propBlock;
+
+    // 2D(トップダウン)時、タップは奥行き(Z)が薄いと真上から線状に潰れるため厚くする倍率。
+    // Z 方向を中心対称に拡大する(=判定はノーツ中央のまま)。大きいほど太いバーになる。
+    protected const float Note2DDepthMul = 5f;
 
     protected virtual void Awake()
     {
-        _renderers = GetComponentsInChildren<MeshRenderer>(true);
+        _renderers  = GetComponentsInChildren<MeshRenderer>(true);
+        _baseScales = new Vector3[_renderers.Length];
+        for (int i = 0; i < _renderers.Length; i++)
+            _baseScales[i] = _renderers[i].transform.localScale;
         _propBlock = new MaterialPropertyBlock();
     }
 
@@ -65,13 +73,18 @@ public class NoteController : MonoBehaviour
         // Tap visual width is driven by the lane note width (FX lanes are wider) so prefab
         // scale needn't be tuned per lane. HoldNoteController overrides this and sizes its
         // own head/body/tail, so only Tap / FxTap are affected here.
-        float width = LaneLayout.GetNoteWidth(Data.Lane);
-        foreach (var r in _renderers)
+        float width    = LaneLayout.GetNoteWidth(Data.Lane);
+        // 2D(トップダウン)ではタップの奥行きを厚くして見えるバーにする。中心対称スケールなので
+        // ノーツ中央は Z 位置(=on-time で JudgmentLineZ)のまま → 判定はノーツ中央に一致する。
+        float depthMul = StageInitializer.Is2DView ? Note2DDepthMul : 1f;
+        for (int i = 0; i < _renderers.Length; i++)
         {
-            var t = r.transform;
+            var t = _renderers[i].transform;
+            var b = _baseScales[i];
+            float targetZ = b.z * depthMul;
             var s = t.localScale;
-            if (!Mathf.Approximately(s.x, width))
-                t.localScale = new Vector3(width, s.y, s.z);
+            if (!Mathf.Approximately(s.x, width) || !Mathf.Approximately(s.z, targetZ))
+                t.localScale = new Vector3(width, b.y, targetZ);
         }
     }
 

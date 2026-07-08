@@ -831,8 +831,8 @@ public static class SongSelectSceneBuilder
 
         var tvpGO = Child("Viewport", tplGO.transform);
         SR(tvpGO, V(0,0), V(1,1), V(0,1), V(0,0), V(0,0));
-        tvpGO.AddComponent<Image>().color = Color.clear;
-        tvpGO.AddComponent<Mask>().showMaskGraphic = false;
+        // UI.Mask + アルファ0 Image は子要素(ドロップダウン項目ラベル)が描画されない。RectMask2D に置換。
+        tvpGO.AddComponent<RectMask2D>();
 
         var tcGO = Child("Content", tvpGO.transform);
         var tcRT = SR(tcGO, V(0,1), V(1,1), V(.5f,1), V(0,0), V(0,28));

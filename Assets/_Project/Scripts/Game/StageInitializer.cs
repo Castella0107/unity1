@@ -70,43 +70,61 @@ public static class StageInitializer
         => hiSpeed > 0.01f ? hiSpeed : PlayerPrefs.GetFloat("HiSpeed", 4.5f);
 
     // ── カメラ視点(2D/3D プリセット) ──────────────────────────────────────────
-    // ノーツは床面(y=0)を +Z→手前へ流れる薄板。判定ライン付近の注視点 FocusZ とカメラ距離 Distance を
-    // 固定し、俯角(pitch)から絶対ポーズを算出する(冪等)。視点の本質的な差は「投影方式」:
-    //   index 0 = "0° (flat)"  : 正射影(オルソ)。遠近の広がりが消え、レーン幅一定・平行の完全2D。
-    //   index 1 = "32° (steep)": 透視投影。奥に収束する3Dハイウェイ(現行の授権カメラと一致)。
-    // ※俯角は両者とも 40°(=現行授権値)で揃え、見え方の違いは投影方式だけにしている。
-    //   これによりノーツ描画は現行と同一のまま、flat では遠近の広がりだけが消える。
-    //   FocusZ=2.84 / Distance=6.86 / pitch=40° / Fov=70 は既存 GamePlay シーンのカメラ授権値。
-    //   OrthoSize(flat の正射影の半縦幅)は見た目のズームで、暫定値。近い/遠いと感じたら調整。
-    static readonly float[] CameraPitchDeg     = { 40f, 40f };
-    static readonly bool[]  CameraOrthographic = { true, false };
-    static readonly float[] CameraOrthoSize    = { 5.5f, 5f };
-    const float             CameraFocusZ       = 2.84f;
-    const float             CameraDistance     = 6.86f;
-    const float             CameraFov          = 70f;
-    /// <summary>カメラ視点設定の既定インデックス(1 = 32° steep = 従来の3D表示)。</summary>
+    // ノーツは床面(y=0)を Z=+大(奥)→ JudgmentLineZ(手前)へ流れる薄板。
+    //   index 0 = "2D": 真上からの正射影(トップダウン)。DJMAX 風に、レーンは画面中央の縦帯・ノーツは
+    //                    真下へ落下・判定ラインは画面下寄り。遠近ゼロでレーン幅一定・平行。
+    //   index 1 = "3D": 透視投影の斜め見下ろしハイウェイ(現行の GamePlay シーン授権カメラと一致)。
+    //   3D 授権値: FocusZ=2.84 / Distance=6.86 / pitch=40° / Fov=70。
+    const float             Camera3DPitchDeg = 40f;
+    const float             CameraFocusZ     = 2.84f;
+    const float             CameraDistance   = 6.86f;
+    const float             CameraFov        = 70f;
+    // 2D(トップダウン正射影)の調整値。
+    //   OrthoSize   = 正射影の半縦幅(Z方向)。小さいほど寄り(ノーツ大・中央帯は広く)。中央帯の横幅は
+    //                 レーン全幅 6.4 / (2*OrthoSize*アスペクト) で決まる(16:9・5.5 で画面幅の約33%)。
+    //   JudgeFromBottom = 判定ラインを画面下から何割の位置に置くか(0.22 = 下から22%)。
+    //   CamHeight   = 真上からの高さ。正射影なのでスケールには無関係(クリップ内であれば任意)。
+    const float             TwoDOrthoSize       = 5.5f;
+    const float             TwoDJudgeFromBottom = 0.22f;
+    const float             TwoDCamHeight       = 12f;
+    /// <summary>カメラ視点設定の既定インデックス(1 = 3D = 従来の斜め見下ろし表示)。</summary>
     public const int        DefaultCameraAngleIdx = 1;
+
+    /// <summary>現在のプレイ視点が 2D(トップダウン)か。NoteController が 2D 時にタップの厚みを増やす判定に使う。</summary>
+    public static bool      Is2DView { get; private set; }
 
     /// <summary>
     /// プレイ用カメラの視点を設定インデックスに合わせて絶対値で設定する(冪等)。
-    /// flat=正射影(完全2D)/steep=透視投影(3D)。範囲外(旧 18°/32° の idx=2 等)は末尾(steep)にクランプ。
+    /// idx 0 = 2D(トップダウン正射影)/ idx 1 = 3D(透視投影の斜め見下ろし)。範囲外は 3D にクランプ。
     /// cam が null なら何もしない。
     /// </summary>
     public static void ApplyCameraAngle(Camera cam, int idx)
     {
         if (cam == null) return;
-        if (idx < 0 || idx >= CameraPitchDeg.Length) idx = CameraPitchDeg.Length - 1;
+        Is2DView = (idx == 0);
 
-        float pitch = CameraPitchDeg[idx];
-        float r     = pitch * Mathf.Deg2Rad;
-        var   focus = new Vector3(0f, 0f, CameraFocusZ);
-        cam.transform.position = focus + new Vector3(0f, CameraDistance * Mathf.Sin(r), -CameraDistance * Mathf.Cos(r));
-        cam.transform.rotation = Quaternion.Euler(pitch, 0f, 0f);
-
-        // 投影方式で 2D/3D を切替。flat=正射影は遠近の広がりが消え、レーン幅が距離によらず一定・平行になる。
-        cam.orthographic = CameraOrthographic[idx];
-        if (cam.orthographic) cam.orthographicSize = CameraOrthoSize[idx];
-        else                  cam.fieldOfView      = CameraFov;
+        if (idx == 0)
+        {
+            // ── 2D: 真上から見下ろす正射影 ──────────────────────────────────
+            // 画面の上=奥(+Z)、下=手前(-Z)。ノーツは +Z から流れてきて下へ落下し、判定ラインへ。
+            // 判定ライン(JudgmentLineZ)が画面下から JudgeFromBottom の位置に来るよう中心 Z を決める。
+            float s       = TwoDOrthoSize;
+            float centerZ = LaneLayout.JudgmentLineZ + s * (1f - 2f * TwoDJudgeFromBottom);
+            cam.orthographic     = true;
+            cam.orthographicSize = s;
+            cam.transform.position = new Vector3(0f, TwoDCamHeight, centerZ);   // レーンは X=0 中心=画面中央
+            cam.transform.rotation = Quaternion.LookRotation(Vector3.down, Vector3.forward); // 真下向き・画面上=+Z
+        }
+        else
+        {
+            // ── 3D: 斜め見下ろしの透視投影(現行) ───────────────────────────
+            float r     = Camera3DPitchDeg * Mathf.Deg2Rad;
+            var   focus = new Vector3(0f, 0f, CameraFocusZ);
+            cam.orthographic = false;
+            cam.fieldOfView  = CameraFov;
+            cam.transform.position = focus + new Vector3(0f, CameraDistance * Mathf.Sin(r), -CameraDistance * Mathf.Cos(r));
+            cam.transform.rotation = Quaternion.Euler(Camera3DPitchDeg, 0f, 0f);
+        }
     }
 
     /// <summary>セッション終了時にステージビジュアルのバインドを解除する。</summary>
