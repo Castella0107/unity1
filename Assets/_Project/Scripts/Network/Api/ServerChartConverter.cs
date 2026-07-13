@@ -9,8 +9,10 @@ namespace RhythmGame.Network.Api
     ///
     /// サーバー形式 (internal/chart/chart.go):
     ///   {"chart_id","song_id","difficulty","version","bpm","offset_ms",
+    ///    "events":[{"type":"bpm"|"timesig"|"speed","time_ms",...}],
     ///    "notes":[{"time_ms","lane":0-5 または "0".."3"/"fxL"/"fxR","type":"tap"|"hold","duration_ms"}]}
     ///   lane 4="fxL" / 5="fxR"。FX レーン上の tap/hold はクライアントの FxTap/FxHold に対応する。
+    ///   events の bpm は途中変化を含む (無ければトップレベル bpm にフォールバック=サーバーと同一)。
     ///
     /// TotalNotes(採点イベント総数) は <see cref="ScoringEventCounter"/> で再計算する
     /// (サーバー engine/count.go と同一意味論 — tap=1 / hold=head+ticks+tail)。
@@ -56,31 +58,61 @@ namespace RhythmGame.Network.Api
                 }
             }
 
-            var events = new List<TempoEvent>
-            {
-                new TempoEvent { Type = "bpm", TimeMs = 0, Bpm = bpm, Multiplier = 1.0 },
-            };
-
-            // 拍子イベント (variable time signature)。サーバー JSON の events[] から timesig を取り込む。
-            // 無ければ全編 4/4 (BpmTimeline 既定)。スコア(ホールドtick)が拍子に追従するため、
-            // クライアントとサーバーが同一の timesig を見る必要がある (engine/count.go も同様に解釈)。
+            // テンポ系イベントをサーバー JSON の events[] から取り込む (chart.go parseSeedChart と同一意味論)。
+            //   bpm     — 途中変化を含めて全て採用。スコア(ホールドtick間隔)が BPM に追従するため、
+            //             ここで落とすとサーバー engine/count.go とクライアントの判定・満点が乖離する。
+            //   timesig — 変拍子。無ければ全編 4/4 (BpmTimeline 既定)。
+            //   speed   — スクロール速度演出 (視覚専用・スコア不変)。
+            // bpm イベントが 1 つも無い場合のみ、トップレベル bpm (≤0 は 120) を t=0 に合成する
+            // (サーバーのフォールバックと同じ)。
+            var events  = new List<TempoEvent>();
+            bool hasBpm = false;
             var eventsArr = root["events"] as JArray;
             if (eventsArr != null)
             {
                 foreach (var ev in eventsArr)
                 {
-                    if ((ev.Value<string>("type") ?? "") != "timesig") continue;
-                    int num = ev.Value<int?>("numerator")   ?? 0;
-                    int den = ev.Value<int?>("denominator") ?? 0;
-                    if (num <= 0 || den <= 0) continue;
-                    events.Add(new TempoEvent
+                    switch (ev.Value<string>("type") ?? "")
                     {
-                        Type        = "timesig",
-                        TimeMs      = ev.Value<double?>("time_ms") ?? 0,
-                        Numerator   = num,
-                        Denominator = den,
-                    });
+                        case "bpm":
+                            events.Add(new TempoEvent
+                            {
+                                Type       = "bpm",
+                                TimeMs     = ev.Value<double?>("time_ms") ?? 0,
+                                Bpm        = ev.Value<double?>("bpm") ?? 0,
+                                Multiplier = 1.0,
+                            });
+                            hasBpm = true;
+                            break;
+
+                        case "timesig":
+                            int num = ev.Value<int?>("numerator")   ?? 0;
+                            int den = ev.Value<int?>("denominator") ?? 0;
+                            if (num <= 0 || den <= 0) continue;
+                            events.Add(new TempoEvent
+                            {
+                                Type        = "timesig",
+                                TimeMs      = ev.Value<double?>("time_ms") ?? 0,
+                                Numerator   = num,
+                                Denominator = den,
+                            });
+                            break;
+
+                        case "speed":
+                            events.Add(new TempoEvent
+                            {
+                                Type       = "speed",
+                                TimeMs     = ev.Value<double?>("time_ms") ?? 0,
+                                Multiplier = ev.Value<double?>("multiplier") ?? 1.0,
+                            });
+                            break;
+                    }
                 }
+            }
+            if (!hasBpm)
+            {
+                if (bpm <= 0) bpm = 120.0;
+                events.Insert(0, new TempoEvent { Type = "bpm", TimeMs = 0, Bpm = bpm, Multiplier = 1.0 });
             }
 
             var timeline = new BpmTimeline(events);
