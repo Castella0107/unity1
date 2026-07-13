@@ -88,7 +88,9 @@ public class BeatLineScroller : MonoBehaviour
     // ── Line-time precompute (timesig-aware measure scan) ─────────────────────────
 
     // 小節走査方式。ChartEditor の TimelineRenderer.BuildBeatLines と同じ格子(=スコアと同一公式)。
-    // 小節長 = 四分音符長 × 分子 × (4/分母)、1 小節を「分子」個の拍に分割。bpm/timesig アンカーで再整列。
+    // 小節長 = 四分音符長 × 分子 × (4/分母)、1 小節を「分子」個の拍に分割。bpm/timesig アンカーで
+    // 拍格子を再整列する。ただし小節を切り直すのは timesig のみ。bpm 変化点は拍カウントを持ち越し、
+    // 小節線(濃い線)は「分子」拍を消化した自然な位置にだけ出る(BPM変化で小節頭を作らない)。
     void BuildLineTimes(ChartData chart)
     {
         _lineTimes = null;
@@ -107,16 +109,21 @@ public class BeatLineScroller : MonoBehaviour
         var events  = chart.Events;
         BpmTimeline bpm = (events != null && events.Count > 0) ? new BpmTimeline(events) : null;
 
-        var anchors = new List<double>();
+        var anchors = new List<(double t, bool sig)>();
         if (events != null)
             foreach (var e in events)
-                if (e != null && (e.Type == "bpm" || e.Type == "timesig")) anchors.Add(e.TimeMs);
-        anchors.Sort();
+            {
+                if (e == null) continue;
+                if (e.Type == "timesig")  anchors.Add((e.TimeMs, true));
+                else if (e.Type == "bpm") anchors.Add((e.TimeMs, false));
+            }
+        anchors.Sort((a, b) => a.t.CompareTo(b.t));
 
         var times    = new List<double>();
         var measures = new List<bool>();
 
         double mStart = 0.0;
+        int beatInMeasure = 0;   // 現在の小節で消化済みの拍数 (bpm 変化点をまたいで持ち越す)
         int guard = 0;
         while (mStart < endMs - 0.001 && guard++ < 200000)
         {
@@ -129,25 +136,31 @@ public class BeatLineScroller : MonoBehaviour
 
             double quarterMs = 60000.0 / bpmNow;
             double denBeatMs = quarterMs * 4.0 / den;   // 1 拍(分母音価)の長さ
-            double measureMs = denBeatMs * num;          // 1 小節 = 分子拍
-            if (measureMs <= 0.001) break;
+            if (denBeatMs <= 0.001) break;
 
-            double mEnd = mStart + measureMs;
+            int beatsLeft = num - beatInMeasure;         // この小節の残り拍数
+            if (beatsLeft <= 0) beatsLeft = num;
+            double mEnd = mStart + denBeatMs * beatsLeft;
+            bool cutByTimesig = false;
             for (int ai = 0; ai < anchors.Count; ai++)
             {
-                double a = anchors[ai];
-                if (a > mStart + 0.5 && a < mEnd - 0.001) { mEnd = a; break; }   // アンカーで切って再整列
+                double a = anchors[ai].t;
+                if (a > mStart + 0.5 && a < mEnd - 0.001) { mEnd = a; cutByTimesig = anchors[ai].sig; break; }   // アンカーで切って拍格子を再整列
             }
             if (mEnd > endMs) mEnd = endMs;
 
+            int consumed = 0;
             for (int bi = 0; ; bi++)
             {
                 double bStart = mStart + bi * denBeatMs;
                 if (bStart >= mEnd - 0.001) break;
                 times.Add(bStart);
-                measures.Add(bi == 0);   // 各小節の先頭拍 = 小節線
+                measures.Add(beatInMeasure + bi == 0);   // 各小節の先頭拍 = 小節線
+                consumed++;
             }
 
+            beatInMeasure += consumed;
+            if (cutByTimesig || beatInMeasure >= num) beatInMeasure = 0;   // 拍子変化 or 小節完了で切る
             mStart = mEnd;
         }
 
