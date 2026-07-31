@@ -18,6 +18,10 @@ public class BootstrapController : MonoBehaviour
     {
         Debug.Log("[Bootstrap] Start");
 
+        // 譜面差し替え用フォルダを実体化しておく。
+        // 存在しないと chart-admin の Unity 同期でフォルダを選べない。
+        ChartLoader.EnsureUserSongsRoot();
+
         // Apply display settings before the first frame renders
         DisplayTabController.ApplySettingsOnBoot();
 

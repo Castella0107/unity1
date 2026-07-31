@@ -40,6 +40,31 @@ public static class ChartLoader
     public static string DataSongsRoot => Path.Combine(Application.persistentDataPath, "Songs");
 
     /// <summary>
+    /// <see cref="UserSongsRoot"/> を実体として作成する。
+    ///
+    /// 解決処理は「あれば読む」だけなのでフォルダは自然には生まれず、
+    /// ユーザーのドキュメントに何も現れなかった (K 報告 2026-08-01)。
+    /// chart-admin の Unity 同期はブラウザのフォルダ選択で
+    /// ドキュメント\PVPharmonics を選ばせる前提なので、選択先が存在しないと使えない。
+    /// 起動時に一度呼んで必ず存在させる。
+    /// </summary>
+    public static void EnsureUserSongsRoot()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(UserSongsRoot)) return;
+            if (Directory.Exists(UserSongsRoot)) return;
+            Directory.CreateDirectory(UserSongsRoot);
+            Debug.Log("[ChartLoader] ユーザー楽曲フォルダを作成: " + UserSongsRoot);
+        }
+        catch (Exception e)
+        {
+            // 権限やパス不正で作れなくても起動は続行する (StreamingAssets で動く)
+            Debug.LogWarning("[ChartLoader] ユーザー楽曲フォルダを作成できず: " + e.Message);
+        }
+    }
+
+    /// <summary>
     /// 楽曲フォルダを解決する。優先順:
     ///   ① --chart 起動引数の上書き
     ///   ② ドキュメント\PVPharmonics\Songs\&lt;songId&gt;   (ユーザー差し替え・同期先)

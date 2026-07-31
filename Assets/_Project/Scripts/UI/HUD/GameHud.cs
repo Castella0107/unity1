@@ -97,11 +97,41 @@ public class GameHud : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
+    /// <summary>
+    /// 曲名・アーティスト名に日本語フォントを直接割り当てる。
+    ///
+    /// シーンのテキストは既定フォント (LiberationSans) で、日本語は TMP Settings の
+    /// グローバルフォールバック (NotoSansJP) 経由で描画される。タイトル画面や曲リストでは
+    /// これで出るが、GamePlay の HUD だけ CJK が一切描画されず、ASCII だけが残っていた
+    /// (K 報告 2026-08-01:「天神楽」が丸ごと消え、エチュードは先頭の "2" だけ残る)。
+    /// フォールバックは字形ごとに子のサブメッシュを作る仕組みで、この HUD では
+    /// それが表示されない。曲名は日本語が入る前提の箇所なので、フォールバックに頼らず
+    /// 日本語フォントを主フォントとして直接指定する (NotoSansJP は ASCII も持つ)。
+    ///
+    /// 参照はフォールバック登録済みの TMP Settings から取るので、
+    /// シーンやプレハブに新しい参照を足す必要がない。
+    /// </summary>
+    static void ApplyJapaneseFont(TMP_Text t)
+    {
+        if (t == null) return;
+        var list = TMP_Settings.fallbackFontAssets;
+        if (list == null || list.Count == 0 || list[0] == null) return;
+        if (t.font == list[0]) return;
+        t.font = list[0];   // マテリアルも追従する
+    }
+
     /// <summary>楽曲メタ・譜面・PvP フラグから HUD(曲情報・スコア・セクターパネル等)を初期化する。</summary>
     public void Initialize(SongMetadata meta, ChartData chart, bool isPvP)
     {
         _meta  = meta;
         _chart = chart;
+
+        // 日本語が入りうるテキストはまとめて主フォントを差し替えておく
+        // (次曲は PVP の曲間、相手名は表示名に日本語が使える)
+        ApplyJapaneseFont(_songTitle);
+        ApplyJapaneseFont(_songArtist);
+        ApplyJapaneseFont(_nextSongTitle);
+        ApplyJapaneseFont(_opponentName);
 
         if (_songTitle  != null) _songTitle.text  = meta.Title;
         if (_songArtist != null) _songArtist.text = meta.Artist;

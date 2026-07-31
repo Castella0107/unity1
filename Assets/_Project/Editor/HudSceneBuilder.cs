@@ -75,12 +75,16 @@ public static class HudSceneBuilder
         var titleGO = Child("Title", box.transform);
         SR(titleGO, V(0,1), V(0,1), V(0,1), V(140,-14), V(404,52));
         var titleTMP = T(titleGO, "Song Title", 30, Color.white, TextAlignmentOptions.TopLeft, FontStyles.Bold);
+        // 長い曲名は自動縮小で全部見せる。Truncate は省略記号も出さず黙って切るので使わない
+        // (K 報告 2026-08-01:「2人の少女に捧げるエチュード 第2楽章…」が "2" しか出ない)。
         titleTMP.overflowMode = TextOverflowModes.Ellipsis; titleTMP.enableWordWrapping = false;
+        titleTMP.enableAutoSizing = true; titleTMP.fontSizeMin = 14; titleTMP.fontSizeMax = 30;
 
         var artistGO = Child("Artist", box.transform);
         SR(artistGO, V(0,1), V(0,1), V(0,1), V(140,-70), V(404,30));
         var artistTMP = T(artistGO, "Artist", 18, new Color(1,1,1,.7f), TextAlignmentOptions.TopLeft);
         artistTMP.overflowMode = TextOverflowModes.Ellipsis; artistTMP.enableWordWrapping = false;
+        artistTMP.enableAutoSizing = true; artistTMP.fontSizeMin = 14; artistTMP.fontSizeMax = 18;
 
         var diffGO = Child("Difficulty", box.transform);
         SR(diffGO, V(1,0), V(1,0), V(1,0), V(-16,12), V(220,46));
