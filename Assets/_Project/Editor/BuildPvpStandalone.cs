@@ -19,9 +19,12 @@ public static class BuildPvpStandalone
     [MenuItem("Tools/PVP/Build (Win64)")]
     public static void BuildWin64Menu() => BuildWin64();
 
-    /// <summary>開発ビルド (Development、出力先 Build/PVP-dev)。クラッシュ調査用。</summary>
+    /// <summary>開発ビルド (Development、出力先 Build/PVP-dev)。クラッシュ調査・性能実測用。
+    /// ConnectWithProfiler 付き — エディタ実行の計測はエディタ UI のコストに支配されて
+    /// ゲーム側を測れないため、性能はこのビルドで測る (2026-07-31)。</summary>
     [MenuItem("Tools/PVP/Build Dev (Win64)")]
-    public static void BuildWin64Dev() => Build(BuildOptions.Development, "PVP-dev");
+    public static void BuildWin64Dev() =>
+        Build(BuildOptions.Development | BuildOptions.ConnectWithProfiler, "PVP-dev");
 
     /// <summary>PVP本体の Windows64 スタンドアロンをビルドする(batch: -executeMethod BuildPvpStandalone.BuildWin64)。</summary>
     public static void BuildWin64()

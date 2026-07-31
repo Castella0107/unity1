@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "songId": "song_005",
+  "title": "Timepiece Tower",
+  "artist": "Dyglone",
+  "bpm": 140,
+  "durationMs": 169012,
+  "audioFile": "audio.ogg",
+  "jacketFile": "jacket.png",
+  "firstOnsetMs": 0,
+  "audioOffsetMs": 0,
+  "sectors": [
+    {
+      "id": 1,
+      "name": "S1",
+      "endMs": 43615
+    },
+    {
+      "id": 2,
+      "name": "S2",
+      "endMs": 71615
+    },
+    {
+      "id": 3,
+      "name": "S3",
+      "endMs": 103615
+    },
+    {
+      "id": 4,
+      "name": "S4",
+      "endMs": 139615
+    },
+    {
+      "id": 5,
+      "name": "S5",
+      "endMs": 169012
+    }
+  ]
+}

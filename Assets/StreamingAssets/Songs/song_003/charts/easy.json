@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "songId": "song_003",
+  "difficulty": "easy",
+  "level": 4,
+  "tags": [],
+  "chartHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "totalNotes": 6,
+  "events": [
+    {
+      "type": "bpm",
+      "timeMs": 0,
+      "bpm": 200
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "type": "tap",
+      "lane": "0",
+      "timeMs": 600
+    },
+    {
+      "id": 2,
+      "type": "tap",
+      "lane": "2",
+      "timeMs": 900
+    },
+    {
+      "id": 3,
+      "type": "tap",
+      "lane": "1",
+      "timeMs": 1200
+    },
+    {
+      "id": 4,
+      "type": "tap",
+      "lane": "3",
+      "timeMs": 1500
+    },
+    {
+      "id": 5,
+      "type": "hold",
+      "lane": "0",
+      "timeMs": 1800,
+      "durationMs": 600
+    },
+    {
+      "id": 6,
+      "type": "tap",
+      "lane": "2",
+      "timeMs": 2400
+    }
+  ]
+}

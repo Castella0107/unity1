@@ -30,7 +30,7 @@ public static class PreBakeFontGlyphs
         if (fa == null) { Fail("font asset not found: " + FontPath); return; }
         if (!File.Exists(CharsPath)) { Fail("chars file not found: " + CharsPath); return; }
 
-        string chars = File.ReadAllText(CharsPath);
+        string chars = File.ReadAllText(CharsPath) + CollectSongTitleChars();
 
         // アトラスサイズ拡張+焼き込み済みデータのクリア (serialized fields 直接変更)
         var so = new SerializedObject(fa);
@@ -55,6 +55,45 @@ public static class PreBakeFontGlyphs
 
         Debug.Log($"[PreBakeFontGlyphs] DONE  atlas={fa.atlasWidth}x{fa.atlasHeight} pages={fa.atlasTextureCount} glyphs={fa.glyphTable.Count}");
         if (Application.isBatchMode) EditorApplication.Exit(baked > 0 ? 0 : 4);
+    }
+
+    /// <summary>
+    /// 同梱楽曲の曲名・アーティスト名で使われている文字を集める。
+    ///
+    /// prebake_chars.txt は UI の固定文言だけなので、曲名の漢字が焼き込まれず
+    /// 日本語の曲名が表示されなかった (K 報告 2026-08-01: 「女」「捧」「神」「欲」「愛」「華」等が未収録)。
+    /// StreamingAssets の meta.json から拾って必ず含める。
+    ///
+    /// ※サーバーから後で追加された曲は当然ここに無い。動的追加のフォールバックは
+    ///   生きているが、アトラス溢れを避けるため新曲を入れたら本メニューを再実行すること。
+    /// </summary>
+    static string CollectSongTitleChars()
+    {
+        var sb = new System.Text.StringBuilder();
+        string root = Path.Combine(Application.streamingAssetsPath, "Songs");
+        if (!Directory.Exists(root)) return "";
+
+        foreach (var dir in Directory.GetDirectories(root))
+        {
+            string meta = Path.Combine(dir, "meta.json");
+            if (!File.Exists(meta)) continue;
+            try
+            {
+                string json = File.ReadAllText(meta);
+                foreach (var key in new[] { "title", "artist" })
+                {
+                    var m = System.Text.RegularExpressions.Regex.Match(
+                        json, "\"" + key + "\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"");
+                    if (m.Success) sb.Append(System.Text.RegularExpressions.Regex.Unescape(m.Groups[1].Value));
+                }
+            }
+            catch (System.Exception e)
+            {
+                Debug.LogWarning("[PreBakeFontGlyphs] meta 読み込み失敗 " + dir + ": " + e.Message);
+            }
+        }
+        Debug.Log($"[PreBakeFontGlyphs] 曲名から {sb.Length} 文字を追加収集");
+        return sb.ToString();
     }
 
     static void Fail(string msg)

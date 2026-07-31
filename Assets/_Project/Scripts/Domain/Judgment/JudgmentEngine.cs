@@ -91,6 +91,10 @@ public sealed class JudgmentEngine
         tracker.OnReleased(timeMs);
     }
 
+    /// <summary>指定レーンで現在アクティブな (頭判定済み・尾未解決の) ホールドの NoteId。ビジュアル用で判定には影響しない。</summary>
+    public int? GetActiveHoldNoteId(LaneRef lane)
+        => _activeHoldByLane.TryGetValue(lane, out var t) ? t.NoteId : (int?)null;
+
     // ── Time advancement (auto-miss + hold ticks + hold tail) ─────────────────
 
     /// <summary>時刻を進め、タップ/ホールド頭のオートミス、ホールドのティック加算、ホールド尾のオートミスを処理する。</summary>
@@ -115,6 +119,8 @@ public sealed class JudgmentEngine
         }
 
         // 2. Hold head auto-miss
+        // HEAD_RECOVERY_SPEC (2026-07-30): 頭ミスでもホールドは放棄せずアクティブ化する。
+        // 以降のティックは Miss で進行し、再押下 (ProcessLaneDown → OnPressed) で途中復帰できる。
         foreach (var h in _holds.Values)
         {
             if (h.OnHeadMissed(timeMs))
@@ -122,6 +128,8 @@ public sealed class JudgmentEngine
                 _progress.ApplyMiss(h.StartMs);
                 Fire(new JudgmentEvent(h.NoteId, NoteKind.HoldHead, h.Lane, Judgment.Miss, 0, h.StartMs,
                                        _progress.CurrentCombo, isAutoMiss: true));
+                if (!_activeHoldByLane.ContainsKey(h.Lane))
+                    _activeHoldByLane[h.Lane] = h;
             }
         }
 
@@ -144,8 +152,9 @@ public sealed class JudgmentEngine
 
             // Tail auto-resolves at EndMs. 終端の 1/8 は無敵ゾーン(押下/離上を再評価しない):
             // 通常ホールドは直前の実ティック判定を複製(手前でコンボが切れていれば Miss を複製)、
-            // 1/8 以下の短いホールドは(支点が通っていれば)P+。
-            // 支点が MISS のホールドは _abandoned 済みで ResolveTail が null を返す(頭のオートミスで処理済み)。
+            // 1/8 以下の短いホールドは(支点を取っていれば)P+。
+            // 頭ミスのホールドも HEAD_RECOVERY_SPEC によりここまで進行する (復帰していれば Great/P+、
+            // 死んだままなら Miss の複製)。
             Judgment? tailJ = tracker.ResolveTail(timeMs);
             if (tailJ.HasValue)
             {

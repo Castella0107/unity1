@@ -17,6 +17,10 @@ public class GameplayTabController : MonoBehaviour
     [SerializeField] Slider          _hiSpeedSlider;
     [SerializeField] TextMeshProUGUI _hiSpeedValue;
 
+    [Header("Lane Length (FAR_WALL_SPEC: 透明遮蔽壁の位置 25〜100%)")]
+    [SerializeField] Slider          _laneLengthSlider;
+    [SerializeField] TextMeshProUGUI _laneLengthValue;
+
     [Header("Timing — Judgment Offset (音声再生タイミング補正相当)")]
     [SerializeField] Slider          _judgmentOffsetSlider;
     [SerializeField] TextMeshProUGUI _judgmentOffsetValue;
@@ -32,6 +36,8 @@ public class GameplayTabController : MonoBehaviour
     [Header("Judgement / Display")]
     [SerializeField] TMP_Dropdown _comboBorderDropdown;
     [SerializeField] Toggle       _fastLateToggle;
+    [SerializeField] Toggle       _comboShowToggle;    // コンボ表示 ON/OFF (K 指示 2026-07-30)
+    [SerializeField] TMP_Dropdown _comboPosDropdown;   // コンボ表示位置
 
     [Header("Effects")]
     [SerializeField] Slider          _backgroundEffectsSlider;
@@ -46,6 +52,7 @@ public class GameplayTabController : MonoBehaviour
     void Start()
     {
         SetupHiSpeed();
+        SetupLaneLength();
         SetupOffsets();
         SetupJudgementRows();
         SetupEffects();
@@ -67,17 +74,53 @@ public class GameplayTabController : MonoBehaviour
 
     // ── Setup ─────────────────────────────────────────────────────────────────
 
+    // ハイスピード: 0.1 刻みで操作できるよう、スライダーは 10 倍整数 (0.5〜20.0 → 5〜200) で持つ。
+    // wholeNumbers=true にすると Slider.OnMove の←→キー 1 ステップが「1」= 0.1 になる
+    // (wholeNumbers=false だとレンジの 10% = 約 2.0 も動いてしまう)。保存値は従来どおり 0.5〜20 の float。
     void SetupHiSpeed()
     {
         if (_hiSpeedSlider == null) return;
-        _hiSpeedSlider.minValue = 0.5f;
-        _hiSpeedSlider.maxValue = 20.0f;
+        _hiSpeedSlider.minValue     = 5f;     // = 0.5
+        _hiSpeedSlider.maxValue     = 200f;   // = 20.0
+        _hiSpeedSlider.wholeNumbers = true;
         _hiSpeedSlider.onValueChanged.AddListener(v =>
         {
-            if (_hiSpeedValue != null) _hiSpeedValue.text = v.ToString("F1");
-            PlayerPrefs.SetFloat("HiSpeed", v);
+            float speed = v / 10f;
+            if (_hiSpeedValue != null) _hiSpeedValue.text = speed.ToString("F1");
+            PlayerPrefs.SetFloat("HiSpeed", speed);
             PlayerPrefs.Save();
         });
+        // シーン焼き込みの ◁▷ ステッパー (±0.5) も 10 倍整数スケールの ±1 (= 0.1) に合わせる
+        foreach (var st in _hiSpeedSlider.transform.parent
+                     .GetComponentsInChildren<RhythmGame.UI.Common.SliderStepper>(true))
+            st.SetDeltaMagnitude(1f);
+
+        // 数値クリックで直接入力 (K 指示 2026-07-31)。確定値はスライダー経由で反映=保存経路は従来どおり
+        RhythmGame.UI.Common.ClickToEditValue.Attach(_hiSpeedValue, 0.5f, 20f, integer: false,
+            get:    () => _hiSpeedSlider.value / 10f,
+            commit: v  => _hiSpeedSlider.value = Mathf.Round(v * 10f));
+    }
+
+    // レーン長 (laneLength): スライダーは 25〜200 (%)、保存は 0.25〜2.00 の float
+    // (上限 200% へ拡張 — K 指示 2026-07-30)。
+    // 変更は即時 PlayerPrefs へ (グローバル保存モデル: F5 で確定・未保存離脱で巻き戻し)。
+    void SetupLaneLength()
+    {
+        if (_laneLengthSlider == null) return;
+        _laneLengthSlider.minValue     = 25f;
+        _laneLengthSlider.maxValue     = 200f;
+        _laneLengthSlider.wholeNumbers = true;
+        _laneLengthSlider.onValueChanged.AddListener(v =>
+        {
+            if (_laneLengthValue != null) _laneLengthValue.text = (int)v + "%";
+            PlayerPrefs.SetFloat("LaneLength", v / 100f);
+            PlayerPrefs.Save();
+            FxSectorGeometry.RefreshLaneLength();   // プレイフィールドの壁位置へ即時反映
+        });
+
+        RhythmGame.UI.Common.ClickToEditValue.Attach(_laneLengthValue, 25f, 200f, integer: true,
+            get:    () => _laneLengthSlider.value,
+            commit: v  => _laneLengthSlider.value = v);
     }
 
     void SetupOffsets()
@@ -93,6 +136,10 @@ public class GameplayTabController : MonoBehaviour
                 if (label != null) label.text = (int)v + " ms";
                 if (!_suppressSliderEvents) _ = SaveOffsetsAsync();
             });
+            RhythmGame.UI.Common.ClickToEditValue.Attach(label,
+                AppOffsetSettings.MinMs, AppOffsetSettings.MaxMs, integer: true,
+                get:    () => s.value,
+                commit: v  => s.value = v);
         }
         Configure(_judgmentOffsetSlider, _judgmentOffsetValue);
         Configure(_visualOffsetSlider,   _visualOffsetValue);
@@ -127,6 +174,24 @@ public class GameplayTabController : MonoBehaviour
                 PlayerPrefs.SetInt("ShowFastLate", v ? 1 : 0);
                 PlayerPrefs.Save();
             });
+
+        if (_comboShowToggle != null)
+            _comboShowToggle.onValueChanged.AddListener(v =>
+            {
+                PlayerPrefs.SetInt("ComboShow", v ? 1 : 0);
+                PlayerPrefs.Save();
+            });
+
+        if (_comboPosDropdown != null)
+        {
+            _comboPosDropdown.ClearOptions();
+            _comboPosDropdown.AddOptions(new List<string> { "中央 (判定表示の上)", "上部中央", "判定ラインの下" });
+            _comboPosDropdown.onValueChanged.AddListener(idx =>
+            {
+                PlayerPrefs.SetInt("ComboPosIdx", idx);
+                PlayerPrefs.Save();
+            });
+        }
     }
 
     void SetupEffects()
@@ -141,9 +206,14 @@ public class GameplayTabController : MonoBehaviour
                 if (_backgroundEffectsValue != null) _backgroundEffectsValue.text = (int)v + "%";
                 PlayerPrefs.SetFloat("BgEffectsIntensity", v);
                 PlayerPrefs.Save();
-                JacketBackgroundController.Instance?.SetBrightness((v / 100f) * 0.5f);
+                // ジャケット背景の明るさ上限: 旧 0.5 は「薄暗い」と K 指摘 (2026-07-30) → 0.85 に引き上げ
+                JacketBackgroundController.Instance?.SetBrightness((v / 100f) * 0.85f);
                 BeatGridController.Instance?.SetUserIntensity(v / 100f);
             });
+
+            RhythmGame.UI.Common.ClickToEditValue.Attach(_backgroundEffectsValue, 0f, 100f, integer: true,
+                get:    () => _backgroundEffectsSlider.value,
+                commit: v  => _backgroundEffectsSlider.value = v);
         }
 
         if (_judgmentEffectDropdown != null)
@@ -162,14 +232,27 @@ public class GameplayTabController : MonoBehaviour
     {
         if (_hiSpeedSlider != null)
         {
-            _hiSpeedSlider.SetValueWithoutNotify(PlayerPrefs.GetFloat("HiSpeed", 4.5f));
-            if (_hiSpeedValue != null) _hiSpeedValue.text = _hiSpeedSlider.value.ToString("F1");
+            // スライダーは 10 倍整数スケール (SetupHiSpeed 参照)
+            _hiSpeedSlider.SetValueWithoutNotify(
+                Mathf.Round(Mathf.Clamp(PlayerPrefs.GetFloat("HiSpeed", 4.5f), 0.5f, 20f) * 10f));
+            if (_hiSpeedValue != null) _hiSpeedValue.text = (_hiSpeedSlider.value / 10f).ToString("F1");
+        }
+
+        if (_laneLengthSlider != null)
+        {
+            _laneLengthSlider.SetValueWithoutNotify(
+                Mathf.Round(Mathf.Clamp(PlayerPrefs.GetFloat("LaneLength", 1f), 0.25f, 2f) * 100f));
+            if (_laneLengthValue != null) _laneLengthValue.text = (int)_laneLengthSlider.value + "%";
         }
 
         if (_comboBorderDropdown != null)
             _comboBorderDropdown.SetValueWithoutNotify(PlayerPrefs.GetInt("ComboBorderIdx", 0));
         if (_fastLateToggle != null)
             _fastLateToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("ShowFastLate", 1) == 1);
+        if (_comboShowToggle != null)
+            _comboShowToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("ComboShow", 1) == 1);
+        if (_comboPosDropdown != null)
+            _comboPosDropdown.SetValueWithoutNotify(Mathf.Clamp(PlayerPrefs.GetInt("ComboPosIdx", 0), 0, 2));
 
         if (_backgroundEffectsSlider != null)
         {

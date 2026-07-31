@@ -14,7 +14,7 @@ public class JacketLoader
 {
     readonly Dictionary<string, Texture2D> _cache    = new Dictionary<string, Texture2D>();
     readonly LinkedList<string>            _lruOrder = new LinkedList<string>();
-    const int MAX_CACHE = 10;
+    const int MAX_CACHE = 32;   // 選曲リストのサムネ全曲分 + メイン表示 (10 だと 13 曲でスラッシング)
 
     static readonly string[] Extensions = { "jacket.png", "jacket.jpg", "jacket.jpeg" };
 
@@ -57,7 +57,8 @@ public class JacketLoader
 
     static string FindJacketPath(string songId)
     {
-        var root = Path.Combine(Application.streamingAssetsPath, "Songs", songId);
+        // 差し替え先 (ドキュメント等) を含めて解決する — ChartLoader と同じ場所を見ること
+        var root = ChartLoader.SongDir(songId);
         if (!Directory.Exists(root)) return null;
 
         foreach (var ext in Extensions)

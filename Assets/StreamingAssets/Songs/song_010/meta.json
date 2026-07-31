@@ -1,0 +1,38 @@
+{
+  "artist": "xL",
+  "audioFile": "xL - RGMES2 LUNATIC - 14 Eclosion.wav",
+  "audioOffsetMs": 0,
+  "bpm": 184,
+  "durationMs": 114000,
+  "firstOnsetMs": 0,
+  "jacketFile": "jacket.png",
+  "sectors": [
+    {
+      "endMs": 23478,
+      "id": 1,
+      "name": "S1"
+    },
+    {
+      "endMs": 44755,
+      "id": 6,
+      "name": "S2"
+    },
+    {
+      "endMs": 58696,
+      "id": 5,
+      "name": "S3"
+    },
+    {
+      "endMs": 73370,
+      "id": 4,
+      "name": "S4"
+    },
+    {
+      "endMs": 109647,
+      "id": 7,
+      "name": "S5"
+    }
+  ],
+  "songId": "song_010",
+  "title": "Eclosion"
+}

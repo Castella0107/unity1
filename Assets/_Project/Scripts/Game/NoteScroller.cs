@@ -24,11 +24,22 @@ public class NoteScroller : MonoBehaviour
     // Spawn/despawn windows are derived from _scrollSpeed so notes always appear at
     // NoteSpawnZ and disappear at NoteDespawnZ for any HiSpeed (no pop-in at low speed).
 
-    /// <summary>現在のスクロール速度(World Z units / 秒)。</summary>
+    /// <summary>
+    /// HiSpeed 設定値 1.0 あたりのワールド速度係数。従来は設定値 = ワールド速度そのままだったが
+    /// 体感が弱く「設定 20 が他ゲームの 12 相当」(K 実感) だったため 20/12 倍で補正した。
+    /// それでもまだ効きが弱いとの指摘 (K 2026-07-31) で倍率を追加した。
+    /// 1.8 倍 → 2.0 倍と調整し、最終的に 3.0 倍 (20/12 × 3.0 = 5.0) にしている。
+    /// ノーツ・小節線 (BeatLineScroller) は共に ScrollSpeed を参照するので同期は保たれる。
+    /// スポーン/デスポーン範囲も _scrollSpeed から逆算しているため、速度を上げても
+    /// ノーツの湧き出し位置は変わらない (NoteSpawnZ で一定)。
+    /// </summary>
+    public const float HiSpeedScale = 20f / 12f * 3.0f;
+
+    /// <summary>現在のスクロール速度(World Z units / 秒)。HiSpeed 設定値 × HiSpeedScale。</summary>
     public float ScrollSpeed => _scrollSpeed;
 
-    /// <summary>スクロール速度(HiSpeed)を設定する。プレイ開始前に呼ぶ。</summary>
-    public void SetScrollSpeed(float speed) => _scrollSpeed = Mathf.Clamp(speed, 0.5f, 20f);
+    /// <summary>スクロール速度(HiSpeed 設定値 0.5〜20)を設定する。プレイ開始前に呼ぶ。</summary>
+    public void SetScrollSpeed(float speed) => _scrollSpeed = Mathf.Clamp(speed, 0.5f, 20f) * HiSpeedScale;
 
     private List<NoteData>                  _allNotes;
     private ScrollSpeedTimeline             _speed;        // "speed" イベントによるスクロール演出(視覚専用)
@@ -50,6 +61,13 @@ public class NoteScroller : MonoBehaviour
     {
         if (_noteById.TryGetValue(noteId, out var ctrl))
             ctrl.SetHit();
+    }
+
+    /// <summary>ホールドの「取れていない」視覚状態 (若干グレー) を切り替える。</summary>
+    public void NotifyHoldDropped(int noteId, bool dropped)
+    {
+        if (_noteById.TryGetValue(noteId, out var ctrl))
+            ctrl.SetHoldDropped(dropped);
     }
 
     /// <summary>Tap/FxTap のオートミスを通知し、ノートを非表示にする。</summary>
@@ -106,7 +124,23 @@ public class NoteScroller : MonoBehaviour
         _allNotes     = chart.Notes.OrderBy(n => n.TimeMs).ToList();
         _speed        = new ScrollSpeedTimeline(chart.Events);
         _nextSpawnIdx = 0;
+
+        // 同時押し検出 (K 指示 2026-07-30): 同一時刻 (ms 丸め) に 2 ノーツ以上あるものは
+        // 同時押し色 (GameColorSettings.ChordColor、既定 黄) で表示する。表示のみで判定に影響しない。
+        _chordIds.Clear();
+        var byTime = new Dictionary<long, List<int>>();
+        foreach (var n in _allNotes)
+        {
+            long key = (long)System.Math.Round(n.TimeMs);
+            if (!byTime.TryGetValue(key, out var list)) byTime[key] = list = new List<int>();
+            list.Add(n.Id);
+        }
+        foreach (var kv in byTime)
+            if (kv.Value.Count >= 2)
+                foreach (int id in kv.Value) _chordIds.Add(id);
     }
+
+    readonly HashSet<int> _chordIds = new HashSet<int>();   // 同時押しノーツの Id
 
     /// <summary>全アクティブノートをプールに返却し、内部状態をリセットする。</summary>
     public void Reset()
@@ -146,6 +180,7 @@ public class NoteScroller : MonoBehaviour
 
             var ctrl = _pool.Acquire(noteData.Type);
             ctrl.Initialize(noteData);
+            ctrl.SetChord(_chordIds.Contains(noteData.Id));   // 同時押しは黄 (設定可)
             _activeNotes.Add(ctrl);
             _noteById[noteData.Id] = ctrl;
             _nextSpawnIdx++;

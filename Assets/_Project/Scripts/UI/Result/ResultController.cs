@@ -119,8 +119,10 @@ public class ResultController : MonoBehaviour
         _difficultyText.color = RankColors.GetDifficultyColor(r.Difficulty);
         _songInfoText.text    = $"{v.SongTitle}  -  {v.SongArtist}";
 
-        _rankText.text  = r.Rank;
-        _rankText.color = RankColors.GetRankColor(r.Rank);
+        // 保存値ではなくスコアから引き直す (旧仕様で保存された記録があるため)
+        string dispRank = ScoreCalculator.DisplayRank(r.EffectiveScore, r.Rank);
+        _rankText.text  = dispRank;
+        _rankText.color = RankColors.GetRankColor(dispRank);
 
         StartCoroutine(CountUp(_currentScoreText, 0, r.EffectiveScore, _countupDuration));
         int displayBest = Mathf.Max(v.BestEffectiveScoreBefore, r.EffectiveScore);

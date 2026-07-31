@@ -120,3 +120,10 @@ InitTestScene*.unity*
 
 # 譜面エディタは独立リポジトリ (Tools/ChartEditor/.git)
 /Tools/
+
+# 検証・デバッグ用スクリーンショット (ゲーム動作には不要)
+Assets/Screenshots/
+Assets/Screenshots.meta
+
+# Velopack のリリース生成物 (1 ファイル 270MB 超、GitHub の 100MB 制限に抵触)
+release-tools/releases/

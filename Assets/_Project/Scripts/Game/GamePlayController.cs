@@ -34,8 +34,18 @@ public class GamePlayController : MonoBehaviour
 
     AutoPlayInputSource _autoInput;   // オートプレイ時のみ非null
 
-    string SongId     => _params?.SongId     ?? _fallbackSongId;
-    string Difficulty => _params?.Difficulty  ?? _fallbackDifficulty;
+    string SongId     => _params?.SongId     ?? CliOverride("--song")  ?? _fallbackSongId;
+    string Difficulty => _params?.Difficulty  ?? CliOverride("--diff")  ?? _fallbackDifficulty;
+
+    /// <summary>起動引数 `--song=song_011` / `--diff=hard` による上書き (性能実測用)。
+    /// ビルドで特定の譜面を直接再生して計測するために使う。指定が無ければ null。</summary>
+    static string CliOverride(string key)
+    {
+        foreach (var a in System.Environment.GetCommandLineArgs())
+            if (a.StartsWith(key + "=", System.StringComparison.Ordinal))
+                return a.Substring(key.Length + 1);
+        return null;
+    }
 
     void OnEnable()
     {
@@ -85,6 +95,11 @@ public class GamePlayController : MonoBehaviour
             _durationMs = _meta.DurationMs;
             _totalNotes = _chart.TotalNotes;
 
+            // meta に sectors が無い曲は譜面から時間 5 等分で自動生成 (HUD のセクター表示用)。
+            // 境界はサーバー engine.SectorEndsFromChart と同一値なので PVP 集計とズレない。
+            if (_meta.Sectors == null || _meta.Sectors.Count == 0)
+                _meta.Sectors = ScoringEventCounter.SectorDefsFromChart(_chart.Notes);
+
             await StageInitializer.ApplyAudioOffsetsAsync(
                 _conductor, SongId,
                 fallbackJudgeMs:  _params?.JudgeOffset  ?? 0,
@@ -97,6 +112,22 @@ public class GamePlayController : MonoBehaviour
                 Debug.LogWarning("[GamePlay] Audio not found: " + e.Message +
                                  " → using 30-second silent clip");
                 clip = AudioClip.Create("silent_fallback", 44100 * 30, 1, 44100, false);
+            }
+
+            // meta.durationMs 未設定 (0) の曲は永遠に終了しないため、譜面終端と音源長から補完する
+            // (実例: song_007 "endtime" が durationMs=0 で終了不能になった)。
+            if (_durationMs <= 0)
+            {
+                double chartEndMs = 0;
+                foreach (var n in _chart.Notes)
+                {
+                    bool hold = n.Type == NoteType.Hold || n.Type == NoteType.FxHold;
+                    double e = n.TimeMs + (hold ? n.DurationMs : 0);
+                    if (e > chartEndMs) chartEndMs = e;
+                }
+                double clipMs = (clip != null && clip.name != "silent_fallback") ? clip.length * 1000.0 : 0.0;
+                _durationMs = Math.Max(chartEndMs + 3000.0, clipMs);
+                Debug.LogWarning($"[GamePlay] meta.durationMs が未設定 — {_durationMs:F0}ms に自動補完 (譜面終端+3s と音源長の大きい方)");
             }
 
             StageInitializer.BindStageVisuals(_conductor, _chart, _meta, _scroller, _hud,
@@ -134,8 +165,14 @@ public class GamePlayController : MonoBehaviour
             JudgmentWindow.WideActive =
                 (_params == null || !_params.IsPvp) && PlayOptionsController.JudgeWide;
             if (_judgment != null) _judgment.Initialize(_chart, _meta, inputSource, GameplayTabController.GetSavedComboBorder());
-            // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
-            int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
+            // 実効シフト = FirstOnsetMs + AudioOffsetMs。
+            // 譜面制作 (air-chart) では通常、音源側を切り詰めて拍を合わせるため FirstOnsetMs は 0。
+            // ただし音源側で調整すると拍が合わない曲があり、その場合は FirstOnsetMs で
+            // ズラして譜面を作っている (K 2026-07-31: song_013 time eclipse がこれ)。
+            // よって両方を足したものが「音源をどれだけ遅らせるか」になる。
+            // 音源だけをシフトし判定クロックは動かさないので、サーバー再判定との
+            // パリティには影響しない (AudioConductor.StartSong 参照)。
+            int audioShift = (_meta?.FirstOnsetMs ?? 0) + (_meta?.AudioOffsetMs ?? 0);
             _conductor.StartSong(clip, prerollSec: 2.0, audioOffsetMs: audioShift);
 
             Debug.Log(string.Format("[GamePlay] Started — song={0}  difficulty={1}  notes={2}",
@@ -189,9 +226,11 @@ public class GamePlayController : MonoBehaviour
                 if (_wsProgressTimer >= 0.5f)
                 {
                     _wsProgressTimer = 0f;
+                    // percent_x1000: 0..1000 (‰)。旧実装は ×100000 で 100 倍過大な値を
+                    // 送っており、相手側の進捗判定を壊していた (SOAK 検出 2026-07-30)
                     _ = socket.SendProgressAsync(
                         RhythmGame.Network.Api.PvpMatchContext.CurrentSongOrder,
-                        (int)(percent * 100000f), score);
+                        (int)(percent * 1000f), score);
                 }
             }
         }
@@ -221,9 +260,18 @@ public class GamePlayController : MonoBehaviour
         Debug.Log("[GamePlay] Replays null: "       + (repoSvcEarly?.Replays == null));
         Debug.Log("[GamePlay] PlayRecords null: "   + (repoSvcEarly?.PlayRecords == null));
 
-        if (_conductor != null) _conductor.Stop();
-        StageInitializer.UnbindStageVisuals();
-        if (_scroller  != null) _scroller.Reset();
+        // 視覚系クリーンアップの失敗でリザルト遷移/スコア送信を巻き添えにしない
+        // (SOAK 検出 2026-07-30: NotePool の NRE で async void ごと死に、結果画面に進めなくなった)
+        try
+        {
+            if (_conductor != null) _conductor.Stop();
+            StageInitializer.UnbindStageVisuals();
+            if (_scroller  != null) _scroller.Reset();
+        }
+        catch (System.Exception cleanupEx)
+        {
+            Debug.LogWarning("[GamePlay] 終了時クリーンアップ失敗 (続行): " + cleanupEx.Message);
+        }
         if (_judgment == null || _judgment.Aggregator == null) return;
 
         var snap   = _judgment.SnapshotForResult();
@@ -290,6 +338,16 @@ public class GamePlayController : MonoBehaviour
             record.ReplayPath = await repoSvc.Replays.SaveAsync(
                 record.PlayId, replayData, record.PlayedAtUnixMs);
             Debug.Log("[GamePlay] Replay saved: " + (record.ReplayPath ?? "null"));
+
+            // ── リーダーボードへのスコア提出 (ソロのみ、裏で非同期・失敗はログのみ) ──
+            // docs/design_doc/leaderboard_client.md §3。サーバーがリプレイを再判定し
+            // ベストスコアを取り込む。await しない (リザルト遷移をブロックしない)。
+            if (!isPvpPlay)
+            {
+                _ = RhythmGame.Network.Api.ScoreSubmitService.SubmitIfEligibleAsync(
+                    record, _chart?.ChartHash, isPvp: false, isAutoPlay: false,
+                    judgeWide: JudgmentWindow.WideActive);
+            }
         }
         else
         {

@@ -45,7 +45,14 @@ public static class SceneAutoLoader
 
         if (currentPath == BootstrapPath) return;
 
-        if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+        // ソーク自走中 (PlayerPrefs "SoakTest"==1) は保存確認ダイアログを出さない。
+        // モーダルが開くとエディタが停止し、無人の自動テストがそこで止まってしまうため
+        // (K 報告 2026-07-31)。編集内容は黙って保存してから Bootstrap へ移る。
+        if (PlayerPrefs.GetInt("SoakTest", 0) == 1)
+        {
+            EditorSceneManager.SaveOpenScenes();
+        }
+        else if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
         {
             EditorApplication.isPlaying = false;
             return;

@@ -1,0 +1,38 @@
+{
+  "songId": "song_011",
+  "title": "2人の少女に捧げるエチュード 第2楽章 ～欲に塗れし愛の華～",
+  "artist": "CYLTIE.",
+  "bpm": 198.0,
+  "durationMs": 137000,
+  "audioFile": "CYLTIE. - RGMES2 LUNATIC - 01 2人の少女に捧げるエチュード 第2楽章 ～欲に塗れし愛の華～.wav",
+  "jacketFile": "jacket.png",
+  "firstOnsetMs": 0,
+  "audioOffsetMs": -909,
+  "sectors": [
+    {
+      "id": 2,
+      "name": "S1",
+      "endMs": 30758
+    },
+    {
+      "id": 3,
+      "name": "S2",
+      "endMs": 52500
+    },
+    {
+      "id": 4,
+      "name": "S3",
+      "endMs": 71970
+    },
+    {
+      "id": 5,
+      "name": "S4",
+      "endMs": 93708
+    },
+    {
+      "id": 6,
+      "name": "S5",
+      "endMs": 131364
+    }
+  ]
+}

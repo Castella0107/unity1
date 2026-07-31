@@ -19,11 +19,77 @@ public static class ChartLoader
     /// </summary>
     public static string OverrideBasePath { get; set; }
 
+    /// <summary>
+    /// ユーザーが差し替えられる楽曲フォルダ (書き込み可能・更新で消えない)。
+    /// <c>ドキュメント\PVPharmonics\Songs</c>。
+    ///
+    /// インストール版の StreamingAssets は
+    /// <c>%LocalAppData%\PVPharmonics\current\PVP_Data\StreamingAssets</c> にあり、
+    ///   ① 自動更新のたび current ごと置き換わるので置いた譜面が消える
+    ///   ② ブラウザ (chart-admin の Unity 同期) は AppData 配下を書き込み先に選べない
+    /// という 2 つの理由で譜面の差し替え先に使えない。そこで書き込み可能な場所を先に見る
+    /// (K 要望 2026-07-31)。ドキュメントを使うのは、ブラウザのフォルダ選択が確実に許可するため。
+    /// </summary>
+    public static string UserSongsRoot =>
+        Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            "PVPharmonics", "Songs");
+
+    /// <summary>アプリのデータ領域側の楽曲フォルダ (persistentDataPath/Songs)。
+    /// 更新では消えないが、ブラウザから選べないことがあるため優先度は 2 番目。</summary>
+    public static string DataSongsRoot => Path.Combine(Application.persistentDataPath, "Songs");
+
+    /// <summary>
+    /// 楽曲フォルダを解決する。優先順:
+    ///   ① --chart 起動引数の上書き
+    ///   ② ドキュメント\PVPharmonics\Songs\&lt;songId&gt;   (ユーザー差し替え・同期先)
+    ///   ③ persistentDataPath\Songs\&lt;songId&gt;
+    ///   ④ StreamingAssets\Songs\&lt;songId&gt;             (同梱)
+    /// ②③ は meta.json の有無で「その曲がそこに置かれているか」を判定する。
+    /// </summary>
     static string ResolveBaseDir(string songId)
     {
-        return !string.IsNullOrEmpty(OverrideBasePath)
-            ? OverrideBasePath
-            : Path.Combine(Application.streamingAssetsPath, "Songs", songId);
+        if (!string.IsNullOrEmpty(OverrideBasePath)) return OverrideBasePath;
+
+        foreach (var root in new[] { UserSongsRoot, DataSongsRoot })
+        {
+            if (string.IsNullOrEmpty(root)) continue;
+            try
+            {
+                string dir = Path.Combine(root, songId);
+                if (File.Exists(Path.Combine(dir, "meta.json"))) return dir;
+            }
+            catch (Exception) { /* パス不正等は無視して次を見る */ }
+        }
+        return Path.Combine(Application.streamingAssetsPath, "Songs", songId);
+    }
+
+    /// <summary>指定楽曲のフォルダ (優先順で解決済み)。曲一覧やジャケット読み込みも
+    /// 必ずこれを通すこと — 場所ごとにバラバラに組み立てると差し替えが効かなくなる。</summary>
+    public static string SongDir(string songId) => ResolveBaseDir(songId);
+
+    /// <summary>存在する楽曲 ID を全ての置き場から重複なく列挙する
+    /// (ドキュメント → persistentDataPath → StreamingAssets の順。先に見つかった方が優先)。</summary>
+    public static System.Collections.Generic.List<string> EnumerateSongIds()
+    {
+        var seen   = new System.Collections.Generic.HashSet<string>();
+        var result = new System.Collections.Generic.List<string>();
+        foreach (var root in new[] { UserSongsRoot, DataSongsRoot,
+                                     Path.Combine(Application.streamingAssetsPath, "Songs") })
+        {
+            if (string.IsNullOrEmpty(root)) continue;
+            try
+            {
+                if (!Directory.Exists(root)) continue;
+                foreach (var d in Directory.GetDirectories(root))
+                {
+                    var id = Path.GetFileName(d);
+                    if (seen.Add(id)) result.Add(id);
+                }
+            }
+            catch (Exception) { /* 読めない場所は飛ばす */ }
+        }
+        return result;
     }
 
     /// <summary>指定楽曲の meta.json を読み込んで <see cref="SongMetadata"/> を返す。

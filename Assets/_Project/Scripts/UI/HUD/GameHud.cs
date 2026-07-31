@@ -32,6 +32,9 @@ public class GameHud : MonoBehaviour
     [SerializeField] Image           _scoreGauge;   // filled vertical, fillAmount = score/1,000,000
     [SerializeField] TextMeshProUGUI _scoreValue;
     [SerializeField] TextMeshProUGUI _rateValue;
+    [SerializeField] TextMeshProUGUI _maxComboValue; // プレイフィールド モック: MAX COMBO (ゼロ埋め3桁)
+    [SerializeField] TextMeshProUGUI _sectorCounter; // プレイフィールド モック: セクター表示 "03/05"
+    [SerializeField] Image           _sectorHalo;    // 現在セクターのハロー (P-Glow、現在ひし形の背後)
 
     [Header("Sector Diamonds — index 0 = S1 (bottom) .. 4 = S5 (top)")]
     [SerializeField] Image[]           _sectorDiamonds = new Image[5];
@@ -77,6 +80,8 @@ public class GameHud : MonoBehaviour
     // -1 = 未初期化(初回 Update で必ず一度反映される)。
     readonly int[] _shownCounts = { -1, -1, -1, -1, -1 };
     int  _shownScore    = -1;
+    int _shownMaxCombo = -1;
+    int _shownSectorNo = -1;
     int  _shownRateKey  = -1;   // Rate をキー化(score,max 依存)して比較する
     int  _shownVsSelf   = -1;
     int  _shownVsOpp    = -1;
@@ -108,14 +113,24 @@ public class GameHud : MonoBehaviour
 
         LoadJacket(meta.SongId);
 
-        if (_scoreValue != null) _scoreValue.text = "0";
-        if (_rateValue  != null) _rateValue.text  = "0.00%";
+        if (_scoreValue != null) _scoreValue.text = "0000000";
+        if (_rateValue  != null) _rateValue.text  = "000.00<color=#E5C06C>%</color>"; // % は P-Text
+        if (_maxComboValue != null) _maxComboValue.text = "000";
+        if (_sectorCounter != null) _sectorCounter.text = "01/05";
         if (_scoreGauge != null) _scoreGauge.fillAmount = 0f;
 
         // 変化検出キャッシュをリセット(曲を跨いだ HUD 再利用でも初回 Update で必ず反映されるように)。
         for (int c = 0; c < _shownCounts.Length; c++)    _shownCounts[c] = -1;
         for (int c = 0; c < _shownDiamondKey.Length; c++) _shownDiamondKey[c] = -1;
         _shownScore = _shownRateKey = _shownVsSelf = _shownVsOpp = -1;
+
+        // コンボ表示: 位置設定を読み直し、前回プレイの表示をリセット
+        _shownCombo = -1;
+        if (_comboText != null)
+        {
+            ApplyComboLayout((RectTransform)_comboText.transform);
+            _comboText.gameObject.SetActive(false);
+        }
 
         _shownSectorIdx = -1;
         for (int i = 0; i < _sectorDiamonds.Length; i++)
@@ -162,8 +177,28 @@ public class GameHud : MonoBehaviour
         if (score != _shownScore)
         {
             _shownScore = score;
-            if (_scoreValue != null) _scoreValue.text = score.ToString("N0");
+            if (_scoreValue != null) _scoreValue.text = score.ToString("D7"); // モック: 0000000
             if (_scoreGauge != null) _scoreGauge.fillAmount = score / 1_000_000f;
+        }
+
+        // MAX COMBO (モック: ゼロ埋め 3 桁)
+        if (_maxComboValue != null && agg.MaxCombo != _shownMaxCombo)
+        {
+            _shownMaxCombo = agg.MaxCombo;
+            _maxComboValue.text = Mathf.Min(agg.MaxCombo, 999).ToString("D3");
+        }
+
+        UpdateComboCounter(agg.CurrentCombo);
+
+        // セクターカウンター (モック: "03/05")
+        if (_sectorCounter != null)
+        {
+            int cur = Mathf.Clamp(agg.CurrentSectorIdx + 1, 1, 5);
+            if (cur != _shownSectorNo)
+            {
+                _shownSectorNo = cur;
+                _sectorCounter.text = cur.ToString("D2") + "/05";
+            }
         }
 
         // Overall RATE = accuracy = score / max-so-far. At song end == score/10000.
@@ -175,7 +210,7 @@ public class GameHud : MonoBehaviour
             if (rateKey != _shownRateKey)
             {
                 _shownRateKey = rateKey;
-                _rateValue.text = ratePct.ToString("F2") + "%";
+                _rateValue.text = ratePct.ToString("000.00") + "<color=#E5C06C>%</color>"; // % は P-Text
             }
         }
 
@@ -201,6 +236,75 @@ public class GameHud : MonoBehaviour
         }
 
         UpdateSectorDiamonds(agg);
+    }
+
+    // ── コンボ表示 (K 指示 2026-07-30: 他音ゲー同様の中央表示、位置と表示はコンフィグで変更可) ──
+
+    TextMeshProUGUI _comboText;   // 実行時生成 (シーン変更なしで導入するため)
+    int _shownCombo = -1;
+
+    /// <summary>現在コンボの表示を更新する。3 コンボ以上で表示し、増加時に軽くポップする。</summary>
+    void UpdateComboCounter(int combo)
+    {
+        bool enabled = PlayerPrefs.GetInt("ComboShow", 1) == 1;
+        bool show    = enabled && combo >= 3;
+        if (_comboText == null)
+        {
+            if (!show) { _shownCombo = combo; return; }
+            EnsureComboText();
+        }
+        if (_comboText.gameObject.activeSelf != show) _comboText.gameObject.SetActive(show);
+        if (!show) { _shownCombo = combo; return; }
+
+        if (combo != _shownCombo)
+        {
+            bool increased = combo > _shownCombo;
+            _shownCombo = combo;
+            _comboText.text = combo + "\n<size=34%><color=#9AB4C2>COMBO</color></size>";
+            if (increased) _comboText.transform.localScale = Vector3.one * 1.12f;   // ポップ
+        }
+        float s = _comboText.transform.localScale.x;   // ポップの減衰
+        if (s > 1f) _comboText.transform.localScale = Vector3.one * Mathf.Max(1f, s - Time.deltaTime * 0.8f);
+    }
+
+    void EnsureComboText()
+    {
+        var go = new GameObject("ComboCounter", typeof(RectTransform));
+        go.transform.SetParent(transform, false);
+        _comboText = go.AddComponent<TextMeshProUGUI>();
+        _comboText.alignment     = TextAlignmentOptions.Center;
+        _comboText.fontStyle     = FontStyles.Bold;
+        _comboText.fontSize      = 58f;
+        _comboText.color         = new Color(0.933f, 0.976f, 0.992f, 0.92f); // #EEF9FD
+        _comboText.raycastTarget = false;
+        _comboText.outlineWidth  = 0.2f;
+        _comboText.outlineColor  = new Color(0.04f, 0.04f, 0.07f, 0.92f);
+        var rt = (RectTransform)go.transform;
+        rt.sizeDelta = new Vector2(420f, 120f);
+        ApplyComboLayout(rt);
+    }
+
+    // 位置プリセット (PlayerPrefs "ComboPosIdx"):
+    //   0 = 中央 (判定表示の少し上 — SDVX/チュウニズム系の定番)
+    //   1 = 上部中央 (スコア帯の下)
+    //   2 = 判定ラインの下 (手元寄り)
+    void ApplyComboLayout(RectTransform rt)
+    {
+        switch (PlayerPrefs.GetInt("ComboPosIdx", 0))
+        {
+            case 1:
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
+                rt.anchoredPosition = new Vector2(0f, -150f);
+                break;
+            case 2:
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
+                rt.anchoredPosition = new Vector2(0f, 130f);
+                break;
+            default:
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, 130f);
+                break;
+        }
     }
 
     // ── Sector diamonds ─────────────────────────────────────────────────────────
@@ -235,7 +339,20 @@ public class GameHud : MonoBehaviour
         if (!final && _shownDiamondKey[i] == key) return;
         _shownDiamondKey[i] = key;
         string rank = ScoreCalculator.ComputeRank(Mathf.RoundToInt(ratePct * 10000f));
-        if (_sectorDiamonds[i] != null) _sectorDiamonds[i].color = RankColors.GetRankColor(rank);
+        if (_sectorDiamonds[i] != null)
+        {
+            // COLOR_SPEC: 進行中 (現在) のひし形は P-Core、確定はランク色。
+            _sectorDiamonds[i].color = final
+                ? RankColors.GetRankColor(rank)
+                : new Color(251 / 255f, 238 / 255f, 208 / 255f, 1f); // P-Core #FBEED0
+            _sectorDiamonds[i].rectTransform.localScale = final ? Vector3.one : Vector3.one * 1.4f;
+            // ハロー (P-Glow) を現在ひし形の背後へ移動
+            if (!final && _sectorHalo != null)
+            {
+                _sectorHalo.enabled = true;
+                _sectorHalo.rectTransform.anchoredPosition = _sectorDiamonds[i].rectTransform.anchoredPosition;
+            }
+        }
         if (_sectorPercents[i] != null) _sectorPercents[i].text  = ratePct.ToString("F2") + "%";
     }
 

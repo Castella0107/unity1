@@ -85,12 +85,31 @@ public class ReplayPlaybackController : MonoBehaviour
             _meta  = await ChartLoader.LoadMetaAsync(prm.SongId);
             _chart = await ChartLoader.LoadChartAsync(prm.SongId, prm.Difficulty);
 
+            // meta に sectors が無い曲は譜面から時間 5 等分で自動生成 (ライブ再生と同じ表示にする)
+            if (_meta != null && (_meta.Sectors == null || _meta.Sectors.Count == 0))
+                _meta.Sectors = ScoringEventCounter.SectorDefsFromChart(_chart.Notes);
+
             AudioClip clip = null;
             try { clip = await ChartLoader.LoadAudioAsync(prm.SongId); }
             catch (Exception e)
             {
                 Debug.LogWarning("[Replay] Audio not found: " + e.Message + " → silent fallback");
                 clip = AudioClip.Create("silent", 44100 * 30, 1, 44100, false);
+            }
+
+            // meta.durationMs 未設定 (0) だと終了判定が成立しないため補完 (ライブ再生と同じ)
+            if (_meta != null && _meta.DurationMs <= 0)
+            {
+                double chartEndMs = 0;
+                foreach (var n in _chart.Notes)
+                {
+                    bool hold = n.Type == NoteType.Hold || n.Type == NoteType.FxHold;
+                    double e2 = n.TimeMs + (hold ? n.DurationMs : 0);
+                    if (e2 > chartEndMs) chartEndMs = e2;
+                }
+                double clipMs = (clip != null && clip.name != "silent") ? clip.length * 1000.0 : 0.0;
+                _meta.DurationMs = (int)Math.Max(chartEndMs + 3000.0, clipMs);
+                Debug.LogWarning($"[Replay] meta.durationMs 未設定 — {_meta.DurationMs}ms に自動補完");
             }
 
             // ── Apply saved offsets (same as live mode) ──────────────────────
@@ -176,8 +195,8 @@ public class ReplayPlaybackController : MonoBehaviour
 
         _conductor.SetPlaybackSpeed(PlaybackSpeed);
         AudioClip clip = _conductor.GetComponent<AudioSource>()?.clip;
-        // 実効シフト = AudioOffsetMs + FirstOnsetMs (拍起点も音源側にずらして反映)
-        int audioShift = (_meta?.AudioOffsetMs ?? 0) + (_meta?.FirstOnsetMs ?? 0);
+        // 実効シフト = FirstOnsetMs + AudioOffsetMs (GamePlayController と必ず同じ式にすること)。
+        int audioShift = (_meta?.FirstOnsetMs ?? 0) + (_meta?.AudioOffsetMs ?? 0);
         if (clip != null) _conductor.StartSong(clip, prerollSec: 1.0, audioOffsetMs: audioShift);
         _isPlaying = true;
     }

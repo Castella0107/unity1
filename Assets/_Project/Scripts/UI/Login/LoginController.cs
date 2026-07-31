@@ -104,6 +104,14 @@ public class LoginController : MonoBehaviour
                 SetBusy(false);
                 return;
             }
+            // サーバーへ投げる前にパスワード規則をローカル検証 (規則はサーバーと同一)
+            string pwError = ValidatePasswordLocal(pw);
+            if (pwError != null)
+            {
+                SetStatus(pwError + "\n" + PasswordRuleHint, true);
+                SetBusy(false);
+                return;
+            }
             SetStatus("登録中...", false);
             var r = await AuthManager.RegisterAsync(email, pw, name);
             if (r.Ok) { SetStatus("登録完了", false); GoToTitle(); return; }
@@ -119,11 +127,35 @@ public class LoginController : MonoBehaviour
         SetBusy(false);
     }
 
+    // サーバー validatePasswordStrength (internal/transport/http/validation.go) と同一規則の案内文
+    const string PasswordRuleHint =
+        "パスワード: 8〜128文字の半角英数・記号。英大文字/小文字/数字/記号のうち2種類以上を含む";
+
     void ToggleMode()
     {
         _registerMode = !_registerMode;
         ApplyMode();
-        SetStatus("", false);
+        // 新規登録モードではパスワードの命名規則を常時案内する (K 指示 2026-07-30)
+        SetStatus(_registerMode ? PasswordRuleHint : "", false);
+    }
+
+    /// <summary>サーバーと同一規則のローカル事前チェック。問題なければ null、あればエラーメッセージ。</summary>
+    static string ValidatePasswordLocal(string pw)
+    {
+        if (pw.Length < 8)   return "パスワードが短すぎます (8文字以上必要です)";
+        if (pw.Length > 128) return "パスワードが長すぎます (128文字以下にしてください)";
+        bool up = false, lo = false, di = false, sy = false;
+        foreach (char c in pw)
+        {
+            if (c < 0x20 || c > 0x7E) return "パスワードに使えない文字があります (半角英数・記号のみ)";
+            if      (c >= 'A' && c <= 'Z') up = true;
+            else if (c >= 'a' && c <= 'z') lo = true;
+            else if (c >= '0' && c <= '9') di = true;
+            else                           sy = true;
+        }
+        int cats = (up ? 1 : 0) + (lo ? 1 : 0) + (di ? 1 : 0) + (sy ? 1 : 0);
+        if (cats < 2) return "英大文字/小文字/数字/記号のうち2種類以上を含めてください";
+        return null;
     }
 
     void ApplyMode()

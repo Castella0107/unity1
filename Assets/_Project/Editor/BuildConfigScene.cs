@@ -113,12 +113,13 @@ public static class BuildConfigScene
         var descBodyTMP = T(descBodyGO, "", 19, Dim, TextAlignmentOptions.TopLeft);
 
         // ── 下部バー (F9 リセット / ESC 閉じる) ──────────────────────────────
+        // y=76: ShortcutHintOverlay の下部バー (スクリーン30px) と重ならない高さ
         var (resetBtn, _) = MakeChipButton(ct, "F9", "リセット", Danger,
-            anchorLeft: true,  pos: V(80, 38),  size: V(190, 54));
+            anchorLeft: true,  pos: V(80, 76),  size: V(190, 54));
         var (backBtn, _)  = MakeChipButton(ct, "ESC", "閉じる", Faint,
-            anchorLeft: false, pos: V(-80, 38), size: V(210, 54));
+            anchorLeft: false, pos: V(-80, 76), size: V(210, 54));
         var (saveBtn, _)  = MakeChipButton(ct, "F5", "保存", Accent,
-            anchorLeft: false, pos: V(-420, 38), size: V(190, 54));
+            anchorLeft: false, pos: V(-420, 76), size: V(190, 54));
 
         // ── 6 パネル ─────────────────────────────────────────────────────────
         var gameplayPanel = MakePanel(ct, "GameplayPanel");
@@ -152,6 +153,12 @@ public static class BuildConfigScene
         BuildColorsTab(colorsPanel);
         BuildAudioTab(audioPanel, devicesPanelRoot);
         BuildAccountTab(accountPanel, manageSongsPanel);
+
+        // 行を積み終えたので、各タブの Content 高さを実際の中身に合わせる
+        // (収まらないタブはこの高さぶんスクロールできるようになる)
+        foreach (var p in new[] { gameplayPanel, keysPanel, graphicsPanel,
+                                  colorsPanel, audioPanel, accountPanel })
+            FitContentHeight(p);
 
         // ── タブボタンプレハブ ────────────────────────────────────────────────
         var tabPrefab = BuildTabButtonPrefab();
@@ -199,11 +206,14 @@ public static class BuildConfigScene
         var pt = panel.transform;
 
         var (hiSlider, hiVal)   = SliderRow(pt, ref y, "ハイスピード",        0.5f, 20f, 4.5f, false, "4.5");
+        var (llSlider, llVal)   = SliderRow(pt, ref y, "レーン長",            25f, 200f, 100f, true, "100%");
         var (judSlider, judVal) = SliderRow(pt, ref y, "判定タイミング補正",  AppOffsetSettings.MinMs, AppOffsetSettings.MaxMs, 0, true, "0 ms");
         var (visSlider, visVal) = SliderRow(pt, ref y, "表示タイミング補正",  AppOffsetSettings.MinMs, AppOffsetSettings.MaxMs, 0, true, "0 ms");
         var calBtn              = ButtonRow(pt, ref y, "キャリブレーション", "開始");
         var comboDD             = DropdownRow(pt, ref y, "コンボ継続境界");
         var flToggle            = ToggleRow(pt, ref y, "FAST/SLOW表示");
+        var comboShowTgl        = ToggleRow(pt, ref y, "コンボ表示");
+        var comboPosDD          = DropdownRow(pt, ref y, "コンボ表示位置");
         var (bgSlider, bgVal)   = SliderRow(pt, ref y, "背景エフェクト強度", 0, 100, 100, true, "100%");
         var fxDD                = DropdownRow(pt, ref y, "判定エフェクト");
 
@@ -211,6 +221,8 @@ public static class BuildConfigScene
         var so  = new SerializedObject(tab);
         SetRef(so, "_hiSpeedSlider",           hiSlider);
         SetRef(so, "_hiSpeedValue",            hiVal);
+        SetRef(so, "_laneLengthSlider",        llSlider);
+        SetRef(so, "_laneLengthValue",         llVal);
         SetRef(so, "_judgmentOffsetSlider",    judSlider);
         SetRef(so, "_judgmentOffsetValue",     judVal);
         SetRef(so, "_visualOffsetSlider",      visSlider);
@@ -219,6 +231,8 @@ public static class BuildConfigScene
         SetRef(so, "_calibrationPanel",        calibration);
         SetRef(so, "_comboBorderDropdown",     comboDD);
         SetRef(so, "_fastLateToggle",          flToggle);
+        SetRef(so, "_comboShowToggle",         comboShowTgl);
+        SetRef(so, "_comboPosDropdown",        comboPosDD);
         SetRef(so, "_backgroundEffectsSlider", bgSlider);
         SetRef(so, "_backgroundEffectsValue",  bgVal);
         SetRef(so, "_judgmentEffectDropdown",  fxDD);
@@ -273,7 +287,7 @@ public static class BuildConfigScene
 
         var defaultsBtn = ButtonRow(pt, ref y, "キー割り当て", "デフォルトに戻す");
         var padToggle   = ToggleRow(pt, ref y, "ゲームパッドを使用");
-        var ninToggle   = ToggleRow(pt, ref y, "パッド決定/戻る配置: 任天堂配置 (右=決定)");
+        var ninToggle   = ToggleRow(pt, ref y, "パッド決定/戻る配置: 右=決定");
 
         var tab = panel.AddComponent<InputTabController>();
         var so  = new SerializedObject(tab);
@@ -327,9 +341,9 @@ public static class BuildConfigScene
         float y = -8f;
         var pt = panel.transform;
 
-        var swatch = new Image[8]; var selBtn = new Button[8]; var rowBg = new Image[8];
-        var rS = new Slider[8]; var gS = new Slider[8]; var bS = new Slider[8];
-        var rV = new TextMeshProUGUI[8]; var gV = new TextMeshProUGUI[8]; var bV = new TextMeshProUGUI[8];
+        var swatch = new Image[9]; var selBtn = new Button[9]; var rowBg = new Image[9];
+        var rS = new Slider[9]; var gS = new Slider[9]; var bS = new Slider[9];
+        var rV = new TextMeshProUGUI[9]; var gV = new TextMeshProUGUI[9]; var bV = new TextMeshProUGUI[9];
         int idx = 0;
 
         void Add(string label, Color c)
@@ -350,6 +364,7 @@ public static class BuildConfigScene
         ColorSection(pt, ref y, "レーン / 判定線");
         Add("レーン仕切り線", GameColorSettings.DividerColor);
         Add("判定線",         GameColorSettings.JudgmentLineColor);
+        Add("同時押しノーツ", GameColorSettings.ChordColor);
 
         // ── ツールバー (選択中の行に適用) ──────────────────────────────────────
         var hdrGO = Child("ToolHeader", pt);
@@ -360,35 +375,45 @@ public static class BuildConfigScene
         y -= 30f;
 
         float infoY = y;
+
+        // 「選択中」表示は右カラム (プリセットパレットの下) へ (K 指示 2026-07-31)。
+        // 旧位置 (左カラム最下部 x=24〜) は画面下端の F9/リセットボタンと重なっていた。
+        // コンテンツ幅 (ContentW=1060) を超えると RectMask2D でクリップされるため、
+        // ピッカー/パレットと同じ x=780 の列に、パレット下端 (-496) より下へ置く。
+        const float selX = 780f, selY = -520f;
         var selGO = Child("SelLabel", pt);
-        SR(selGO, V(0,1), V(0,1), V(0,1), V(24, infoY), V(90,40));
-        T(selGO, "選択中", 16, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
+        SR(selGO, V(0,1), V(0,1), V(0,1), V(selX, selY), V(140,22));
+        T(selGO, "選択中", 14, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
         var actSwGO = Child("ActiveSwatch", pt);
-        SR(actSwGO, V(0,1), V(0,1), V(0,1), V(116, infoY-1), V(40,40));
+        SR(actSwGO, V(0,1), V(0,1), V(0,1), V(selX, selY - 26f), V(40,40));
         var actSw = actSwGO.AddComponent<Image>(); actSw.raycastTarget = false;
 
         var actNameGO = Child("ActiveName", pt);
-        SR(actNameGO, V(0,1), V(0,1), V(0,1), V(168, infoY), V(230,40));
+        SR(actNameGO, V(0,1), V(0,1), V(0,1), V(selX + 48f, selY - 26f), V(212,40));
         var actName = T(actNameGO, "-", 18, Color.white, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
 
         var copyBtn  = SmallButton(pt, "コピー",   V(0,1), V(408, infoY), V(150,40), anchorLeftTop: true);
         var pasteBtn = SmallButton(pt, "貼り付け", V(0,1), V(570, infoY), V(150,40), anchorLeftTop: true);
         y -= 50f;
 
+        // ── プリセットパレット: 右カラム・2D ピッカーの下に配置 ──────────────────
+        // (旧: 左カラム最下部 12 列 × 2 段。コンテンツ下端に食い込み、低い解像度や
+        //  横長ウィンドウでスウォッチ同士が重なって選びにくかったため移設)
+        const float palX = 780f, palTop = -300f;
         var palLblGO = Child("PaletteLabel", pt);
-        SR(palLblGO, V(0,1), V(0,1), V(0,1), V(24, y), V(360,22));
-        T(palLblGO, "プリセットパレット (クリックで選択中の行に適用)", 14, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold);
-        y -= 26f;
+        SR(palLblGO, V(0,1), V(0,1), V(0,1), V(palX, palTop), V(280,22));
+        T(palLblGO, "プリセット (クリックで選択中の行に適用)", 13, Dim, TextAlignmentOptions.MidlineLeft, FontStyles.Bold)
+            .raycastTarget = false;
 
         var palBtns = new Button[PaletteHex.Length];
         var palSw   = new Image[PaletteHex.Length];
-        const int cols = 12; const float cell = 38f, gap = 6f;
+        const int cols = 6; const float cell = 38f, gap = 6f;   // 6 列 × 4 段 = 264px 幅 (ピッカーと同幅帯)
         for (int i = 0; i < PaletteHex.Length; i++)
         {
             int col = i % cols, rowi = i / cols;
             var cGO = Child("Pal" + i, pt);
-            SR(cGO, V(0,1), V(0,1), V(0,1), V(24 + col * (cell + gap), y - rowi * (cell + gap)), V(cell, cell));
+            SR(cGO, V(0,1), V(0,1), V(0,1), V(palX + col * (cell + gap), palTop - 26f - rowi * (cell + gap)), V(cell, cell));
             var img = cGO.AddComponent<Image>(); img.color = Hex(PaletteHex[i]);
             var btn = cGO.AddComponent<Button>(); btn.targetGraphic = img; btn.transition = Selectable.Transition.None;
             palSw[i] = img; palBtns[i] = btn;
@@ -397,7 +422,7 @@ public static class BuildConfigScene
         // ── 2D カラーピッカー (右側・Windows「色の編集」風) ──────────────────────
         var picker = BuildColorPicker(pt);
 
-        string[] rowNames = { "鍵1 (左)", "鍵2", "鍵3", "鍵4 (右)", "FX 左", "FX 右", "レーン仕切り線", "判定線" };
+        string[] rowNames = { "鍵1 (左)", "鍵2", "鍵3", "鍵4 (右)", "FX 左", "FX 右", "レーン仕切り線", "判定線", "同時押しノーツ" };
 
         var tab = panel.AddComponent<ColorsTabController>();
         var so  = new SerializedObject(tab);
@@ -578,6 +603,8 @@ public static class BuildConfigScene
         var (masSlider, masVal) = SliderRow(pt, ref y, "全体音量",   0, 100, 80, true, "80%");
         var (musSlider, musVal) = SliderRow(pt, ref y, "楽曲音量",   0, 100, 90, true, "90%");
         var (sfxSlider, sfxVal) = SliderRow(pt, ref y, "効果音音量", 0, 100, 70, true, "70%");
+        var noteSndDD           = DropdownRow(pt, ref y, "ノーツ音");
+        var judgSndTgl          = ToggleRow(pt, ref y, "判定ガイド音");
 
         var tab = panel.AddComponent<AudioTabController>();
         var so  = new SerializedObject(tab);
@@ -591,6 +618,8 @@ public static class BuildConfigScene
         SetRef(so, "_musicVolumeValue",       musVal);
         SetRef(so, "_sfxVolumeSlider",        sfxSlider);
         SetRef(so, "_sfxVolumeValue",         sfxVal);
+        SetRef(so, "_noteSoundDropdown",      noteSndDD);
+        SetRef(so, "_judgmentSoundToggle",    judgSndTgl);
         so.ApplyModifiedProperties();
     }
 
@@ -976,11 +1005,69 @@ public static class BuildConfigScene
     // 行ヘルパー (モックの行スタイル: 帯背景 + 左ラベル + 右コントロール)
     // ═════════════════════════════════════════════════════════════════════════
 
+    /// <summary>
+    /// タブのコンテンツ領域を作る。返すのは行を並べる Content (呼び出し側は従来どおり
+    /// これを親にして行を積むだけでよい)。
+    ///
+    /// 以前は固定高 720 の板を上端から吊るしていたため、下部バー (F9 リセット / 保存) と
+    /// 重なる事故が 2 つの理由で起きていた (K 報告 2026-07-31):
+    ///   ① 画面が 16:9 より横長だと CanvasScaler(match=0.5) の実効 Canvas 高さが縮み
+    ///      (例 1565x817 → 1040 単位)、下端基準の下部バーがせり上がってくる。
+    ///   ② アカウントタブのように行数が多いタブは実コンテンツが 720 を超えて溢れる。
+    /// → 縦ストレッチで下部バーぶんを常に空け、収まらない分はスクロールさせる。
+    /// はみ出しは RectMask2D でクリップするので、他要素へ被ることはない。
+    /// </summary>
     static GameObject MakePanel(Transform ct, string name)
     {
-        var go = Child(name, ct);
-        SR(go, V(0,1), V(0,1), V(0,1), V(ContentX,-ContentY), V(ContentW,ContentH));
-        return go;
+        var root = Child(name, ct);
+        // 上は ContentY 固定、下は 150 空ける (下部バーは下端から 76±27 → 上端 103)
+        SR(root, V(0,0), V(0,1), V(0,1), V(ContentX,-ContentY), V(ContentW,-(ContentY + 150f)));
+
+        var scroll = root.AddComponent<ScrollRect>();
+        scroll.horizontal        = false;
+        scroll.movementType      = ScrollRect.MovementType.Clamped;
+        scroll.scrollSensitivity = 30f;
+
+        var vp = Child("Viewport", root.transform);
+        SR(vp, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
+        vp.AddComponent<RectMask2D>();
+
+        var content = Child("Content", vp.transform);
+        SR(content, V(0,1), V(1,1), V(.5f,1), V(0,0), V(0,ContentH));
+
+        scroll.viewport = vp.GetComponent<RectTransform>();
+        scroll.content  = content.GetComponent<RectTransform>();
+
+        // ↑↓ で選択が画面外へ出たら自動で追従スクロールする。
+        // これが無いと「選択は進むのに見えない」状態になり操作できない (K 指摘 2026-07-31)。
+        root.AddComponent<RhythmGame.UI.Common.ScrollToSelection>();
+        return content;
+    }
+
+    /// <summary>タブを組み終えたあとに Content の高さを実際の中身へ合わせる
+    /// (これをしないとスクロール量が正しくならない)。</summary>
+    static void FitContentHeight(GameObject content)
+    {
+        var rt = content.GetComponent<RectTransform>();
+        if (rt == null) return;
+
+        // ⚠️ RectTransformUtility.CalculateRelativeRectTransformBounds は自分自身の矩形も
+        // 含めてしまうため、初期高さ (ContentH) が必ず下限になり全タブ同じ高さになる。
+        // 直接の子だけを見て「一番下の端」を求める。
+        float lowest = 0f;   // content ローカル (上端 0、下が負)
+        for (int i = 0; i < rt.childCount; i++)
+        {
+            var c = rt.GetChild(i) as RectTransform;
+            if (c == null || !c.gameObject.activeSelf) continue;
+            var corners = new Vector3[4];
+            c.GetWorldCorners(corners);
+            for (int k = 0; k < 4; k++)
+            {
+                float y = rt.InverseTransformPoint(corners[k]).y;
+                if (y < lowest) lowest = y;
+            }
+        }
+        rt.sizeDelta = new Vector2(rt.sizeDelta.x, Mathf.Max(120f, -lowest + 24f));
     }
 
     static GameObject Row(Transform parent, ref float y, string label, float h = RowH)
@@ -1272,7 +1359,11 @@ public static class BuildConfigScene
 
         var tvpGO = Child("Viewport", tplGO.transform);
         SR(tvpGO, V(0,0), V(1,1), V(0,1), V(0,0), V(0,0));
-        tvpGO.AddComponent<Image>().color = Color.clear;
+        // ⚠️ Mask のグラフィックは不透明必須: alpha=0 だと CanvasRenderer の
+        // cullTransparentMesh でメッシュごとカリングされステンシルが書かれず、
+        // 配下のアイテムが全て消える (ドロップダウンを開いても空に見えるバグの原因)。
+        // 非表示化は showMaskGraphic=false が担う。
+        tvpGO.AddComponent<Image>().color = Color.white;
         tvpGO.AddComponent<Mask>().showMaskGraphic = false;
 
         var tcGO = Child("Content", tvpGO.transform);

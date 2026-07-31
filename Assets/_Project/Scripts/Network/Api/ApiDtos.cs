@@ -272,6 +272,101 @@ namespace RhythmGame.Network.Api
         [JsonProperty("sectors")]    public SectorResultDto[] Sectors;
     }
 
+    // ── リーダーボード (docs/design_doc/leaderboard_client.md §2 / サーバー leaderboard_design.md) ──
+
+    public class LeaderboardEntryDto
+    {
+        [JsonProperty("rank_position")] public long   RankPosition;
+        [JsonProperty("user_id")]       public string UserId;
+        [JsonProperty("display_name")]  public string DisplayName;
+        [JsonProperty("score")]         public int    Score;
+        [JsonProperty("rank")]          public string Rank;
+        [JsonProperty("achieved_at")]   public string AchievedAt;
+    }
+
+    public class LeaderboardDto
+    {
+        [JsonProperty("song_id")]    public string                SongId;
+        [JsonProperty("difficulty")] public string                Difficulty;
+        [JsonProperty("season_id")]  public string                SeasonId;
+        [JsonProperty("entries")]    public LeaderboardEntryDto[] Entries;
+        [JsonProperty("total")]      public long                  Total;
+    }
+
+    public class PersonalBestDto
+    {
+        [JsonProperty("rank_position")] public int    RankPosition;
+        [JsonProperty("score")]         public int    Score;
+        [JsonProperty("rank")]          public string Rank;
+        [JsonProperty("perfect_plus")]  public int    PerfectPlus;
+        [JsonProperty("perfect")]       public int    Perfect;
+        [JsonProperty("great")]         public int    Great;
+        [JsonProperty("good")]          public int    Good;
+        [JsonProperty("miss")]          public int    Miss;
+        [JsonProperty("max_combo")]     public int    MaxCombo;
+        [JsonProperty("achieved_at")]   public string AchievedAt;
+    }
+
+    public class PersonalBestFetchDto
+    {
+        [JsonProperty("song_id")]       public string          SongId;
+        [JsonProperty("difficulty")]    public string          Difficulty;
+        [JsonProperty("season_id")]     public string          SeasonId;
+        [JsonProperty("personal_best")] public PersonalBestDto PersonalBest;   // null = 未提出
+    }
+
+    // ── POST /score/validate (phase7 spec §1 + best_updated 拡張) ───────────────
+
+    public class ScoreValidateClaimDto
+    {
+        [JsonProperty("score")]        public long   Score;
+        [JsonProperty("rank")]         public string Rank;
+        [JsonProperty("perfect_plus")] public int    PerfectPlus;
+        [JsonProperty("perfect")]      public int    Perfect;
+        [JsonProperty("great")]        public int    Great;
+        [JsonProperty("good")]         public int    Good;
+        [JsonProperty("miss")]         public int    Miss;
+        [JsonProperty("max_combo")]    public int    MaxCombo;
+    }
+
+    public class ScoreValidateRequestDto
+    {
+        [JsonProperty("chart_id")]      public string ChartId;
+        [JsonProperty("chart_hash")]    public string ChartHash;
+        [JsonProperty("replay_base64")] public string ReplayBase64;
+        [JsonProperty("claim", NullValueHandling = NullValueHandling.Ignore)] public ScoreValidateClaimDto Claim;
+    }
+
+    public class ScoreValidateResultDto
+    {
+        [JsonProperty("score")]     public long   Score;
+        [JsonProperty("rank")]      public string Rank;
+        [JsonProperty("max_combo")] public int    MaxCombo;
+        [JsonProperty("miss")]      public int    Miss;
+    }
+
+    public class ScoreValidateResponseDto
+    {
+        [JsonProperty("chart_id")]            public string                 ChartId;
+        [JsonProperty("verified")]            public bool                   Verified;
+        [JsonProperty("result")]              public ScoreValidateResultDto Result;
+        [JsonProperty("claim_matched")]       public bool?                  ClaimMatched;
+        [JsonProperty("best_updated")]        public bool                   BestUpdated;
+        [JsonProperty("personal_best_score")] public int?                   PersonalBestScore;
+    }
+
+    /// <summary>GET /matches/{id}/songs/{order}/result のレスポンス。
+    /// 先攻提出側が相手の提出後に曲リザルトを取得するために使う (K 報告のリザルト非表示バグ対応)。</summary>
+    public class SongResultFetchDto
+    {
+        [JsonProperty("song_order")]      public int           SongOrder;
+        [JsonProperty("confirmed")]       public bool          Confirmed;       // 両者提出済み
+        [JsonProperty("my_submitted")]    public bool          MySubmitted;
+        [JsonProperty("their_submitted")] public bool          TheirSubmitted;
+        [JsonProperty("song_result")]     public SongResultDto SongResult;      // confirmed=true のとき
+        [JsonProperty("my_scores")]       public int[]         MyScores;
+    }
+
     public class SectorResultDto
     {
         [JsonProperty("score_a")]     public int ScoreA;

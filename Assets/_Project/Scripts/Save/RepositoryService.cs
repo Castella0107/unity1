@@ -125,6 +125,23 @@ public class RepositoryService : MonoBehaviour
         }
     }
 
+    // SQLite 接続の明示クローズ (SOAK 検出 2026-07-30):
+    // ファイナライザ任せだとドメインアンロード時に PreparedSqlLiteInsertCommand.Finalize が
+    // ネイティブクラッシュしエディタごと落ちる。プレイ終了/アプリ終了時に決定的に閉じる。
+    void OnDestroy()
+    {
+        try
+        {
+            (PlayRecords as SqlitePlayRecordRepository)?.CloseAsync();
+            (Offsets     as SqliteOffsetRepository)?.CloseAsync();
+            SQLite.SQLiteAsyncConnection.ResetPool();   // プール済み接続も同期的に破棄
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogWarning("[RepositoryService] SQLite close failed: " + e.Message);
+        }
+    }
+
     /// <summary>アクティブなデバイスプロファイルを切り替え、オフセットを再適用して OnActiveProfileChanged を発火する。</summary>
     public async Task<bool> SetActiveProfileAsync(string profileId)
     {

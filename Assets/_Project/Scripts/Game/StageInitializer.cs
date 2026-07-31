@@ -37,6 +37,12 @@ public static class StageInitializer
         // メニュー等のカメラは触らず、ゲームプレイの Camera.main のみ対象。
         ApplyCameraAngle(Camera.main, PlayerPrefs.GetInt("CameraAngleIdx", DefaultCameraAngleIdx));
 
+        // FAR_WALL_SPEC: レーン長 (透明遮蔽壁位置) を設定から再読込し、
+        // ノーツ用シェーダの壁クリップ z を初期化 (毎フレームの追従は CenterTrackVisuals)。
+        FxSectorGeometry.RefreshLaneLength();
+        Shader.SetGlobalFloat("_PlayfieldWallZ",
+            LaneLayout.JudgmentLineZ + FxSectorGeometry.WallZCenterWorld);
+
         EnsureBeatLines(conductor, chart, scroller);
 
         // レーン(背景・帯・区切り線)の明るさを PLAY OPTIONS の設定値で減光。ノーツ・拍線は対象外。
@@ -95,18 +101,17 @@ public static class StageInitializer
     public static void ApplyCameraAngle(Camera cam, int idx)
     {
         if (cam == null) return;
-        if (idx < 0 || idx >= CameraPitchDeg.Length) idx = CameraPitchDeg.Length - 1;
-
-        float pitch = CameraPitchDeg[idx];
-        float r     = pitch * Mathf.Deg2Rad;
-        var   focus = new Vector3(0f, 0f, CameraFocusZ);
-        cam.transform.position = focus + new Vector3(0f, CameraDistance * Mathf.Sin(r), -CameraDistance * Mathf.Cos(r));
-        cam.transform.rotation = Quaternion.Euler(pitch, 0f, 0f);
-
-        // 投影方式で 2D/3D を切替。flat=正射影は遠近の広がりが消え、レーン幅が距離によらず一定・平行になる。
-        cam.orthographic = CameraOrthographic[idx];
-        if (cam.orthographic) cam.orthographicSize = CameraOrthoSize[idx];
-        else                  cam.fieldOfView      = CameraFov;
+        // 画面設計モック(4) リデザイン: カメラは SPEC 射影に数値ソルバで一致させた
+        // 授権フレーミング (Tools/Playfield/1) に固定。CAMERA_SPEC (2026-07-30):
+        // VP=画面y120 + FieldScale0.76 (遠景化 — 判定線距離 5.174→5.834、FOV は不変)。
+        // プレイフィールドはスクリーン仕様駆動のデカール (CenterTrackVisuals/FxLaneVisuals) が
+        // カメラへ追従再投影するため、旧 2D(flat)/3D(steep) の視点プリセットは廃止
+        // (画角を変えても画面上の見た目が変わらず、ノーツとデカールの整合だけが壊れる)。
+        // idx は後方互換のため受けるが無視する。
+        cam.orthographic       = false;
+        cam.transform.position = new Vector3(0f, 5.0411f, -3.4361f);
+        cam.transform.rotation = Quaternion.Euler(28.8534f, 0f, 0f);
+        cam.fieldOfView        = 79.016f;
     }
 
     /// <summary>セッション終了時にステージビジュアルのバインドを解除する。</summary>

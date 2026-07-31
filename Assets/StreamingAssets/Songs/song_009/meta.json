@@ -1,0 +1,38 @@
+{
+  "artist": "紫様の台座を目指す漢",
+  "audioFile": "紫様の台座を目指す漢 - RGMES2 EXPERT - 01 天神楽.wav",
+  "audioOffsetMs": 210,
+  "bpm": 140,
+  "durationMs": 127000,
+  "firstOnsetMs": 0,
+  "jacketFile": "jacket.png",
+  "sectors": [
+    {
+      "endMs": 28214,
+      "id": 4,
+      "name": "S1"
+    },
+    {
+      "endMs": 55643,
+      "id": 7,
+      "name": "S2"
+    },
+    {
+      "endMs": 83071,
+      "id": 8,
+      "name": "S3"
+    },
+    {
+      "endMs": 110500,
+      "id": 9,
+      "name": "S4"
+    },
+    {
+      "endMs": 125135,
+      "id": 10,
+      "name": "S5"
+    }
+  ],
+  "songId": "song_009",
+  "title": "天神楽"
+}

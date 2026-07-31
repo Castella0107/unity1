@@ -15,9 +15,15 @@ public class JudgmentParticlePool : MonoBehaviour
     readonly Queue<ParticleSystem> _available = new Queue<ParticleSystem>();
     readonly List<ParticleSystem>  _all       = new List<ParticleSystem>();
 
+    // 演奏中の枯渇→Instantiate はフレームスパイクになる。実測で 30 個では
+    // 密度の高い譜面中に "Pool exhausted — expanding" が出ていたため下限を引き上げる
+    // (2026-07-31 の軽量化)。シーン側の値がこれより大きければそちらを尊重する。
+    const int MinPreWarm = 64;
+
     void Awake()
     {
-        for (int i = 0; i < _preWarm; i++)
+        int warm = Mathf.Max(_preWarm, MinPreWarm);
+        for (int i = 0; i < warm; i++)
         {
             var ps = CreateOne();
             ps.gameObject.SetActive(false);

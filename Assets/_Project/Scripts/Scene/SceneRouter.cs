@@ -59,7 +59,8 @@ public class SceneRouter : MonoBehaviour
 
     // ── Public API ────────────────────────────────────────────────────────────
 
-    /// <summary>指定シーンへ遷移する。パラメータと遷移演出を指定可能。遷移中の呼び出しは無視される。</summary>
+    /// <summary>指定シーンへ遷移する。パラメータと遷移演出を指定可能。
+    /// 遷移中の呼び出しは破棄せず、進行中の遷移が終わってから実行する。</summary>
     public void GoTo(
         SceneId          target,
         ISceneParameters parameters = null,
@@ -67,12 +68,27 @@ public class SceneRouter : MonoBehaviour
     {
         if (_isTransitioning)
         {
-            Debug.LogWarning(string.Format("[SceneRouter] Transition in progress — ignoring GoTo({0})", target));
+            // 旧実装は警告を出して握り潰していたが、それだと非同期処理 (マッチ成立・
+            // 自動ログイン等) 発の遷移が黙って消え、画面が固まる。ソークで PVP の
+            // ready_check 無応答→不戦敗が多発した実害があるため、最後の要求を保留して
+            // 遷移完了後に実行する (K 報告 2026-07-31)。
+            Debug.LogWarning(string.Format(
+                "[SceneRouter] Transition in progress — deferring GoTo({0})", target));
+            _pending = new PendingGoTo { Target = target, Parameters = parameters, Style = style };
             return;
         }
         _isTransitioning = true;   // set synchronously so callers can check it immediately
         StartCoroutine(GoToRoutine(target, parameters ?? EmptyParameters.Instance, style));
     }
+
+    struct PendingGoTo
+    {
+        public SceneId          Target;
+        public ISceneParameters Parameters;
+        public TransitionStyle  Style;
+    }
+
+    PendingGoTo? _pending;
 
     // ── デバッグ: --goto-after-title=<SceneId名> ─────────────────────────────
     // 通常起動 (Login→Title) を経てから対象シーンへ自動遷移する。
@@ -236,6 +252,16 @@ public class SceneRouter : MonoBehaviour
             yield return _transitionFx.FadeIn(style);
 
         _isTransitioning = false;
+
+        // 遷移中に来て保留した要求をここで実行する (握り潰し防止)。
+        // 既に目的地に着いているなら実行しない — 同じ画面への再入場を防ぐ。
+        if (_pending.HasValue)
+        {
+            var p = _pending.Value;
+            _pending = null;
+            if (p.Target != _currentScene)
+                GoTo(p.Target, p.Parameters, p.Style);
+        }
     }
 
     static void LogSceneState(string label)

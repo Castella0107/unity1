@@ -25,6 +25,7 @@ public class SqlitePlayRecordRepository : IPlayRecordRepository
         Debug.Log("[Repo] SQLite initialized at " + dbPath);
     }
 
+
     /// <inheritdoc/>
     public async Task<bool> SaveAsync(PlayRecord record)
     {

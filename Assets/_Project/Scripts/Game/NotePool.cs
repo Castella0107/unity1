@@ -52,6 +52,10 @@ public class NotePool : MonoBehaviour
     /// <summary>指定種別のノートをプールから取得する。枯渇時は新規生成して拡張する。</summary>
     public NoteController Acquire(NoteType type)
     {
+        // プレイ中のドメインリロード (エディタでのホットリロード) で非シリアライズの
+        // _pools が消えることがある (SOAK 検出 2026-07-30)。その場合は再構築する。
+        if (_pools == null) Awake();
+
         if (_pools.TryGetValue(type, out var queue) && queue.Count > 0)
             return queue.Dequeue();
 
@@ -67,7 +71,7 @@ public class NotePool : MonoBehaviour
     {
         if (note == null) return;
         note.gameObject.SetActive(false);
-        if (_pools.TryGetValue(note.PoolType, out var queue))
+        if (_pools != null && _pools.TryGetValue(note.PoolType, out var queue))
             queue.Enqueue(note);
     }
 

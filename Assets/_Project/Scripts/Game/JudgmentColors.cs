@@ -6,16 +6,17 @@ using UnityEngine;
 /// </summary>
 public static class JudgmentColors
 {
-    /// <summary>PerfectPlus 判定の表示色。</summary>
-    public static readonly Color PerfectPlus = new Color(1.0f, 0.85f, 0.2f);
+    // プレイフィールド 画面設計 (export-src.html) のシアン基調パレット。
+    /// <summary>PerfectPlus 判定の表示色 (最上位 = 最も明るい白シアン)。</summary>
+    public static readonly Color PerfectPlus = new Color(0.918f, 0.988f, 1.0f);   // #EAFCFF
     /// <summary>Perfect 判定の表示色。</summary>
-    public static readonly Color Perfect     = new Color(0.3f, 0.95f, 0.4f);
+    public static readonly Color Perfect     = new Color(0.494f, 0.941f, 0.973f); // #7EF0F8
     /// <summary>Great 判定の表示色。</summary>
-    public static readonly Color Great       = new Color(0.3f, 0.6f,  1.0f);
+    public static readonly Color Great       = new Color(0.329f, 0.784f, 0.910f); // #54C8E8
     /// <summary>Good 判定の表示色。</summary>
-    public static readonly Color Good        = new Color(0.7f, 0.4f,  1.0f);
+    public static readonly Color Good        = new Color(0.561f, 0.659f, 0.722f); // #8FA8B8
     /// <summary>Miss 判定の表示色。</summary>
-    public static readonly Color Miss        = new Color(1.0f, 0.3f,  0.3f);
+    public static readonly Color Miss        = new Color(0.878f, 0.373f, 0.373f); // #E05F5F
 
     /// <summary>判定に対応する表示色を返す。</summary>
     public static Color Get(Judgment j)

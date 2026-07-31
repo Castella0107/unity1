@@ -1,0 +1,38 @@
+{
+  "artist": "Collapsed Plug",
+  "audioFile": "Collapsed Plug - RGMES2 LUNATIC - 10 Acceleration Insanity.wav",
+  "audioOffsetMs": 664,
+  "bpm": 90,
+  "durationMs": 122000,
+  "firstOnsetMs": 0,
+  "jacketFile": "jacket.png",
+  "sectors": [
+    {
+      "endMs": 44355,
+      "id": 2,
+      "name": "S1"
+    },
+    {
+      "endMs": 62149,
+      "id": 3,
+      "name": "S2"
+    },
+    {
+      "endMs": 86827,
+      "id": 6,
+      "name": "S3"
+    },
+    {
+      "endMs": 104515,
+      "id": 5,
+      "name": "S4"
+    },
+    {
+      "endMs": 118111,
+      "id": 7,
+      "name": "S5"
+    }
+  ],
+  "songId": "song_008",
+  "title": "Acceleration Insanity"
+}

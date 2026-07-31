@@ -64,12 +64,66 @@ public class SongRankingController : MonoBehaviour
 
     async Task LoadAsync()
     {
-        // Go サーバーのランキング API は Phase 7 で実装予定 (未提供) — COMING SOON 表示。
-        // K の Phase 7 完了後、/api/v1/leaderboard/{song_id}/{difficulty} に結線する
-        // (旧 C# サーバー版 NetworkClient 実装は M6 で撤去済み)。
-        SetStatus("COMING SOON — ランキングはサーバー側 (Phase 7) の実装待ちです");
-        if (_personalText != null) _personalText.text = "";
-        await Task.CompletedTask;
+        // リーダーボード結線 (docs/design_doc/leaderboard_client.md §5):
+        // 上位 FetchLimit 件 + 自分のパーソナルベストを並列取得して表示する。
+        SetStatus("取得中...");
+
+        var lbTask = RhythmGame.Network.Api.LeaderboardApi.GetLeaderboardAsync(
+            _params.SongId, _params.Difficulty ?? "extra", FetchLimit);
+        var pbTask = RhythmGame.Network.Api.LeaderboardApi.GetPersonalBestAsync(
+            _params.SongId, _params.Difficulty ?? "extra");
+        await Task.WhenAll(lbTask, pbTask);
+        if (this == null) return;
+
+        var lb = lbTask.Result;
+        if (!lb.Ok || lb.Data == null)
+        {
+            SetStatus(lb.ErrorCode == "NO_ACTIVE_SEASON"
+                ? "シーズンが開始されていません"
+                : $"ランキングを取得できませんでした ({lb.ErrorCode ?? "接続エラー"})");
+            return;
+        }
+
+        var entries = lb.Data.Entries ?? new RhythmGame.Network.Api.LeaderboardEntryDto[0];
+        if (entries.Length == 0)
+        {
+            SetStatus("まだ記録がありません — 最初の記録を作ろう!");
+        }
+        else
+        {
+            SetStatus("");
+            string myId = RhythmGame.Network.Api.AuthManager.UserId;
+            for (int i = 0; i < (_rows?.Length ?? 0); i++)
+            {
+                if (_rows[i] == null) continue;
+                if (i < entries.Length)
+                {
+                    var e = entries[i];
+                    // サーバーは判定内訳/コンボをランキング一覧に含めない (spec §2-a) —
+                    // COMBO 列は 0 表示、FC/AP+ バッジ無しで表示する。
+                    _rows[i].SetEntry((int)e.RankPosition, e.DisplayName, e.Score,
+                        ScoreCalculator.DisplayRank((int)e.Score, e.Rank),
+                                      maxCombo: 0, isFullCombo: false, isAllPerfectPlus: false,
+                                      isSelf: e.UserId == myId);
+                }
+                else _rows[i].Hide();
+            }
+        }
+
+        // パーソナルベスト (フッター YOUR RANK)
+        var pb = pbTask.Result;
+        if (_personalText != null)
+        {
+            if (pb.Ok && pb.Data?.PersonalBest != null)
+            {
+                var b = pb.Data.PersonalBest;
+                _personalText.text = $"YOUR RANK  #{b.RankPosition}   {b.Score:N0}  ({ScoreCalculator.DisplayRank((int)b.Score, b.Rank)})";
+            }
+            else
+            {
+                _personalText.text = "YOUR RANK  —";
+            }
+        }
     }
 
     void SetStatus(string msg)

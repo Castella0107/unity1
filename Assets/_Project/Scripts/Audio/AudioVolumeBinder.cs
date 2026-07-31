@@ -21,6 +21,19 @@ public class AudioVolumeBinder : MonoBehaviour
     const string MUSIC_PARAM  = "MusicVolumeDb";
     const string SFX_PARAM    = "SfxVolumeDb";
 
+    /// <summary>音量設定の変更通知。AudioConductor が購読して再生中の楽曲音量へ即時反映する。</summary>
+    public static event System.Action VolumeChanged;
+
+    // ミキサー未割当時の直接制御用の実効音量 (PlayerPrefs 基準なので生成順に依存しない)。
+    // AudioTabController は PlayerPrefs へ書いてから binder を呼ぶため、常に最新値が取れる。
+    /// <summary>楽曲の実効音量 (0〜1)。マスター% × 楽曲%。</summary>
+    public static float CurrentMusic01 =>
+        Pct(PlayerPrefs.GetFloat("Vol_Master", 80f)) * Pct(PlayerPrefs.GetFloat("Vol_Music", 90f));
+    /// <summary>効果音の実効音量 (0〜1)。マスター% × 効果音%。</summary>
+    public static float CurrentSfx01 =>
+        Pct(PlayerPrefs.GetFloat("Vol_Master", 80f)) * Pct(PlayerPrefs.GetFloat("Vol_Sfx", 70f));
+    static float Pct(float percent) => Mathf.Clamp01(percent / 100f);
+
     void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }
@@ -49,23 +62,32 @@ public class AudioVolumeBinder : MonoBehaviour
     public void SetMasterVolume(float percent)
     {
         SetParam(MASTER_PARAM, percent);
-        // Master dB already scales all groups in the mixer.
-        // No direct source override needed.
+        NotifyDirect();   // マスターは楽曲・効果音の両方に効く
     }
 
     /// <summary>音楽音量(0〜100%)を設定する。</summary>
     public void SetMusicVolume(float percent)
     {
         SetParam(MUSIC_PARAM, percent);
+        NotifyDirect();
     }
 
-    /// <summary>効果音音量(0〜100%)を設定する。Mixer 未割り当て時は HitSoundPlayer に直接フォールバック。</summary>
+    /// <summary>効果音音量(0〜100%)を設定する。</summary>
     public void SetSfxVolume(float percent)
     {
         SetParam(SFX_PARAM, percent);
-        // Direct fallback for HitSoundPlayer (when no mixer assigned).
-        if (_mainMixer == null)
-            HitSoundPlayer.Instance?.SetSourceVolume(Mathf.Clamp01(percent / 100f));
+        NotifyDirect();
+    }
+
+    // ミキサー未割当時の直接制御: 効果音 = HitSoundPlayer へ即時反映、
+    // 楽曲 = VolumeChanged 経由で AudioConductor が反映。
+    // (現行 _Persistent.unity は _mainMixer 未割当 + NewAudioMixer は公開パラメータ空のため、
+    //  実運用はこの直接制御パスで動く。ミキサーを配線した場合は SetParam が本線になる)
+    void NotifyDirect()
+    {
+        if (_mainMixer != null) return;
+        HitSoundPlayer.Instance?.SetSourceVolume(CurrentSfx01);
+        VolumeChanged?.Invoke();
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

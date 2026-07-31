@@ -33,6 +33,7 @@ public class SqliteOffsetRepository : IOffsetRepository
         Debug.Log("[OffsetRepo] SQLite initialized at " + dbPath);
     }
 
+
     /// <inheritdoc/>
     public async Task<List<DeviceProfile>> GetAllProfilesAsync()
     {

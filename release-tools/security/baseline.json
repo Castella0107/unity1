@@ -1,0 +1,10 @@
+{
+    "recorded_at":  "2026-07-31T23:39:07+09:00",
+    "version":  "0.2.3",
+    "feed_url":  "https://pvpharmonics.duckdns.org/updates-x7q2mkv9tr4w/",
+    "files":  {
+                  "PVPharmonics-0.2.3-full.nupkg":  "9378e6980dce5f5a09e3eb47b103bba2bffb4c7c31694c660003a4af6dff45e3",
+                  "releases.win.json":  "7f6fbe1425ec41b98fbb02a6e8f254d49fda8fb1d5f319aef3dd8631119e33d9",
+                  "PVPharmonics-win-Setup.exe":  "2ea4f808ba7348a626d5a90ac0d2ba5d2ba948801099b2c2b1f44e3b3a1efe07"
+              }
+}

@@ -83,6 +83,21 @@ public sealed class AudioConductor : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         _audioSource = GetComponent<AudioSource>();
+
+        // コンフィグの音量設定 (マスター% × 楽曲%) を適用。設定変更時は即時追従。
+        ApplyConfiguredVolume();
+        AudioVolumeBinder.VolumeChanged += ApplyConfiguredVolume;
+    }
+
+    void OnDestroy()
+    {
+        AudioVolumeBinder.VolumeChanged -= ApplyConfiguredVolume;
+        if (Instance == this) Instance = null;
+    }
+
+    void ApplyConfiguredVolume()
+    {
+        if (_audioSource != null) _audioSource.volume = AudioVolumeBinder.CurrentMusic01;
     }
 
     // ── Offset API (new) ──────────────────────────────────────────────────────

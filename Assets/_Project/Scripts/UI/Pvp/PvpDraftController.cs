@@ -48,6 +48,7 @@ namespace RhythmGame.UI.Pvp
         readonly List<string> _tileSongIds = new List<string>();
 
         bool   _busy;            // pick/ban 送信中
+        bool   _myTurn;          // 直近の state で自分が acting_player か
         bool   _leaving;
         string _selectedSongId;
         int    _selectedDiff = -1;
@@ -176,6 +177,7 @@ namespace RhythmGame.UI.Pvp
             string phase = st.Phase ?? "";
             string me    = AuthManager.UserId;
             bool   myTurn = st.ActingPlayer == me;
+            _myTurn = myTurn;   // 決定ボタンの手番ガードに使う
 
             if (!string.IsNullOrEmpty(st.PhaseDeadline) &&
                 DateTimeOffset.TryParse(st.PhaseDeadline, null,
@@ -213,7 +215,12 @@ namespace RhythmGame.UI.Pvp
                         SetInfo(order == 2 && st.Picks?.Song1 != null
                             ? $"SONG 1 は {SongTitle(st.Picks.Song1.SongId)} でした (同じ曲は選べません)"
                             : "曲と自分の難易度を選んで決定");
-                        ShowSongGrid(excludeSongId: order == 2 ? st.Picks?.Song1?.SongId : null);
+                        // SONG1/2 も試合プール内からしか選べない (サーバーは全ピックを
+                        // Song3Pool = 試合プールで検証し、外れると SONG_NOT_IN_POOL 400)。
+                        // 全曲を出していたため、プール外を選ぶとエラーでドラフトが止まり
+                        // フェーズタイムアウトで不戦敗になっていた (ソークで再現・2026-07-31)。
+                        ShowSongGrid(excludeSongId: order == 2 ? st.Picks?.Song1?.SongId : null,
+                                     poolOnly: st.Song3Pool);
                         ShowDiffButtons(true);
                         UpdateConfirm("この曲・難易度で決定",
                             interactable: !_busy && _selectedSongId != null && _selectedDiff >= 0);
@@ -238,7 +245,7 @@ namespace RhythmGame.UI.Pvp
                         SetTitle($"SONG {order} — 難易度を後出し");
                         SetInfo($"曲: {SongTitle(pick?.SongId)}   相手の難易度: {(oppDiff ?? "?").ToUpperInvariant()}");
                         ShowSongGrid(onlySongId: pick?.SongId);
-                        ShowDiffButtons(true);
+                        ShowDiffButtons(true, fixedSongId: pick?.SongId);
                         UpdateConfirm("この難易度で決定", interactable: !_busy && _selectedDiff >= 0);
                     }
                     else
@@ -276,7 +283,7 @@ namespace RhythmGame.UI.Pvp
                     SetTitle("SONG 3 — 難易度をブラインド選択");
                     SetInfo($"SONG 3: {SongTitle(st.Picks?.Song3?.SongId)}   (相手には見えません)");
                     ShowSongGrid(onlySongId: st.Picks?.Song3?.SongId);
-                    ShowDiffButtons(true);
+                    ShowDiffButtons(true, fixedSongId: st.Picks?.Song3?.SongId);
                     UpdateConfirm("この難易度で決定", interactable: !_busy && _selectedDiff >= 0);
                     break;
                 }
@@ -300,7 +307,7 @@ namespace RhythmGame.UI.Pvp
                     _leaving = true;
                     await Task.Delay(1500);
                     await PvpMatchContext.ClearAsync();
-                    SceneRouter.Instance?.GoTo(SceneId.PVPLobby);
+                    SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPLobby);
                     break;
 
                 default:
@@ -332,6 +339,9 @@ namespace RhythmGame.UI.Pvp
 
             if (string.IsNullOrEmpty(songId) || string.IsNullOrEmpty(myDiff))
             {
+                // ここで返すとドラフト画面に留まり続け、サーバーのフェーズタイムアウトで
+                // 不戦敗になる。無言で試合が死ぬので必ずログに残すこと。
+                Debug.LogWarning($"[Draft] play_song{order} を開始できない: song={songId} diff={myDiff}");
                 SetStatus($"曲情報の解決に失敗 (song={songId} diff={myDiff}) — ポーリング継続");
                 return;
             }
@@ -342,6 +352,7 @@ namespace RhythmGame.UI.Pvp
                 await ServerSongLibrary.EnsureSyncedAsync();
                 if (!ServerSongLibrary.TryGetChart(songId, myDiff, out _))
                 {
+                    Debug.LogWarning($"[Draft] play_song{order} を開始できない: 譜面が無い {songId}/{myDiff} (同期後も未取得)");
                     SetStatus($"譜面の取得に失敗: {songId}/{myDiff}");
                     return;
                 }
@@ -354,12 +365,16 @@ namespace RhythmGame.UI.Pvp
             PvpMatchContext.LastSubmit        = null;
 
             Debug.Log($"[Draft] play_song{order}: {songId}/{myDiff} → GamePlay");
-            SceneRouter.Instance?.GoTo(SceneId.GamePlay, new GamePlayParameters
+            // GoToWhenIdle: 遷移中ガードによる取りこぼしで _leaving=true のまま固まるのを防ぐ
+            SceneRouter.Instance?.GoToWhenIdle(SceneId.GamePlay, new GamePlayParameters
             {
                 SongId        = songId,
                 Difficulty    = myDiff,
                 HiSpeed       = PlayOptionsController.HiSpeed,
                 Modifier      = "None",   // PVP はモディファイア無効
+                // PVP のオートプレイはソークテスト専用 (PvpSoakDriver)。エディタ+SoakTest=1 の
+                // 二重ガード — ビルドでは常に false (チート防止)。
+                IsAutoPlay    = Application.isEditor && PlayerPrefs.GetInt("SoakTest", 0) == 1,
                 IsPvp         = true,
                 PvpMatchId    = PvpMatchContext.MatchId,
                 PvpSongIndex  = order - 1,
@@ -393,6 +408,11 @@ namespace RhythmGame.UI.Pvp
             if (id == null) return;
             _selectedSongId = id;
             RefreshTileVisuals();
+            // 難易度ボタンの有効・無効は選択曲に依存する。ここで組み直さないと
+            // 次のポーリング (最大 1.5 秒後) まで「前の曲」基準のままで、
+            // その曲に無い難易度を選べてしまう → 演奏開始時に譜面が取れず不戦敗。
+            // (ソークで song_005/hard, song_004/easy を選んで再現・2026-07-31)
+            ShowDiffButtons(true);
             RefreshConfirmInteractable();
         }
 
@@ -407,6 +427,19 @@ namespace RhythmGame.UI.Pvp
         void RefreshConfirmInteractable()
         {
             if (_confirmButton == null) return;
+
+            // 自分の手番でなければ決定させない。
+            // 相手の BAN 待ち中もタイルは押せる (プールを見せるため) ので、曲を選ぶと
+            // ここが呼ばれて決定ボタンが点灯し、順番前に送信できてしまっていた
+            // → サーバーが 409 BAN_ORDER_VIOLATION を返し、ドラフトが止まって不戦敗。
+            // (ソークで再現・2026-07-31)
+            // pick_song3_diff は両者同時のブラインド選択で acting_player が null なので除外する。
+            if (!_myTurn && _lastPhase != "pick_song3_diff")
+            {
+                _confirmButton.interactable = false;
+                return;
+            }
+
             switch (_lastPhase)
             {
                 case "pick_song1":
@@ -476,7 +509,7 @@ namespace RhythmGame.UI.Pvp
             var ids = new List<string>();
             if (onlySongId != null) ids.Add(onlySongId);
             else if (poolOnly != null) ids.AddRange(poolOnly);
-            else foreach (var id in ServerSongLibrary.SongIds) ids.Add(id);
+            else foreach (var id in ServerSongLibrary.PvpSongIds) ids.Add(id);   // テストソング除外 (K 指示 2026-07-30)
 
             for (int i = 0; i < (_songTiles?.Length ?? 0); i++)
             {
@@ -509,7 +542,7 @@ namespace RhythmGame.UI.Pvp
             }
         }
 
-        void ShowDiffButtons(bool show)
+        void ShowDiffButtons(bool show, string fixedSongId = null)
         {
             for (int i = 0; i < (_diffButtons?.Length ?? 0); i++)
             {
@@ -517,12 +550,18 @@ namespace RhythmGame.UI.Pvp
                 _diffButtons[i].gameObject.SetActive(show);
                 if (show && _diffLabels != null && _diffLabels[i] != null)
                 {
-                    // 選択中の曲のレベルを表示 (曲未選択時は名称のみ)
-                    string songForLevel = _selectedSongId ?? (_tileSongIds.Count > 0 ? _tileSongIds[0] : null);
+                    // 対象曲: 後出し/ブラインドは曲が確定済み (fixedSongId)。それ以外は選択中の曲。
+                    string songForLevel = fixedSongId ?? _selectedSongId ?? (_tileSongIds.Count > 0 ? _tileSongIds[0] : null);
                     int level = -1;
-                    if (songForLevel != null && ServerSongLibrary.TryGetChart(songForLevel, DiffNames[i], out var c))
-                        level = c.Level;
+                    bool exists = songForLevel != null &&
+                                  ServerSongLibrary.TryGetChart(songForLevel, DiffNames[i], out var c);
+                    if (exists && ServerSongLibrary.TryGetChart(songForLevel, DiffNames[i], out var c2))
+                        level = c2.Level;
+                    // 存在しない難易度は選択不可 (SOAK 検出 2026-07-30: 譜面のない難易度を
+                    // 選べてしまい、play フェーズで譜面が取れず永久スタック→不戦敗になっていた)
+                    _diffButtons[i].interactable = exists;
                     _diffLabels[i].text = DiffShort[i] + (level >= 0 ? $" {level}" : "");
+                    if (!exists && _selectedDiff == i) _selectedDiff = -1;
                 }
             }
         }

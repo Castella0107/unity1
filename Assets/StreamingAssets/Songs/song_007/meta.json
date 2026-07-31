@@ -1,0 +1,38 @@
+{
+  "artist": "cres.",
+  "audioFile": "End Time.ogg",
+  "audioOffsetMs": -15,
+  "bpm": 180,
+  "durationMs": 0,
+  "firstOnsetMs": 0,
+  "jacketFile": "jacket.png",
+  "sectors": [
+    {
+      "endMs": 12667,
+      "id": 20,
+      "name": "S1"
+    },
+    {
+      "endMs": 34000,
+      "id": 19,
+      "name": "S2"
+    },
+    {
+      "endMs": 76667,
+      "id": 17,
+      "name": "S3"
+    },
+    {
+      "endMs": 108667,
+      "id": 16,
+      "name": "S4"
+    },
+    {
+      "endMs": 130000,
+      "id": 18,
+      "name": "S5"
+    }
+  ],
+  "songId": "song_007",
+  "title": "endtime"
+}

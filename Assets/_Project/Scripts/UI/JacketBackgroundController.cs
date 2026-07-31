@@ -23,8 +23,12 @@ public class JacketBackgroundController : MonoBehaviour
     [Header("Effects")]
     [SerializeField] float _zoomScale    = 1.2f;
     [SerializeField] float _fadeDuration = 0.5f;
-    [SerializeField] float _brightness   = 0.5f;
-    [SerializeField] float _blurSize     = 4f;
+    // 明るさ/ブラー既定: 旧 0.5/4 は「ジャケットが薄暗い」と K 指摘 (2026-07-30) → 0.85/2.5 に。
+    // シーン側 (_Persistent.unity) の serialize 値と揃えること。
+    // 1.0 = 減光なし。0.85 だと 15% 暗くなり「ジャケットが薄暗い」状態だった
+    // (K 報告 2026-08-01 / 以前から継続)。暗くしたい場合は個別に前面の幕で調整すること。
+    [SerializeField] float _brightness   = 1.0f;
+    [SerializeField] float _blurSize     = 2.5f;
 
     [Header("Fallback")]
     [SerializeField] Color _fallbackColor = new Color(0.02f, 0.03f, 0.06f, 1f);

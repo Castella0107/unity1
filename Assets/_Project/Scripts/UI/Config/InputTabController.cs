@@ -161,7 +161,20 @@ public class InputTabController : MonoBehaviour
                     display = InputControlPath.ToHumanReadableString(path,
                         InputControlPath.HumanReadableStringOptions.OmitDevice);
             }
-            _keyDisplays[i].text = display.ToUpper();
+            // キャップ幅に収まるよう長いキー名を短縮し、それでも長い場合に備えて
+            // TMP のオートサイズで縮小する (はみ出し防止)。
+            display = display
+                .Replace("Right ", "R-").Replace("Left ", "L-")
+                .Replace("Backspace", "BS").Replace("Delete", "DEL")
+                .Replace("Escape", "ESC").Replace("Return", "ENTER");
+            var lbl = _keyDisplays[i];
+            if (!lbl.enableAutoSizing)
+            {
+                lbl.enableAutoSizing = true;
+                lbl.fontSizeMax = lbl.fontSize;
+                lbl.fontSizeMin = 10f;
+            }
+            lbl.text = display.ToUpper();
         }
     }
 

@@ -203,8 +203,8 @@ public class PlayOptionsController : MonoBehaviour
     {
         switch (idx)
         {
-            case 0:   // ノーツスピード
-                HiSpeed += dir * 0.5f;
+            case 0:   // ノーツスピード (最小単位 0.1 刻み)
+                HiSpeed = Mathf.Round((HiSpeed + dir * 0.1f) * 10f) / 10f;   // float 誤差で 4.499… にならないよう丸める
                 break;
             case 1:   // ノーツ配置
                 ModifierIdx += dir;

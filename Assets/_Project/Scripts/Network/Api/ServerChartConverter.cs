@@ -5,11 +5,12 @@ using Newtonsoft.Json.Linq;
 namespace RhythmGame.Network.Api
 {
     /// <summary>
-    /// Go サーバーの譜面 JSON (snake_case フラット形式) をクライアントの <see cref="ChartData"/> に変換する。
+    /// Go サーバーの譜面 JSON をクライアントの <see cref="ChartData"/> に変換する。
     ///
-    /// サーバー形式 (internal/chart/chart.go):
-    ///   {"chart_id","song_id","difficulty","version","bpm","offset_ms",
-    ///    "notes":[{"time_ms","lane":0-5 または "0".."3"/"fxL"/"fxR","type":"tap"|"hold","duration_ms"}]}
+    /// サーバーはアップロードされた譜面ファイルを無加工で配信するため、中身は 2 形式が混在する:
+    ///   - シード形式 (internal/chart/chart.go): snake_case ("time_ms"/"duration_ms")
+    ///   - air-chart アップロード: エディタ形式 camelCase ("timeMs"/"durationMs"、events に bpm/timesig/speed)
+    /// 両形式のキーを許容して読む (snake 優先、無ければ camel)。
     ///   lane 4="fxL" / 5="fxR"。FX レーン上の tap/hold はクライアントの FxTap/FxHold に対応する。
     ///
     /// TotalNotes(採点イベント総数) は <see cref="ScoringEventCounter"/> で再計算する
@@ -50,38 +51,54 @@ namespace RhythmGame.Network.Api
                         Type       = isHold ? (isFx ? NoteType.FxHold : NoteType.Hold)
                                             : (isFx ? NoteType.FxTap  : NoteType.Tap),
                         Lane       = lane,
-                        TimeMs     = n.Value<double?>("time_ms") ?? 0,
-                        DurationMs = n.Value<double?>("duration_ms") ?? 0,
+                        TimeMs     = Ms(n, "time_ms", "timeMs"),
+                        DurationMs = Ms(n, "duration_ms", "durationMs"),
                     });
                 }
             }
 
-            var events = new List<TempoEvent>
-            {
-                new TempoEvent { Type = "bpm", TimeMs = 0, Bpm = bpm, Multiplier = 1.0 },
-            };
-
-            // 拍子イベント (variable time signature)。サーバー JSON の events[] から timesig を取り込む。
-            // 無ければ全編 4/4 (BpmTimeline 既定)。スコア(ホールドtick)が拍子に追従するため、
-            // クライアントとサーバーが同一の timesig を見る必要がある (engine/count.go も同様に解釈)。
+            // events[] から bpm(可変BPM)/timesig/speed を取り込む。スコア(ホールドtick)が
+            // BPM・拍子に追従するため、クライアントとサーバーが同一のタイムラインを見る必要がある
+            // (engine/count.go も同様に解釈)。無ければ bpm@0 のみ (全編 4/4 = BpmTimeline 既定)。
+            var events = new List<TempoEvent>();
+            bool hasBpmAtZero = false;
             var eventsArr = root["events"] as JArray;
             if (eventsArr != null)
             {
                 foreach (var ev in eventsArr)
                 {
-                    if ((ev.Value<string>("type") ?? "") != "timesig") continue;
-                    int num = ev.Value<int?>("numerator")   ?? 0;
-                    int den = ev.Value<int?>("denominator") ?? 0;
-                    if (num <= 0 || den <= 0) continue;
-                    events.Add(new TempoEvent
+                    string evType = ev.Value<string>("type") ?? "";
+                    double t = Ms(ev, "time_ms", "timeMs");
+                    if (evType == "bpm")
                     {
-                        Type        = "timesig",
-                        TimeMs      = ev.Value<double?>("time_ms") ?? 0,
-                        Numerator   = num,
-                        Denominator = den,
-                    });
+                        double b = ev.Value<double?>("bpm") ?? 0;
+                        if (b <= 0) continue;
+                        if (t <= 0) hasBpmAtZero = true;
+                        events.Add(new TempoEvent { Type = "bpm", TimeMs = t, Bpm = b, Multiplier = 1.0 });
+                    }
+                    else if (evType == "timesig")
+                    {
+                        int num = ev.Value<int?>("numerator")   ?? 0;
+                        int den = ev.Value<int?>("denominator") ?? 0;
+                        if (num <= 0 || den <= 0) continue;
+                        events.Add(new TempoEvent
+                        {
+                            Type        = "timesig",
+                            TimeMs      = t,
+                            Numerator   = num,
+                            Denominator = den,
+                        });
+                    }
+                    else if (evType == "speed")
+                    {
+                        double m = ev.Value<double?>("multiplier") ?? 0;
+                        if (m <= 0) continue;
+                        events.Add(new TempoEvent { Type = "speed", TimeMs = t, Multiplier = m });
+                    }
                 }
             }
+            if (!hasBpmAtZero)
+                events.Insert(0, new TempoEvent { Type = "bpm", TimeMs = 0, Bpm = bpm, Multiplier = 1.0 });
 
             var timeline = new BpmTimeline(events);
             int totalScoringEvents = ScoringEventCounter.Count(notes, timeline);
@@ -100,6 +117,11 @@ namespace RhythmGame.Network.Api
                 Notes      = notes,
             };
         }
+
+        // 時刻系フィールドを snake_case 優先・camelCase フォールバックで読む。
+        // 旧実装は snake のみで、air-chart アップロード譜面 (camelCase) が全ノーツ 0ms になっていた。
+        static double Ms(JToken obj, string snakeKey, string camelKey)
+            => obj.Value<double?>(snakeKey) ?? obj.Value<double?>(camelKey) ?? 0;
 
         // lane は int (0-5) と string ("0".."3"/"fxL"/"fxR") の両形式 (サーバーパーサーと同じ許容)
         static (LaneRef lane, bool isFx) ParseLane(JToken token)

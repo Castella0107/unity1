@@ -91,6 +91,21 @@ namespace RhythmGame.Network.Api
         /// <summary>同期済みのサーバー曲 ID 一覧。</summary>
         public static IEnumerable<string> SongIds => _songs.Keys;
 
+        /// <summary>テストソング (title が "Test Song" で始まる開発用データ) か。</summary>
+        public static bool IsTestSong(string songId)
+            => _songs.TryGetValue(songId, out var s) &&
+               (s.Title ?? "").StartsWith("Test Song", System.StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>対戦モードのドラフト候補となる曲 ID 一覧 (K 指示 2026-07-30: テストソングを除外)。</summary>
+        public static IEnumerable<string> PvpSongIds
+        {
+            get
+            {
+                foreach (var id in _songs.Keys)
+                    if (!IsTestSong(id)) yield return id;
+            }
+        }
+
         // ── Sync core ────────────────────────────────────────────────────────
 
         static async Task<bool> SyncCoreAsync()
@@ -240,6 +255,7 @@ namespace RhythmGame.Network.Api
             {
                 var chart = ServerChartConverter.Convert(json, level, chartHash);
                 _charts[Key(songId, difficulty)] = chart;
+                _chartIds[Key(songId, difficulty)] = chartId;   // スコア提出 (score/validate) 用
                 return true;
             }
             catch (System.Exception e)
@@ -248,6 +264,12 @@ namespace RhythmGame.Network.Api
                 return false;
             }
         }
+
+        static readonly Dictionary<string, string> _chartIds = new Dictionary<string, string>();
+
+        /// <summary>サーバー配信譜面の chart_id を返す (スコア提出用)。未同期/ローカル専用譜面は false。</summary>
+        public static bool TryGetChartId(string songId, string difficulty, out string chartId)
+            => _chartIds.TryGetValue(Key(songId, difficulty), out chartId);
 
         // オフライン時: 前回同期の index.json + キャッシュファイルから復元
         static bool LoadFromDiskCache()

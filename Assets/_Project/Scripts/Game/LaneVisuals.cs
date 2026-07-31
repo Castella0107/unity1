@@ -38,22 +38,19 @@ public class LaneVisuals : MonoBehaviour
 
     void SpawnMainLaneDividers()
     {
-        // 6 lanes: FX (±1.2 wide) flank 4 main lanes (±1.0). Field spans X -3.2..+3.2.
-        // 7 boundary lines: outer FX edges at ±3.2, inner boundaries at integer X.
+        // FX lanes moved to the curved side paths (FxLanePath) — the center highway now shows
+        // only the 4 main lanes (Lane0〜Lane3, ±1.0 wide) spanning X -2.0..+2.0.
+        // 5 boundary lines: outer edges at ±2.0, inner boundaries at integer X.
         //
-        // The outermost FX edges sit exactly on the gray background edge (±TotalWidth/2).
-        // Keep the line centered on the edge but trim the floor strip's overhanging outer
-        // half (floorTrimSign points inward, toward the field center) so nothing hangs over
-        // the void; only the inner half of the strip remains.
-        float edge = LaneLayout.TotalWidth * 0.5f;   // ±3.2 background edge
+        // The outer edges sit on the main-field edge; trim the floor strip's overhanging outer
+        // half (floorTrimSign points inward) so nothing hangs past the field.
+        float edge = 2.0f; // 4 main lanes → ±2.0 edge
 
-        SpawnDivider(-edge, _outerHeight,  _outerLengthRatio, floorTrimSign: +1);  // FxL outer edge
-        SpawnDivider(-2.0f, _outerHeight,  _outerLengthRatio);  // FxL|Lane0
+        SpawnDivider(-edge, _outerHeight,  _outerLengthRatio, floorTrimSign: +1);  // Lane0 outer edge
         SpawnDivider(-1.0f, _outerHeight,  _outerLengthRatio);  // Lane0|Lane1
         SpawnDivider( 0.0f, _centerHeight, 1.0f);               // Lane1|Lane2 center
         SpawnDivider( 1.0f, _outerHeight,  _outerLengthRatio);  // Lane2|Lane3
-        SpawnDivider( 2.0f, _outerHeight,  _outerLengthRatio);  // Lane3|FxR
-        SpawnDivider( edge, _outerHeight,  _outerLengthRatio, floorTrimSign: -1);  // FxR outer edge
+        SpawnDivider( edge, _outerHeight,  _outerLengthRatio, floorTrimSign: -1);  // Lane3 outer edge
     }
 
     // floorTrimSign: 0 = full centered floor strip; ±1 = halve the strip and push it that

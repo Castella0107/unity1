@@ -22,8 +22,13 @@ public static class PlayRecordFactory
         bool     isPvP     = false,
         string   matchId   = null)
     {
-        int    raw       = snap.CurrentScore;
-        int    effective = ApplyDifficultyMultiplier(raw, difficulty);
+        int raw = snap.CurrentScore;
+
+        // 難易度倍率は PVP 専用 (docs/references/Rhythm_game_design §3.2 は
+        // 「3. PVP 対戦」章にあり、セクター毎の勝敗比較のためのもの)。
+        // ソロ/フリープレイに掛けると easy が最大 750,000 で頭打ちになり、
+        // ランクも不当に低く出る (K 報告 2026-08-01)。ソロは素点をそのまま使う。
+        int    effective = isPvP ? ApplyDifficultyMultiplier(raw, difficulty) : raw;
         string rank      = ScoreCalculator.ComputeRank(effective);
 
         // Copy sector scores out of the snapshot

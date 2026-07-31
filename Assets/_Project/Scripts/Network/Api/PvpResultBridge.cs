@@ -95,12 +95,19 @@ namespace RhythmGame.Network.Api
             }
             else
             {
+                // 提出が通らなかったのに「先攻提出＝相手待ち」と同じ状態にしていたため、
+                // リザルト画面で永久に待ち続けていた (K 報告 2026-08-01:
+                // サーバー未更新でスコア検証が食い違い、双方が提出待ちで停止)。
+                // 待たせず理由を出してロビーへ戻す。
                 Debug.LogWarning($"[PvpSubmit] submit 失敗: {r.ErrorCode} {r.ErrorMessage}");
-                PvpMatchContext.LastSubmit = new SubmitResponseDto { MatchFinalized = false };
+                PvpMatchContext.SubmitError =
+                    string.IsNullOrEmpty(r.ErrorMessage) ? (r.ErrorCode ?? "通信エラー") : r.ErrorMessage;
+                PvpMatchContext.LastSubmit = null;
             }
 
             JacketBackgroundController.Instance?.SetCanvasEnabled(true);
-            SceneRouter.Instance?.GoTo(SceneId.PVPResult);
+            // GoToWhenIdle: 遷移中ガードによる取りこぼし防止 (SOAK 2026-07-30)
+            SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPResult);
         }
 
         /// <summary>
@@ -178,7 +185,7 @@ namespace RhythmGame.Network.Api
             }
 
             _ = PvpMatchContext.ClearAsync();   // WS クローズ (MatchEnd では不要)
-            SceneRouter.Instance?.GoTo(SceneId.PVPMatchEnd, p);
+            SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPMatchEnd, p);
         }
     }
 }

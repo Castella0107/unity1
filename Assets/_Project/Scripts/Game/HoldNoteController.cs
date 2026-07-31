@@ -33,14 +33,26 @@ public class HoldNoteController : NoteController
         double tailDt = speed != null ? speed.VisualDistanceMs(currentVisualMs, Data.TimeMs + Data.DurationMs)
                                       : Data.TimeMs + Data.DurationMs - currentVisualMs;
 
-        float startZ = LaneLayout.JudgmentLineZ + (float)(headDt / 1000.0 * scrollSpeed);
-        float endZ   = LaneLayout.JudgmentLineZ + (float)(tailDt / 1000.0 * scrollSpeed);
+        float headZ  = (float)(headDt / 1000.0 * scrollSpeed); // 判定線からの奥行きオフセット
+        float tailZ  = (float)(tailDt / 1000.0 * scrollSpeed);
         float width  = LaneLayout.GetNoteWidth(Data.Lane);
+
+        // FX ホールドは VP 中心の円弧 (頭/尾 = 円弧バー、胴 = 円環帯)。PLAYFIELD_SPEC.md §3。
+        if (IsFxLane(Data.Lane) && FxSectorGeometry.Ready)
+        {
+            UpdateFxHoldArc(headZ, tailZ);
+            return;
+        }
+        HideFxArc();
+
+        float startZ = LaneLayout.JudgmentLineZ + headZ;
+        float endZ   = LaneLayout.JudgmentLineZ + tailZ;
         float x      = LaneLayout.GetX(Data.Lane);
         float judgeZ = LaneLayout.JudgmentLineZ;
 
         // Root at lane X, Z = 0 (children use world-space Z via localPosition)
         transform.localPosition = new Vector3(x, 0f, 0f);
+        transform.localRotation = Quaternion.identity; // プール再利用で FX の回転が残らないようリセット
 
         // Once the head is tapped (IsHit) the hold is "consumed" at the judgment line:
         // nothing is drawn past (below) the line. The head vanishes at the line, the body's
@@ -87,5 +99,26 @@ public class HoldNoteController : NoteController
                 _tailTransform.localScale = new Vector3(width, ts.y, ts.z);
             }
         }
+
+        ApplyLaneColor(); // 距離フェード廃止 (壁クリップはシェーダが担う)
+    }
+
+    /// <summary>
+    /// FX ホールドを VP 中心の円弧として描画する (PLAYFIELD_SPEC.md §3)。
+    /// プレハブ既定の頭/胴/尾は使わず、FxArcNote が頭/尾の円弧バーと円環帯の胴を生成する。
+    /// </summary>
+    void UpdateFxHoldArc(float headZ, float tailZ)
+    {
+        transform.position = Vector3.zero; // メッシュはワールド座標で構築される
+        transform.rotation = Quaternion.identity;
+
+        if (_headTransform != null) _headTransform.gameObject.SetActive(false);
+        if (_bodyTransform != null) _bodyTransform.gameObject.SetActive(false);
+        if (_tailTransform != null) _tailTransform.gameObject.SetActive(false);
+
+        EnsureFxArc().UpdateHold(Data.Lane == LaneRef.FxR,
+                                 headZ,
+                                 tailZ,
+                                 IsHit, 0.035f);
     }
 }

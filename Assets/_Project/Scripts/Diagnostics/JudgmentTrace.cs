@@ -25,8 +25,25 @@ using UnityEngine;
 /// </summary>
 public static class JudgmentTrace
 {
-    /// <summary>計測を有効にするか。false なら全メソッドが no-op。</summary>
-    public static bool Enabled = true;
+    /// <summary>計測を有効にするか。false なら全メソッドが no-op。
+    ///
+    /// **既定は無効**。2026-06-10 のタイミング調査用に既定 true のまま残っており、
+    /// 入力 1 回ごとに string.Format + lock + AutoFlush のディスク書き込みが走っていた。
+    /// 密な譜面を高速に叩くとこれが効いて、実測でフレーム時間が約 2 倍
+    /// (1.2ms → 2.3ms)、GC が約 2 倍 (6KB → 12KB/フレーム) に悪化していた
+    /// (2026-07-31 スタンドアロンビルドで 25 秒間に 6044 打鍵して計測)。
+    ///
+    /// 再度調査するときは PlayerPrefs "JudgmentTrace" を 1 にするか、
+    /// 起動引数 `--judgment-trace` を付ける。</summary>
+    public static bool Enabled = ResolveEnabled();
+
+    static bool ResolveEnabled()
+    {
+        if (PlayerPrefs.GetInt("JudgmentTrace", 0) == 1) return true;
+        foreach (var a in System.Environment.GetCommandLineArgs())
+            if (a == "--judgment-trace") return true;
+        return false;
+    }
 
     static StreamWriter _writer;
     static int          _seq;

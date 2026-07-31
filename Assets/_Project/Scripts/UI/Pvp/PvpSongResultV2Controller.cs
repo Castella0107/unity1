@@ -41,7 +41,17 @@ namespace RhythmGame.UI.Pvp
             JacketBackgroundController.Instance?.SetFallback();
 
             if (_nextButton != null) _nextButton.onClick.AddListener(Proceed);
-            RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space: 次へ");
+            RhythmGame.UI.Common.ShortcutHintOverlay.Set("Space: 次へ   ESC: ロビーへ戻る");
+
+            // 提出自体が失敗していたら待たずに戻す (待つと永久に進まない)
+            if (!string.IsNullOrEmpty(PvpMatchContext.SubmitError))
+            {
+                string reason = PvpMatchContext.SubmitError;
+                PvpMatchContext.SubmitError = null;
+                SetStatus($"スコアの提出に失敗しました — ロビーへ戻ります\n({reason})");
+                _ = ReturnToLobbyAsync();
+                return;
+            }
 
             var submit = PvpMatchContext.LastSubmit;
             if (string.IsNullOrEmpty(PvpMatchContext.MatchId) || submit == null)
@@ -69,6 +79,15 @@ namespace RhythmGame.UI.Pvp
 
         void Update()
         {
+            // 待機中でも ESC で抜けられるようにする (進まないまま操作不能を避ける)
+            var esc = Keyboard.current;
+            if (!_leaving && esc != null && esc.escapeKey.wasPressedThisFrame)
+            {
+                SetStatus("ロビーへ戻ります");
+                _ = ReturnToLobbyAsync();
+                return;
+            }
+
             if (!_canProceed) return;
             var kb = Keyboard.current;
             if (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.enterKey.wasPressedThisFrame))
@@ -83,22 +102,9 @@ namespace RhythmGame.UI.Pvp
         void ShowSongResult(SubmitResponseDto submit)
         {
             var sr = submit.SongResult;
-            bool selfIsA = PvpMatchContext.SelfIsA;
 
             ShowPoints(sr);
-
-            if (_sectorText != null && sr.Sectors != null)
-            {
-                var sb = new System.Text.StringBuilder();
-                foreach (var s in sr.Sectors)
-                {
-                    int mine = selfIsA ? s.PointsA : s.PointsB;
-                    if      (mine >= 1000) sb.Append("<color=#2BD9E6>◆</color> ");   // 勝ち
-                    else if (mine >= 500)  sb.Append("<color=#AAAAAA>—</color> ");    // 分け
-                    else                   sb.Append("<color=#F24D6B>◇</color> ");   // 負け
-                }
-                _sectorText.text = sb.ToString().TrimEnd();
-            }
+            ShowSectorDiamonds(sr);
 
             if (_cumulativeText != null)
                 _cumulativeText.text = $"累計  {PvpMatchContext.CumulativeSelfMilli / 1000.0:F1} pt  —  {PvpMatchContext.CumulativeOppMilli / 1000.0:F1} pt   (8pt で決着)";
@@ -109,6 +115,21 @@ namespace RhythmGame.UI.Pvp
 
             EnableNext(_matchOver ? "FINAL RESULT" : "NEXT");
             SetStatus("");
+        }
+
+        void ShowSectorDiamonds(SongResultDto sr)
+        {
+            if (_sectorText == null || sr?.Sectors == null) return;
+            bool selfIsA = PvpMatchContext.SelfIsA;
+            var sb = new System.Text.StringBuilder();
+            foreach (var s in sr.Sectors)
+            {
+                int mine = selfIsA ? s.PointsA : s.PointsB;
+                if      (mine >= 1000) sb.Append("<color=#2BD9E6>◆</color> ");   // 勝ち
+                else if (mine >= 500)  sb.Append("<color=#AAAAAA>—</color> ");    // 分け
+                else                   sb.Append("<color=#F24D6B>◇</color> ");   // 負け
+            }
+            _sectorText.text = sb.ToString().TrimEnd();
         }
 
         void ShowPoints(SongResultDto sr)
@@ -130,10 +151,25 @@ namespace RhythmGame.UI.Pvp
             int playOrder = PvpMatchContext.CurrentSongOrder;
             string playPhase = "play_song" + playOrder;
 
+            // 無限待ちにしない。相手が提出できない状況 (スコア検証の食い違い、
+            // クライアントとサーバーのバージョン差など) では永久に進まないため、
+            // 上限を超えたら理由を出してロビーへ戻す (K 報告 2026-08-01)。
+            // サーバーの演奏フェーズのタイムアウトより十分長く取る。
+            const int WaitLimitSec = 300;
+            float waited = 0f;
+
             while (this != null && !_leaving)
             {
                 await Task.Delay(2000);
                 if (this == null || _leaving) return;
+
+                waited += 2f;
+                if (waited >= WaitLimitSec)
+                {
+                    SetStatus("相手の提出が確認できませんでした — ロビーへ戻ります");
+                    await ReturnToLobbyAsync();
+                    return;
+                }
 
                 var r = await PvpApi.GetStateAsync(PvpMatchContext.MatchId);
                 if (this == null || _leaving) return;
@@ -154,15 +190,47 @@ namespace RhythmGame.UI.Pvp
                 }
                 if (phase == "finished")
                 {
+                    // 最終曲: 曲別リザルトを取得して表示してから FINAL RESULT へ
+                    await ShowFetchedResultAsync(playOrder);
                     await FetchFinalAsync();
                     return;
                 }
 
-                // 次のピックフェーズへ進んだ = 両者提出完了 (詳細結果は先攻側には届かない)
-                SetStatus("両者提出完了 (詳細はサーバー側で確定)");
-                EnableNext("NEXT");
+                // 次のピックフェーズへ進んだ = 両者提出完了 → 曲別リザルト GET で詳細を表示
+                // (旧: サーバーに取得 GET が無く先攻側は詳細非表示 → 「リザルトが出ない」K 報告の原因。
+                //  GET /matches/{id}/songs/{order}/result 追加済みのため取得して表示する)
+                await ShowFetchedResultAsync(playOrder);
                 return;
             }
+        }
+
+        /// <summary>先攻提出側: 相手の提出完了後に曲別リザルトを取得して表示し、累計も更新する。</summary>
+        async Task ShowFetchedResultAsync(int songOrder)
+        {
+            var r = await PvpApi.GetSongResultAsync(PvpMatchContext.MatchId, songOrder);
+            if (this == null || _leaving) return;
+
+            if (r.Ok && r.Data != null && r.Data.Confirmed && r.Data.SongResult != null)
+            {
+                var sr = r.Data.SongResult;
+                // 後攻提出側 (PvpResultBridge) と同じ規則で累計を更新する
+                // (先攻側の submit レスポンスには song_result が無く、ここが唯一の加算点)。
+                long selfPts = PvpMatchContext.SelfIsA ? sr.PointsA : sr.PointsB;
+                long oppPts  = PvpMatchContext.SelfIsA ? sr.PointsB : sr.PointsA;
+                PvpMatchContext.CumulativeSelfMilli += selfPts;
+                PvpMatchContext.CumulativeOppMilli  += oppPts;
+
+                ShowPoints(sr);
+                ShowSectorDiamonds(sr);
+                if (_cumulativeText != null)
+                    _cumulativeText.text = $"累計  {PvpMatchContext.CumulativeSelfMilli / 1000.0:F1} pt  —  {PvpMatchContext.CumulativeOppMilli / 1000.0:F1} pt   (8pt で決着)";
+                SetStatus("");
+            }
+            else
+            {
+                SetStatus("両者提出完了 (詳細の取得に失敗しました)");
+            }
+            EnableNext("NEXT");
         }
 
         async Task FetchFinalAsync()
@@ -202,7 +270,9 @@ namespace RhythmGame.UI.Pvp
             }
             else
             {
-                SceneRouter.Instance?.GoTo(SceneId.PVPSongPick);   // 次のドラフトフェーズへ
+                // GoToWhenIdle: 遷移中ガードで握り潰されると _leaving=true のまま復帰不能になる
+                // (SOAK 検出 2026-07-30: リザルトから song2 ドラフトへ進めず不戦敗)
+                SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPSongPick);   // 次のドラフトフェーズへ
             }
         }
 
@@ -225,7 +295,7 @@ namespace RhythmGame.UI.Pvp
             _leaving = true;
             await Task.Delay(1500);
             await PvpMatchContext.ClearAsync();
-            SceneRouter.Instance?.GoTo(SceneId.PVPLobby);
+            SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPLobby);
         }
 
         void EnableNext(string label)

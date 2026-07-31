@@ -25,7 +25,9 @@ public readonly struct TickResult
 
 /// <summary>
 /// ホールドノート1本分のヘッド・ティック・テール判定状態を追跡し、
-/// 押下継続・ガード期間・ミス放棄を管理するクラス。
+/// 押下継続・ガード期間・復帰を管理するクラス。
+/// HEAD_RECOVERY_SPEC (2026-07-30): 頭ミスでも放棄せず、再押下で途中から復帰できる
+/// (Go サーバー engine/hold.go と同一意味論 — 変更は必ず両側同時に)。
 /// </summary>
 public class HoldJudgmentTracker
 {
@@ -41,13 +43,13 @@ public class HoldJudgmentTracker
     public IReadOnlyList<double> TickTimes { get; }
 
     bool     _headJudged;
+    bool     _headMissed;         // 頭をオートミスしたか (HEAD_RECOVERY_SPEC: 放棄はせず途中復帰可能)
     Judgment _headJudgment;       // 支点(ヘッド)の確定判定。実 tick が 1 つも無い場合の踏襲元フォールバック。
     Judgment _lastTickJudgment;   // 直前の「実 tick」(無敵ゾーンより手前のティック)の判定。終端 1/8 はこれを複製する。
     bool     _tailJudged;
     bool     _isHeld;
     double   _lastReleaseMs = -1;   // -1 = never released
     int      _nextTickIdx;
-    bool     _abandoned;
     bool     _recovering;           // ガード超過離上から再押下で復帰した直後の1判定だけ Great に落とす
     readonly bool _isShort;         // 1/8 以下の長さ(ボディティックが 1 本も無い)ホールドか
 
@@ -57,10 +59,9 @@ public class HoldJudgmentTracker
     public bool IsHeadJudged => _headJudged;
     /// <summary>ホールド尾が判定済みか。</summary>
     public bool IsTailJudged => _tailJudged;
-    /// <summary>ガード超過などで放棄されたか。</summary>
-    public bool IsAbandoned  => _abandoned;
-    /// <summary>尾判定済みまたは放棄済みで、追跡が完了しているか。</summary>
-    public bool IsCompleted  => _tailJudged || _abandoned;
+    /// <summary>追跡が完了しているか (= 尾判定済み)。
+    /// HEAD_RECOVERY_SPEC (2026-07-30): 頭ミスでも放棄しない — 途中の再押下で復帰できる。</summary>
+    public bool IsCompleted  => _tailJudged;
 
     /// <summary>ノーツと BPM タイムラインからホールド追跡を初期化し、ティック時刻を事前計算する。</summary>
     public HoldJudgmentTracker(NoteData note, BpmTimeline bpm)
@@ -107,14 +108,18 @@ public class HoldJudgmentTracker
         return _headJudgment;
     }
 
-    /// <summary>ホールド頭がタイムアウトした最初の呼び出しで true を返す(オートミス)。</summary>
+    /// <summary>ホールド頭がタイムアウトした最初の呼び出しで true を返す(オートミス)。
+    /// HEAD_RECOVERY_SPEC: 放棄はせず、以降のティックは Miss として進行する
+    /// (再押下すれば OnPressed の復帰ロジックで途中から取れる)。</summary>
     public bool OnHeadMissed(double currentMs)
     {
-        if (_headJudged || _abandoned) return false;
+        if (_headJudged) return false;
         if (currentMs - StartMs > JudgmentWindow.GoodMs)
         {
-            _headJudged = true;
-            _abandoned  = true;
+            _headJudged       = true;
+            _headMissed       = true;
+            _lastTickJudgment = Judgment.Miss;  // 無敵ゾーン/尾の複製元は Miss から開始
+            _lastReleaseMs    = StartMs;        // 頭時刻を離上起点に = 復帰まで全ティック Miss
             return true;
         }
         return false;
@@ -129,7 +134,7 @@ public class HoldJudgmentTracker
     /// </summary>
     public void OnPressed(double timeMs)
     {
-        if (_abandoned || !_headJudged) return;
+        if (!_headJudged) return;
         if (!_isHeld && _lastReleaseMs >= 0 && (timeMs - _lastReleaseMs) > GUARD_MS)
             _recovering = true;
         _isHeld        = true;
@@ -139,7 +144,7 @@ public class HoldJudgmentTracker
     /// <summary>キー離上。ガード期間のカウントダウンを開始する。</summary>
     public void OnReleased(double timeMs)
     {
-        if (_abandoned || !_headJudged) return;
+        if (!_headJudged) return;
         _isHeld        = false;
         _lastReleaseMs = timeMs;
     }
@@ -159,7 +164,7 @@ public class HoldJudgmentTracker
     /// </summary>
     public IEnumerable<TickResult> AdvanceTo(double currentMs)
     {
-        if (_abandoned || !_headJudged) yield break;
+        if (!_headJudged) yield break;
 
         while (_nextTickIdx < TickTimes.Count && currentMs >= TickTimes[_nextTickIdx])
         {
@@ -200,8 +205,8 @@ public class HoldJudgmentTracker
     /// <summary>
     /// 尾を解決する。currentMs が EndMs に達した最初の呼び出しで判定を返す。
     /// 尾は終端の 1/8 無敵ゾーンに属するため「離上に対する新たなペナルティ」を課さない:
-    ///   ・1/8 以下の短いホールド(ボディティック無し): 支点(ヘッド)さえ通っていれば無条件 P+。
-    ///     (支点が MISS の場合はそもそも _abandoned で先に null 復帰し、頭のオートミスで MISS 扱い)
+    ///   ・1/8 以下の短いホールド(ボディティック無し): 支点(ヘッド)を取っていれば無条件 P+。
+    ///     (頭ミスの短ホールドは HEAD_RECOVERY_SPEC により通常規則: 押下中=復帰判定/離上中=Miss)
     ///   ・押下中(再押下含む): 通常どおり復帰判定に従う(復帰直後 Great → 以降 PerfectPlus)。
     ///     直前が Miss でも終端で押していれば復帰する。
     ///   ・離上中: 直前の実ティック判定(_lastTickJudgment)を複製する
@@ -210,11 +215,13 @@ public class HoldJudgmentTracker
     /// </summary>
     public Judgment? ResolveTail(double currentMs)
     {
-        if (_tailJudged || _abandoned) return null;
-        if (currentMs < EndMs)         return null;
+        if (_tailJudged)       return null;
+        if (currentMs < EndMs) return null;
         _tailJudged = true;
-        // 1/8 以下の短いホールドは終端が唯一の無敵ゾーン。支点が通っていれば無条件 P+。
-        if (_isShort) return Judgment.PerfectPlus;
+        // 1/8 以下の短いホールドは終端が唯一の無敵ゾーン。支点(頭)を取っていれば無条件 P+。
+        // 頭ミスの短ホールド (HEAD_RECOVERY_SPEC) は下の通常規則へ:
+        // 押下中(=復帰) なら Great/P+、離上中なら Miss (複製元 _lastTickJudgment = Miss)。
+        if (_isShort && !_headMissed) return Judgment.PerfectPlus;
         // 押下中の尾は復帰判定に従う(直前が Miss でも押していれば復帰)。
         if (_isHeld)
         {

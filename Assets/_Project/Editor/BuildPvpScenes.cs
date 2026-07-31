@@ -206,13 +206,13 @@ public static class BuildPvpScenes
 
         // ── ヘッダー: ONLINE / LADDER MATCH + LOBBY ──────────────────
         var kicker = MakeTMP("Kicker", canvasGO, 26, "ONLINE   ·   LADDER MATCH");
-        SetAnchored(kicker, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(180, -64), new Vector2(700, 36));
+        SetAnchored(kicker, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(530, -64), new Vector2(700, 36)); // pivot中心のため x=左端180+幅/2
         kicker.alignment = TextAlignmentOptions.Left;
         kicker.color = dim;
         kicker.characterSpacing = 6f;
 
         var lobbyTitle = MakeTMP("LobbyTitle", canvasGO, 72, "LOBBY");
-        SetAnchored(lobbyTitle, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(180, -130), new Vector2(700, 90));
+        SetAnchored(lobbyTitle, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(530, -130), new Vector2(700, 90)); // 同上 (旧値180では左に340px見切れ)
         lobbyTitle.alignment = TextAlignmentOptions.Left;
         lobbyTitle.color = gold;
         lobbyTitle.fontStyle = FontStyles.Bold;
@@ -311,7 +311,7 @@ public static class BuildPvpScenes
         sRT.anchoredPosition = new Vector2(0, 60); sRT.sizeDelta = new Vector2(-200, 150);
         var startImg = startGO.GetComponent<Image>();
         if (startImg != null) startImg.color = new Color(0.12f, 0.18f, 0.30f, 0.55f);
-        // ボタン内ラベルを START / PRESS F5 に差し替え
+        // ボタン内ラベルを START / PRESS SPACE に差し替え
         var startLbl = startGO.GetComponentInChildren<TextMeshProUGUI>();
         if (startLbl != null)
         {
@@ -320,7 +320,7 @@ public static class BuildPvpScenes
             startLbl.fontStyle = FontStyles.Bold;
             startLbl.alignment = TextAlignmentOptions.Center;
         }
-        var pressF5 = MakeTMP("PressF5", canvasGO, 24, "PRESS  F5");
+        var pressF5 = MakeTMP("PressF5", canvasGO, 24, "PRESS  SPACE"); // 実装/ヒントとも Space (F5 は誤記)
         SetAnchored(pressF5, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0, 80), new Vector2(400, 36));
         pressF5.alignment = TextAlignmentOptions.Center;
         pressF5.color = dim;

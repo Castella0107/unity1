@@ -15,27 +15,28 @@ public static class GameColorSettings
     /// <summary>カスタマイズ対象のレーン数(Lane0〜Lane3 + FxL + FxR)。</summary>
     public const int LaneCount = 6;
 
-    // 既定色。参照パレット(青基調+オレンジ差し色)に準拠:
-    //   #3498DB スカイブルー / #FEBD69 アンバー / #4C81B9 くすみブルー。
-    //   外側メイン=主役の明るい青、内側メイン=中央で映える橙、FX=同系のくすみ青で統一。
+    // 既定色。プレイフィールド 画面設計 (export-src.html) に準拠:
+    //   ノーツは暗いトラックに映える白発光 (#EEF9FD/#FFFFFF)、
+    //   仕切り線はごく薄い白青、判定線は明るいシアン #7DEEFA。
     static readonly Color[] NoteDefaults =
     {
-        new Color(0.204f, 0.596f, 0.859f), // Lane0 (鍵1 左) – #3498DB sky blue
-        new Color(0.996f, 0.741f, 0.412f), // Lane1 (鍵2)    – #FEBD69 amber
-        new Color(0.996f, 0.741f, 0.412f), // Lane2 (鍵3)    – #FEBD69 amber
-        new Color(0.204f, 0.596f, 0.859f), // Lane3 (鍵4 右) – #3498DB sky blue
-        new Color(0.298f, 0.506f, 0.725f), // FxL  (FX 左)   – #4C81B9 muted blue
-        new Color(0.298f, 0.506f, 0.725f), // FxR  (FX 右)   – #4C81B9 muted blue
+        new Color(0.933f, 0.976f, 0.992f), // Lane0 (鍵1 左) – #EEF9FD white
+        new Color(0.933f, 0.976f, 0.992f), // Lane1 (鍵2)    – #EEF9FD white
+        new Color(0.933f, 0.976f, 0.992f), // Lane2 (鍵3)    – #EEF9FD white
+        new Color(0.933f, 0.976f, 0.992f), // Lane3 (鍵4 右) – #EEF9FD white
+        new Color(1.000f, 1.000f, 1.000f), // FxL  (FX 左)   – #FFFFFF white arc
+        new Color(1.000f, 1.000f, 1.000f), // FxR  (FX 右)   – #FFFFFF white arc
     };
 
-    static readonly Color DividerDefault      = new Color(1.00f, 1.00f, 1.00f, 0.65f); // LaneDividerMaterial
-    static readonly Color JudgmentLineDefault = new Color(0.20f, 1.00f, 1.00f, 1.00f); // JudgmentLine material (cyan)
+    static readonly Color DividerDefault      = new Color(0.784f, 0.922f, 0.973f, 0.22f); // 薄い白青 (プレイフィールド)
+    static readonly Color JudgmentLineDefault = new Color(0.490f, 0.933f, 0.980f, 1.00f); // #7DEEFA cyan
+    static readonly Color ChordDefault        = new Color(1.000f, 0.843f, 0.251f, 1.00f); // #FFD740 黄 (同時押し)
 
     /// <summary>各設定の PlayerPrefs キー一覧(F9 リセット対象に渡す)。</summary>
     public static readonly string[] AllKeys =
     {
         "NoteColor0", "NoteColor1", "NoteColor2", "NoteColor3", "NoteColor4", "NoteColor5",
-        "DividerColor", "JudgmentLineColor",
+        "DividerColor", "JudgmentLineColor", "ChordColor",
     };
 
     static string NoteKey(int lane) => "NoteColor" + lane;
@@ -62,6 +63,14 @@ public static class GameColorSettings
     {
         get => Load("JudgmentLineColor", JudgmentLineDefault);
         set => Save("JudgmentLineColor", value);
+    }
+
+    /// <summary>同時押しノーツの色 (K 指示 2026-07-30。未設定なら既定の黄 #FFD740)。
+    /// 同時刻に 2 ノーツ以上ある場合に NoteController がレーン色の代わりに使う。</summary>
+    public static Color ChordColor
+    {
+        get => Load("ChordColor", ChordDefault);
+        set => Save("ChordColor", value);
     }
 
     // PlayerPrefs から "RRGGBB" を読み、既定色のアルファを維持して返す。未設定/不正なら既定色。

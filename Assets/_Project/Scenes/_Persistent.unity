@@ -450,8 +450,8 @@ MonoBehaviour:
   _blurMaterial: {fileID: 2100000, guid: 7ed66537ffaacd442be58a3bf6de80b0, type: 2}
   _zoomScale: 1.2
   _fadeDuration: 0.5
-  _brightness: 0.5
-  _blurSize: 4
+  _brightness: 0.85
+  _blurSize: 2.5
   _fallbackColor: {r: 0.02, g: 0.03, b: 0.06, a: 1}
 --- !u!114 &948530354
 MonoBehaviour:

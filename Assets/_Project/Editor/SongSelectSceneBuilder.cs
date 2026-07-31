@@ -831,7 +831,9 @@ public static class SongSelectSceneBuilder
 
         var tvpGO = Child("Viewport", tplGO.transform);
         SR(tvpGO, V(0,0), V(1,1), V(0,1), V(0,0), V(0,0));
-        tvpGO.AddComponent<Image>().color = Color.clear;
+        // Mask のグラフィックは不透明必須 (Color.clear は cullTransparentMesh でカリングされ
+        // ステンシルが書かれず配下が全て消える)。非表示化は showMaskGraphic=false が担う。
+        tvpGO.AddComponent<Image>().color = Color.white;
         tvpGO.AddComponent<Mask>().showMaskGraphic = false;
 
         var tcGO = Child("Content", tvpGO.transform);

@@ -13,6 +13,9 @@ namespace RhythmGame.UI.Common
         [SerializeField] Slider _slider;
         [SerializeField] float  _delta = 1f;
 
+        /// <summary>刻み幅の絶対値を実行時に変更する (方向 = 焼き込み時の符号を維持)。</summary>
+        public void SetDeltaMagnitude(float magnitude) => _delta = Mathf.Sign(_delta) * magnitude;
+
         void Start()
         {
             var btn = GetComponent<Button>();

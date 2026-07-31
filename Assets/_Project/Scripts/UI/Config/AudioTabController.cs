@@ -25,11 +25,18 @@ public class AudioTabController : MonoBehaviour
     [SerializeField] Slider          _sfxVolumeSlider;
     [SerializeField] TextMeshProUGUI _sfxVolumeValue;
 
+    [Header("Note Sound")]
+    [SerializeField] TMP_Dropdown _noteSoundDropdown;
+
+    [Header("Hit Sounds")]
+    [SerializeField] Toggle _judgmentSoundToggle;   // 判定ガイド音 (判定効果音) の ON/OFF
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Start()
     {
         SetupVolumeSliders();
+        SetupNoteSound();
 
         if (_manageDevicesButton != null)
             _manageDevicesButton.onClick.AddListener(() =>
@@ -42,6 +49,17 @@ public class AudioTabController : MonoBehaviour
         {
             _muteOnFocusLossToggle.SetIsOnWithoutNotify(MuteOnFocusLoss.Enabled);
             _muteOnFocusLossToggle.onValueChanged.AddListener(v => MuteOnFocusLoss.Enabled = v);
+        }
+
+        if (_judgmentSoundToggle != null)
+        {
+            _judgmentSoundToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("HitSoundJudgment", 1) == 1);
+            _judgmentSoundToggle.onValueChanged.AddListener(v =>
+            {
+                // PLAY OPTIONS と同じ経路: シングルトン経由で反映し、未生成時は PlayerPrefs へ直接保存
+                if (HitSoundPlayer.Instance != null) HitSoundPlayer.Instance.SetJudgmentSoundsEnabled(v);
+                else { PlayerPrefs.SetInt("HitSoundJudgment", v ? 1 : 0); PlayerPrefs.Save(); }
+            });
         }
     }
 
@@ -83,6 +101,18 @@ public class AudioTabController : MonoBehaviour
         Init(_musicVolumeSlider,  _musicVolumeValue,  "Vol_Music",  90f);
         Init(_sfxVolumeSlider,    _sfxVolumeValue,    "Vol_Sfx",    70f);
 
+        // 数値クリックで直接入力 (K 指示 2026-07-31)
+        void Editable(Slider s, TextMeshProUGUI label)
+        {
+            if (s == null || label == null) return;
+            RhythmGame.UI.Common.ClickToEditValue.Attach(label, 0f, 100f, integer: true,
+                get:    () => s.value,
+                commit: v  => s.value = v);
+        }
+        Editable(_masterVolumeSlider, _masterVolumeValue);
+        Editable(_musicVolumeSlider,  _musicVolumeValue);
+        Editable(_sfxVolumeSlider,    _sfxVolumeValue);
+
         _masterVolumeSlider?.onValueChanged.AddListener(v =>
         {
             if (_masterVolumeValue != null) _masterVolumeValue.text = (int)v + "%";
@@ -103,6 +133,26 @@ public class AudioTabController : MonoBehaviour
             PlayerPrefs.SetFloat("Vol_Sfx", v);
             PlayerPrefs.Save();
             AudioVolumeBinder.Instance?.SetSfxVolume(v);
+        });
+    }
+
+    // ── ノーツ音 (タップ時の効果音) の選択 ────────────────────────────────────
+    // 0 = スタンダード: air-chart (譜面エディタ) の試聴と同一サンプル (既定)
+    // 1 = クリック: 従来の HitSoundLibrary シンセ音
+    void SetupNoteSound()
+    {
+        if (_noteSoundDropdown == null) return;
+        _noteSoundDropdown.ClearOptions();
+        _noteSoundDropdown.AddOptions(new System.Collections.Generic.List<string>
+        {
+            "スタンダード (エディタと同じ)", "クリック (シンセ)"
+        });
+        _noteSoundDropdown.SetValueWithoutNotify(Mathf.Clamp(HitSoundPlayer.NoteSoundIdx, 0, 1));
+        _noteSoundDropdown.RefreshShownValue();
+        _noteSoundDropdown.onValueChanged.AddListener(idx =>
+        {
+            HitSoundPlayer.NoteSoundIdx = idx;
+            HitSoundPlayer.Instance?.PreviewNoteSound(idx);   // 変更を即試聴
         });
     }
 }

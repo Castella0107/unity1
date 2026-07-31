@@ -24,6 +24,14 @@ namespace RhythmGame.UI.Pvp
         [SerializeField] Button          _cancelButton;
         [SerializeField] float           _pollIntervalSec = 1.5f;
 
+        // 残存マッチ解消待ちのリトライ上限 (×_pollIntervalSec ≒ 15 分)。
+        // 演奏中に落ちた試合はサーバーの進行タイムアウトを待つしかなく、実測で 7 分近く
+        // かかる (ソーク 2026-07-31: 6 分で諦めた 46 秒後に解消して取り逃した)。
+        // サーバーのどのフェーズタイムアウトより十分長く取る。待っている間も ESC で
+        // ロビーへ戻れる (_canceled) ので、粘る方が安全。
+        // 無限にしないのは、サーバーが恒久的に「試合中」と誤認した場合に空回りしないため。
+        const int JoinRetryLimit = 600;
+
         const string SearchBase = "SEARCHING FOR OPPONENT";
 
         bool   _canceled;
@@ -62,7 +70,7 @@ namespace RhythmGame.UI.Pvp
             if (!string.IsNullOrEmpty(PvpMatchContext.MatchId))
             {
                 Debug.LogWarning("[Matchmaking] 進行中マッチあり → Prematch へ");
-                SceneRouter.Instance?.GoTo(SceneId.PVPPrematch);
+                SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPPrematch);
                 return;
             }
 
@@ -131,14 +139,26 @@ namespace RhythmGame.UI.Pvp
             _statusLine = "Joining queue...";
             UpdateUi();
 
+            // 残存マッチ (ALREADY_IN_MATCH) はサーバー側のタイムアウトで数十秒以内に
+            // 決着するため、一度失敗しただけで諦めず待って再試行する。
+            // 旧実装はここで return しており、直前の試合が未確定のままキューへ入ると
+            // マッチメイキング画面から二度と進めなくなった (ソークで再現・K 報告 2026-07-31)。
             var join = await PvpApi.JoinQueueAsync();
             if (_canceled) return;
-            if (!join.Ok && join.ErrorCode != "ALREADY_IN_QUEUE")
+            for (int attempt = 1; !join.Ok && join.ErrorCode != "ALREADY_IN_QUEUE"; attempt++)
             {
-                // ALREADY_IN_MATCH: 残存マッチがある (タイムアウト放置等)。状態を出して中断。
-                _statusLine = "参加失敗: " + join.ErrorMessage;
+                if (attempt > JoinRetryLimit)
+                {
+                    _statusLine = "参加失敗: " + join.ErrorMessage;
+                    UpdateUi();
+                    return;
+                }
+                _statusLine = $"前の試合を精算中... ({attempt}/{JoinRetryLimit})";
                 UpdateUi();
-                return;
+                await Task.Delay((int)(_pollIntervalSec * 1000));
+                if (_canceled) return;
+                join = await PvpApi.JoinQueueAsync();
+                if (_canceled) return;
             }
 
             // 即マッチング成立した場合

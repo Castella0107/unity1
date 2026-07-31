@@ -577,7 +577,9 @@ public static class BuildHistoryScene
 
         var tViewport = MakeRT("Viewport", template);
         FullStretch(tViewport.GetComponent<RectTransform>());
-        tViewport.AddComponent<Image>().color = new Color(0, 0, 0, 0);
+        // Mask のグラフィックは不透明必須 (alpha=0 は cullTransparentMesh でカリングされ
+        // ステンシルが書かれず配下が全て消える)。非表示化は showMaskGraphic=false が担う。
+        tViewport.AddComponent<Image>().color = Color.white;
         tViewport.AddComponent<Mask>().showMaskGraphic = false;
 
         var tContent = MakeRT("Content", tViewport);

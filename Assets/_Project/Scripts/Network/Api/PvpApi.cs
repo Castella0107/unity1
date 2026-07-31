@@ -54,6 +54,11 @@ namespace RhythmGame.Network.Api
         public static Task<ApiResult<MatchResultDto>> GetResultAsync(string matchId)
             => ApiClient.GetAsync<MatchResultDto>($"/matches/{matchId}/result");
 
+        /// <summary>曲別リザルトを取得する (両者提出済みなら song_result 付き)。
+        /// 先攻提出側が相手の提出完了後に詳細を表示するために使う。</summary>
+        public static Task<ApiResult<SongResultFetchDto>> GetSongResultAsync(string matchId, int songOrder)
+            => ApiClient.GetAsync<SongResultFetchDto>($"/matches/{matchId}/songs/{songOrder}/result");
+
         // ── Phase 7 (DB変更不要の3本) ──────────────────────────────────────────
 
         /// <summary>ログインユーザーのロビー戦績サマリ (rating/勝敗/win_rate, 全期間)。</summary>
@@ -105,6 +110,9 @@ namespace RhythmGame.Network.Api
 
         /// <summary>直近の submit レスポンス (曲リザルト画面が表示に使う)。</summary>
         public static SubmitResponseDto LastSubmit { get; set; }
+        /// <summary>直近の submit が失敗した理由 (成功時は null)。
+        /// これが入っているときリザルト画面は待たずにロビーへ戻す。</summary>
+        public static string SubmitError { get; set; }
         /// <summary>最終結果 (MatchEnd 用)。</summary>
         public static MatchResultDto FinalResult { get; set; }
 

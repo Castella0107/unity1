@@ -43,7 +43,53 @@ public class LaneKeyGuide : MonoBehaviour
     }
 
     void OnEnable() => TrySubscribe();
-    void Start()    => TrySubscribe();   // input source may not exist at Awake
+
+    void Start()
+    {
+        TrySubscribe();   // input source may not exist at Awake
+        PlaceFxLabels();
+    }
+
+    void OnRectTransformDimensionsChange() => PlaceFxLabels();   // 解像度変更に追従
+
+    /// <summary>
+    /// S/L ラベルを FX ボタン (円環セグメント) の実際の中心へ置く。
+    ///
+    /// ボタンはワールド空間のメッシュ、ラベルは HUD キャンバスなので、
+    /// 固定座標を焼き込むと 16:9 以外の画面比でズレる (K 報告 2026-07-31:
+    /// ラベルが帯の中心でなく端に寄っていた)。
+    /// ボタン中心の極座標 → ワールド → スクリーン → キャンバスへ毎回投影して合わせる。
+    /// </summary>
+    void PlaceFxLabels()
+    {
+        var cam = FxSectorGeometry.Cam;
+        if (cam == null) return;
+        var canvas = GetComponentInParent<Canvas>();
+        if (canvas == null) return;
+        var canvasRt = canvas.transform as RectTransform;
+        if (canvasRt == null) return;
+
+        const float thMid = (FxSectorGeometry.SectorThetaMin
+                           + FxSectorGeometry.SectorThetaMax) * 0.5f;
+        const float rMid  = (FxSectorGeometry.ButtonR0 + FxSectorGeometry.ButtonR1) * 0.5f;
+
+        for (int i = 4; i < _keyChips.Length && i < 6; i++)
+        {
+            if (_keyChips[i] == null) continue;
+            bool right = (i == 5);
+            Vector3 world  = FxSectorGeometry.FloorPoint(right, thMid, rMid);
+            Vector3 screen = cam.WorldToScreenPoint(world);
+            if (screen.z <= 0f) continue;   // カメラ後方は無視
+
+            var cam4Canvas = canvas.renderMode == RenderMode.ScreenSpaceOverlay ? null : canvas.worldCamera;
+            if (RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                    canvasRt, screen, cam4Canvas, out var local))
+            {
+                var rt = _keyChips[i].rectTransform;
+                rt.position = canvasRt.TransformPoint(local);
+            }
+        }
+    }
 
     void TrySubscribe()
     {

@@ -41,15 +41,30 @@ public class ScoreCalculator
     /// <summary>現在の表示スコア(0〜1,000,000)。</summary>
     public int CurrentScore => (int)(_scoreMicro / 1_000_000L);
 
-    /// <summary>表示スコアからランク文字列 (S+/S/A+/A/B/C/D) を算出する。</summary>
+    /// <summary>表示スコアからランク文字列 (SS/S+/S/A+/A/B/C/D) を算出する。
+    ///
+    /// 正は docs/references/Rhythm_game_design §2.6 クリアランク。
+    /// 実装が旧仕様のままで SS が無く、S+/S の閾値もズレていた
+    /// (K 報告 2026-08-01: 999,945 が S+ = 本来は SS)。
+    /// サーバー側 internal/engine/runner.go と必ず同じ表にすること。</summary>
     public static string ComputeRank(int score)
     {
-        if (score >= 997_000) return "S+";
-        if (score >= 990_000) return "S";
+        if (score >= 995_000) return "SS";
+        if (score >= 990_000) return "S+";
+        if (score >= 970_000) return "S";
         if (score >= 950_000) return "A+";
         if (score >= 900_000) return "A";
         if (score >= 800_000) return "B";
         if (score >= 700_000) return "C";
         return "D";
     }
+
+    /// <summary>
+    /// 保存済みレコードのランク表示用。旧仕様 (SS 無し・閾値違い) で保存された
+    /// 過去の記録があるため、表示時は保存値を使わずスコアから引き直す
+    /// (K 指示 2026-08-01: 記録は書き換えず表示だけ新ランクにする)。
+    /// スコアが取れない場合のみ保存値へフォールバックする。
+    /// </summary>
+    public static string DisplayRank(int score, string storedRank)
+        => score > 0 ? ComputeRank(score) : (storedRank ?? "");
 }

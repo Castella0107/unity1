@@ -86,7 +86,7 @@ public class HistoryDetailView : MonoBehaviour
 
         if (_effectiveScoreText != null) _effectiveScoreText.text = r.EffectiveScore.ToString("N0");
         if (_rawScoreText       != null) _rawScoreText.text       = "Raw: " + r.RawScore.ToString("N0");
-        if (_rankText           != null) _rankText.text           = r.Rank;
+        if (_rankText           != null) _rankText.text           = ScoreCalculator.DisplayRank(r.EffectiveScore, r.Rank);
 
         if (_fullComboBadge        != null) _fullComboBadge.SetActive(r.IsFullCombo);
         if (_allPerfectBadge       != null) _allPerfectBadge.SetActive(r.IsAllPerfect && !r.IsAllPerfectPlus);

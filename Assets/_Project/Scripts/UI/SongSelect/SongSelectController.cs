@@ -78,15 +78,15 @@ public class SongSelectController : MonoBehaviour
     readonly Dictionary<string, int> _levelCache = new Dictionary<string, int>();
 
     /// <summary>リスト並び替えモード。</summary>
-    enum SortMode { TitleAsc = 0, TitleDesc = 1, BpmAsc = 2, BpmDesc = 3 }
+    enum SortMode { IdAsc = 0, TitleAsc = 1, TitleDesc = 2, BpmAsc = 3, BpmDesc = 4 }
     static readonly string[] SortLabels =
-        { "TITLE (A to Z)", "TITLE (Z to A)", "BPM (LOW)", "BPM (HIGH)" };
+        { "SONG ID", "TITLE (A to Z)", "TITLE (Z to A)", "BPM (LOW)", "BPM (HIGH)" };
 
     readonly List<SongMetadata> _songs     = new List<SongMetadata>();
     readonly List<GameObject>   _itemViews = new List<GameObject>();
     int        _selectedIndex;
     Difficulty _selectedDiff = Difficulty.Extra;
-    SortMode   _sortMode     = SortMode.TitleAsc;
+    SortMode   _sortMode     = SortMode.IdAsc;   // 既定は曲ID順 (= chart-admin の並び)
 
     PerSongOffset _currentPerSongOffset;
     bool          _perSongOffsetDirty;
@@ -275,12 +275,17 @@ public class SongSelectController : MonoBehaviour
         // サーバー楽曲同期を待ち合わせ (譜面はサーバーが正・chart_hash 整合。オフライン時はキャッシュ復元)
         await RhythmGame.Network.Api.ServerSongLibrary.EnsureSyncedAsync();
 
-        var songsRoot = Path.Combine(Application.streamingAssetsPath, "Songs");
-        if (!Directory.Exists(songsRoot)) return;
+        // 譜面の置き場は複数 (ドキュメント / persistentDataPath / StreamingAssets)。
+        // 差し替えを効かせるため列挙は ChartLoader に一本化する。
 
         // meta を1曲ずつ直列 await していたのを、同時数を絞ったバッチ並列に (起動待ちが曲数比例で伸びていた)。
         // 最終的に ApplySort で並べ替えるため取得順は不問。
-        var dirs = Directory.GetDirectories(songsRoot);
+        // chart-admin 由来の楽曲のみ表示 (K 指示 2026-07-30)。sample_*/test_song* は
+        // 開発用データで、test_song は EditMode テストのフィクスチャとしてフォルダだけ残っている。
+        var dirs = ChartLoader.EnumerateSongIds()
+            .FindAll(id => !id.StartsWith("sample_") && !id.StartsWith("test_song"))
+            .ConvertAll(id => ChartLoader.SongDir(id))
+            .ToArray();
         _songs.Clear();
         const int Batch = 16;
         for (int start = 0; start < dirs.Length; start += Batch)
@@ -320,8 +325,24 @@ public class SongSelectController : MonoBehaviour
                 texts[0].text = _songs[i].Title;
                 texts[1].text = _songs[i].Artist;
             }
+            StartCoroutine(LoadRowJacket(_songs[i].SongId, view));
             _itemViews.Add(view);
         }
+    }
+
+    /// <summary>リスト行の "Jacket" スロットへサムネイルを非同期ロードする。無い曲はグレーのまま。</summary>
+    IEnumerator LoadRowJacket(string songId, GameObject view)
+    {
+        var task = _jacketLoader.LoadAsync(songId);
+        yield return new WaitUntil(() => task.IsCompleted);
+        if (view == null) yield break;                       // ソート等で行が破棄済み
+        var slot = view.transform.Find("Jacket");
+        if (slot == null) yield break;
+        var img = slot.GetComponent<Image>();
+        var tex = (!task.IsFaulted) ? task.Result : null;
+        if (img == null || tex == null) yield break;         // 画像なし → プレースホルダー維持
+        img.sprite = Sprite.Create(tex, new Rect(0, 0, tex.width, tex.height), new Vector2(0.5f, 0.5f));
+        img.color  = Color.white;
     }
 
     // ── Sorting ──────────────────────────────────────────────────────────────
@@ -344,6 +365,7 @@ public class SongSelectController : MonoBehaviour
     {
         switch (_sortMode)
         {
+            case SortMode.IdAsc:     _songs.Sort((a, b) => string.Compare(a.SongId, b.SongId, System.StringComparison.OrdinalIgnoreCase)); break;
             case SortMode.TitleAsc:  _songs.Sort((a, b) => string.Compare(a.Title, b.Title, System.StringComparison.OrdinalIgnoreCase)); break;
             case SortMode.TitleDesc: _songs.Sort((a, b) => string.Compare(b.Title, a.Title, System.StringComparison.OrdinalIgnoreCase)); break;
             case SortMode.BpmAsc:    _songs.Sort((a, b) => a.Bpm.CompareTo(b.Bpm)); break;
@@ -565,7 +587,11 @@ public class SongSelectController : MonoBehaviour
         var task = _jacketLoader.LoadAsync(songId);
         while (!task.IsCompleted) yield return null;
         if (_selectedIndex != captured || _jacketImage == null) yield break;   // 選択が変わっていたら破棄
-        _jacketImage.texture = (!task.IsFaulted) ? task.Result : null;
+        var tex = (!task.IsFaulted) ? task.Result : null;
+        _jacketImage.texture = tex;
+        // 画像あり=白 (そのまま表示)。無し=プレースホルダーのグレー。
+        // ビルダー既定の 25% グレーのままだと画像に乗算されて「グレーアウト」して見える。
+        _jacketImage.color = tex != null ? Color.white : new Color(.25f, .25f, .25f);
     }
 
     IEnumerator LoadDifficultyLevels(string songId, int captured)

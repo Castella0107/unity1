@@ -84,17 +84,21 @@ namespace RhythmGame.UI.Pvp
                 if (!r.Ok || r.Data == null) continue;
 
                 string phase = r.Data.Phase;
-                if (phase == "aborted")
+                // 終端フェーズ: この試合はもう始まらない (SOAK 検出 2026-07-30:
+                // finished を「開始」と誤認してドラフトへ遷移しようとし、待機画面で固まっていた)
+                if (phase == "aborted" || phase == "finished" || phase == "cancelled")
                 {
-                    SetStatus("試合が中断されました (ready タイムアウト等)");
+                    SetStatus(phase == "aborted"
+                        ? "試合が中断されました (ready タイムアウト等)"
+                        : "試合は終了しています — ロビーへ戻ります");
                     await Task.Delay(1500);
                     await PvpMatchContext.ClearAsync();
-                    SceneRouter.Instance?.GoTo(SceneId.PVPLobby);
+                    SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPLobby);
                     return;
                 }
                 if (phase != "pre_match")
                 {
-                    OnMatchStart();   // WS start を取りこぼしてもフェーズ遷移で開始を検知
+                        OnMatchStart();   // WS start を取りこぼしてもフェーズ遷移で開始を検知
                     return;
                 }
             }
@@ -153,6 +157,20 @@ namespace RhythmGame.UI.Pvp
         async Task ConnectSocketAsync()
         {
             SetStatus("サーバーに接続中...");
+
+            // 前の試合のソケットを必ず破棄してから張り直す。
+            // 残したままだと ①受信ループが生き続ける ②ハンドラが破棄済みコントローラを掴む
+            // ③接続完了までの数百 ms の間に READY を押すと SendReadyAsync が「前の試合の」
+            // ソケットへ ready を送ってしまい、今の試合は ready 未達のまま不戦敗になる
+            // (ソークで連続再現・K 報告 2026-07-31)。
+            // null にしておけば接続完了までの READY は MatchId 指定の REST 経路に落ちる。
+            var stale = PvpMatchContext.Socket;
+            PvpMatchContext.Socket = null;
+            if (stale != null)
+            {
+                stale.Dispose();
+            }
+
             var socket = new MatchSocketClient();
             socket.OnReadyCheck += deadline => { TrySetDeadline(deadline); SetStatus("READY を押してください"); };
             socket.OnReadyAck   += OnReadyAck;
@@ -185,30 +203,53 @@ namespace RhythmGame.UI.Pvp
             SetStatus("MATCH START!");
             if (_timerText != null) _timerText.text = "";
             Debug.Log("[Prematch] start — ドラフト (PVPSongPick) へ遷移");
-            SceneRouter.Instance?.GoTo(SceneId.PVPSongPick);
+            // GoToWhenIdle: Prematch 到着直後に start が来ると遷移中ガードで GoTo が
+            // 握り潰され、この画面に取り残されて不戦敗になる (SOAK 検出 2026-07-30)
+            SceneRouter.Instance?.GoToWhenIdle(SceneId.PVPSongPick);
         }
 
         // ── READY / 辞退 ────────────────────────────────────────────────────
 
+        bool _readyRequested;   // ユーザーが READY を押した (成立するまで再送し続ける)
+
         async Task SendReadyAsync()
         {
-            if (_selfReady || _started) return;
+            if (_selfReady || _started || _readyRequested) return;
+            _readyRequested = true;
 
-            if (PvpMatchContext.Socket != null && PvpMatchContext.Socket.IsConnected)
+            // READY は 1 回きりの送信にしない。WS 送信が届かない/ack が返らない事例があり
+            // (ソークで不戦敗として再現・2026-07-31)、リズムゲームで「押したのに時間切れ負け」は
+            // 許容できない。成立 (_selfReady/_started) するまで 2 秒間隔で再送する。
+            // 2 回目以降は match_id を明示する REST を使う — WS はどの試合に紐づくかが
+            // 接続時点で決まるため、取りこぼし時の確実性が低い。
+            for (int attempt = 0; !_selfReady && !_started && !_leaving; attempt++)
             {
-                await PvpMatchContext.Socket.SendReadyAsync();
-                // ready_ack のブロードキャストで _selfReady が立つ
-            }
-            else
-            {
-                var r = await PvpApi.PostReadyAsync(PvpMatchContext.MatchId, ready: true);
-                if (r.Ok)
+                if (attempt > 0) await Task.Delay(2000);
+                if (this == null || _selfReady || _started || _leaving) return;
+
+                bool useWs = attempt == 0
+                             && PvpMatchContext.Socket != null
+                             && PvpMatchContext.Socket.IsConnected;
+                if (useWs)
                 {
-                    _selfReady = true;
-                    UpdateReadyState();
-                    if (r.Data?.Phase == "pick_song1") OnMatchStart();
+                    await PvpMatchContext.Socket.SendReadyAsync();
+                    // ready_ack のブロードキャストで _selfReady が立つ
                 }
-                else SetStatus("READY 送信失敗: " + r.ErrorMessage);
+                else
+                {
+                    var r = await PvpApi.PostReadyAsync(PvpMatchContext.MatchId, ready: true);
+                    if (this == null || _started || _leaving) return;
+                    if (r.Ok)
+                    {
+                        _selfReady = true;
+                        UpdateReadyState();
+                        if (r.Data?.Phase == "pick_song1") OnMatchStart();
+                        return;
+                    }
+                    // WRONG_PHASE = 既に開始済み。ポーリング/WS start 側が拾うので再送を止める。
+                    if (r.ErrorCode == "WRONG_PHASE") return;
+                    SetStatus("READY 再送中... " + r.ErrorMessage);
+                }
             }
         }
 

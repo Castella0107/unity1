@@ -1,0 +1,38 @@
+{
+  "songId": "song_013",
+  "title": "time eclipse",
+  "artist": "CHORO-",
+  "bpm": 170.0,
+  "durationMs": 142591,
+  "audioFile": "CHORO- - RGMES2 EXPERT - 15 time eclipse.wav",
+  "jacketFile": "jacket.png",
+  "firstOnsetMs": 706,
+  "audioOffsetMs": 0,
+  "sectors": [
+    {
+      "id": 1,
+      "name": "S1",
+      "endMs": 23294
+    },
+    {
+      "id": 2,
+      "name": "S2",
+      "endMs": 47250
+    },
+    {
+      "id": 3,
+      "name": "S3",
+      "endMs": 69794
+    },
+    {
+      "id": 4,
+      "name": "S4",
+      "endMs": 103147
+    },
+    {
+      "id": 5,
+      "name": "S5",
+      "endMs": 133412
+    }
+  ]
+}

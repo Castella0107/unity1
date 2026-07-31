@@ -1,0 +1,38 @@
+{
+  "songId": "song_012",
+  "title": "Mistilteinn",
+  "artist": "玲瓏リネィノ",
+  "bpm": 200.0,
+  "durationMs": 123600,
+  "audioFile": "玲瓏リネィノ - RGMES2 LUNATIC - 05 Mistilteinn.wav",
+  "jacketFile": "jacket.png",
+  "firstOnsetMs": 0,
+  "audioOffsetMs": 0,
+  "sectors": [
+    {
+      "id": 7,
+      "name": "S1",
+      "endMs": 40762
+    },
+    {
+      "id": 8,
+      "name": "S2",
+      "endMs": 59981
+    },
+    {
+      "id": 9,
+      "name": "S3",
+      "endMs": 79162
+    },
+    {
+      "id": 6,
+      "name": "S4",
+      "endMs": 98362
+    },
+    {
+      "id": 10,
+      "name": "S5",
+      "endMs": 120000
+    }
+  ]
+}

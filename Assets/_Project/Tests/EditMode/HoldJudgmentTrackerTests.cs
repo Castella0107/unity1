@@ -90,7 +90,7 @@ public class HoldJudgmentTrackerTests
         var ticks = tracker.AdvanceTo(2100).ToList();
         Assert.IsTrue(ticks.Count > 0);
         Assert.IsTrue(ticks.All(t => t.Judgment == Judgment.PerfectPlus));
-        Assert.IsFalse(tracker.IsAbandoned);
+        Assert.IsFalse(tracker.IsCompleted);
     }
 
     [Test]
@@ -103,7 +103,7 @@ public class HoldJudgmentTrackerTests
         tracker.OnReleased(520);              // released just after the 500 tick, before 750
         var ticks = tracker.AdvanceTo(4500).ToList();
         Assert.IsTrue(ticks.Any(t => t.Judgment == Judgment.Miss));
-        Assert.IsFalse(tracker.IsAbandoned);
+        Assert.IsFalse(tracker.IsCompleted);
     }
 
     [Test]
@@ -122,7 +122,7 @@ public class HoldJudgmentTrackerTests
         tracker.OnPressed(620);               // re-press 320 ms after release → recovery
         Assert.AreEqual(Judgment.Great,       tracker.AdvanceTo(800).Single().Judgment);   // 750: first after recovery
         Assert.AreEqual(Judgment.PerfectPlus, tracker.AdvanceTo(1050).Single().Judgment);  // 1000: back to P+
-        Assert.IsFalse(tracker.IsAbandoned);
+        Assert.IsFalse(tracker.IsCompleted);
     }
 
     [Test]
@@ -256,13 +256,23 @@ public class HoldJudgmentTrackerTests
     }
 
     [Test]
-    public void ShortHold_HeadMissed_TailIsNull()
+    public void ShortHold_HeadMissed_TailIsMiss()
     {
-        // 支点が MISS の短いホールドは放棄され、尾は解決しない(頭のオートミスで MISS 済み)。
+        // HEAD_RECOVERY_SPEC: 支点 MISS の短いホールドも放棄されず、離上のままなら尾は Miss。
         var tracker = MakeTracker(1000, 200);
         tracker.OnHeadMissed(1000 + JudgmentWindow.GoodMs + 1);
-        Assert.IsTrue(tracker.IsAbandoned);
-        Assert.IsNull(tracker.ResolveTail(1200));
+        Assert.IsFalse(tracker.IsCompleted);
+        Assert.AreEqual(Judgment.Miss, tracker.ResolveTail(1200));
+    }
+
+    [Test]
+    public void ShortHold_HeadMissed_RecoveredByPress_TailIsGreat()
+    {
+        // HEAD_RECOVERY_SPEC: 支点 MISS でも尾までに押していれば復帰 (復帰直後の 1 判定 = Great)。
+        var tracker = MakeTracker(1000, 200);
+        tracker.OnHeadMissed(1000 + JudgmentWindow.GoodMs + 1);
+        tracker.OnPressed(1150);
+        Assert.AreEqual(Judgment.Great, tracker.ResolveTail(1200));
     }
 
     [Test]
@@ -275,12 +285,24 @@ public class HoldJudgmentTrackerTests
     }
 
     [Test]
-    public void HeadMissed_SetsAbandoned()
+    public void HeadMissed_NotAbandoned_TicksMissUntilRecovery()
     {
-        var tracker = MakeTracker(1000, 500);
-        bool missed = tracker.OnHeadMissed(1000 + JudgmentWindow.GoodMs + 1);
+        // HEAD_RECOVERY_SPEC: 頭ミスは放棄ではない。復帰まで全ティック Miss、
+        // 再押下後は復帰 (最初の 1 ティック Great → 以降 P+)。
+        var tracker = MakeTracker(0, 2000);   // ticks at 250,500,...,1750
+        bool missed = tracker.OnHeadMissed(JudgmentWindow.GoodMs + 1);
         Assert.IsTrue(missed);
-        Assert.IsTrue(tracker.IsAbandoned);
         Assert.IsTrue(tracker.IsHeadJudged);
+        Assert.IsFalse(tracker.IsCompleted);
+
+        // 復帰前のティックは Miss
+        var dead = tracker.AdvanceTo(600).ToList();
+        Assert.IsTrue(dead.Count > 0);
+        Assert.IsTrue(dead.All(t => t.Judgment == Judgment.Miss));
+
+        // 途中で押下 → 復帰 (Great → P+)
+        tracker.OnPressed(700);
+        Assert.AreEqual(Judgment.Great,       tracker.AdvanceTo(800).Single().Judgment);   // 750
+        Assert.AreEqual(Judgment.PerfectPlus, tracker.AdvanceTo(1050).Single().Judgment);  // 1000
     }
 }

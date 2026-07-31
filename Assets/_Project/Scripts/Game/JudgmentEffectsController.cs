@@ -61,7 +61,13 @@ public class JudgmentEffectsController : MonoBehaviour
             float mul    = _particleMul;
             if (j == Judgment.Miss) mul *= 0.5f;
 
-            var pos = new Vector3(LaneLayout.GetX(_pendingLane), 0.1f, LaneLayout.JudgmentLineZ);
+            // FX レーンの判定線は VP 中心の円弧 (R=465) なので、エフェクトは円弧の中央に出す
+            bool fx = _pendingLane == LaneRef.FxL || _pendingLane == LaneRef.FxR;
+            var pos = fx && FxSectorGeometry.Ready
+                ? FxSectorGeometry.FloorPoint(_pendingLane == LaneRef.FxR,
+                                              FxSectorGeometry.NoteThetaMid,
+                                              FxSectorGeometry.JudgeRadius, 0.1f)
+                : new Vector3(LaneLayout.GetX(_pendingLane), 0.1f, LaneLayout.JudgmentLineZ);
             _particlePool.Spawn(pos, JudgmentColors.Get(j), mul);
         }
         _hasLane = false;

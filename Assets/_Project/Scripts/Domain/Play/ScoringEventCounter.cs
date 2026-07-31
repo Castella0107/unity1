@@ -24,6 +24,41 @@ public static class ScoringEventCounter
     /// </summary>
     public static int[] SectorEndsFromChart(IEnumerable<NoteData> notes)
     {
+        double maxEnd = MaxNoteEndMs(notes);
+        if (maxEnd <= 0) return new int[0];
+        return new[]
+        {
+            (int)(maxEnd * 0.2),
+            (int)(maxEnd * 0.4),
+            (int)(maxEnd * 0.6),
+            (int)(maxEnd * 0.8),
+        };
+    }
+
+    /// <summary>
+    /// meta に sectors が無い曲用: 譜面内容から時間 5 等分の SectorDef (S1〜S5) を生成する。
+    /// S1〜S4 の境界は SectorEndsFromChart と同一値 (PVP セクター集計・Go サーバーとのパリティ維持)、
+    /// S5 の終端は最終ノーツ終端。譜面が空なら空リスト。
+    /// </summary>
+    public static List<SectorDef> SectorDefsFromChart(IEnumerable<NoteData> notes)
+    {
+        var list = new List<SectorDef>();
+        double maxEnd = MaxNoteEndMs(notes);
+        if (maxEnd <= 0) return list;
+        int[] ends = SectorEndsFromChart(notes);
+        for (int i = 0; i < 5; i++)
+            list.Add(new SectorDef
+            {
+                Id    = i + 1,
+                Name  = "S" + (i + 1),
+                EndMs = i < 4 ? ends[i] : (int)maxEnd,
+            });
+        return list;
+    }
+
+    // 最終ノーツ終端 (Hold は終端まで) の ms。セクター 5 等分の分母。
+    static double MaxNoteEndMs(IEnumerable<NoteData> notes)
+    {
         double maxEnd = 0;
         if (notes != null)
         {
@@ -34,14 +69,7 @@ public static class ScoringEventCounter
                 if (end > maxEnd) maxEnd = end;
             }
         }
-        if (maxEnd <= 0) return new int[0];
-        return new[]
-        {
-            (int)(maxEnd * 0.2),
-            (int)(maxEnd * 0.4),
-            (int)(maxEnd * 0.6),
-            (int)(maxEnd * 0.8),
-        };
+        return maxEnd;
     }
 
     /// <summary>譜面の総スコアリングイベント数を数える。Tap/FxTap=1、Hold/FxHold=頭+ティック数+尾。ScoreCalculator の totalNotes に渡す値。</summary>

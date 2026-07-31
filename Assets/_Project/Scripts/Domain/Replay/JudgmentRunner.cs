@@ -43,9 +43,10 @@ public class JudgmentRunner
     /// <summary>メタデータからセクション終端を抽出してリプレイ全体を再生する。</summary>
     public PlayProgressSnapshot Run(ChartData chart, SongMetadata meta, ReplayData replay)
     {
-        int[] sectorEnds = meta?.Sectors != null
+        // sectors 未定義の曲は譜面から 5 等分 (JudgmentSystem のライブ再生と同じフォールバック)
+        int[] sectorEnds = meta?.Sectors != null && meta.Sectors.Count > 0
             ? meta.Sectors.Take(4).Select(s => s.EndMs).ToArray()
-            : null;
+            : ScoringEventCounter.SectorEndsFromChart(chart.Notes);
 
         return Run(chart, replay.InputEvents, sectorEnds);
     }

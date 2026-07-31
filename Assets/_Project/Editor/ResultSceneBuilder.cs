@@ -189,7 +189,8 @@ public static class ResultSceneBuilder
 
         // ── Button row ────────────────────────────────────────────────────────
         var btnRowGO = Child("ButtonRow", ct);
-        SR(btnRowGO, V(0,0), V(1,0), V(.5f,0), V(0,30), V(0,62));
+        // y=72: ShortcutHintOverlay の下部バー (スクリーン30px) と重ならない高さ
+        SR(btnRowGO, V(0,0), V(1,0), V(.5f,0), V(0,72), V(0,62));
 
         var btnHLG = btnRowGO.AddComponent<HorizontalLayoutGroup>();
         btnHLG.childControlWidth = false; btnHLG.childForceExpandWidth = false;
@@ -258,6 +259,9 @@ public static class ResultSceneBuilder
         rowGO.AddComponent<LayoutElement>().minHeight = 50;
         var rowHLG = rowGO.AddComponent<HorizontalLayoutGroup>();
         rowHLG.childControlHeight = false; rowHLG.childForceExpandHeight = false;
+        // childControlWidth=true でないと Count の flexibleWidth が無効になり、
+        // 数字がパネル右端の外へはみ出す (見切れの原因)
+        rowHLG.childControlWidth = true; rowHLG.childForceExpandWidth = false;
         rowHLG.spacing = 0; rowHLG.childAlignment = TextAnchor.MiddleLeft;
 
         var lblGO = Child("Label", rowGO.transform);

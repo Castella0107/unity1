@@ -191,13 +191,15 @@ public class ColorsTabController : MonoBehaviour
     static Color Get(int i)
         => i < NoteCount ? GameColorSettings.NoteColor(i)
          : i == NoteCount ? GameColorSettings.DividerColor
-         : GameColorSettings.JudgmentLineColor;
+         : i == NoteCount + 1 ? GameColorSettings.JudgmentLineColor
+         : GameColorSettings.ChordColor;   // 8 行目: 同時押しノーツ (K 指示 2026-07-30)
 
     static void Set(int i, Color c)
     {
-        if (i < NoteCount)        GameColorSettings.SetNoteColor(i, c);
-        else if (i == NoteCount)  GameColorSettings.DividerColor = c;
-        else                      GameColorSettings.JudgmentLineColor = c;
+        if (i < NoteCount)            GameColorSettings.SetNoteColor(i, c);
+        else if (i == NoteCount)      GameColorSettings.DividerColor = c;
+        else if (i == NoteCount + 1)  GameColorSettings.JudgmentLineColor = c;
+        else                          GameColorSettings.ChordColor = c;
     }
 
     static float SliderVal(Slider[] arr, int i)

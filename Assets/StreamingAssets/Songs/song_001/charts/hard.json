@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "songId": "song_001",
+  "difficulty": "hard",
+  "level": 8,
+  "tags": [],
+  "chartHash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "totalNotes": 10,
+  "events": [
+    {
+      "type": "bpm",
+      "timeMs": 0,
+      "bpm": 175
+    }
+  ],
+  "notes": [
+    {
+      "id": 1,
+      "type": "tap",
+      "lane": "0",
+      "timeMs": 343
+    },
+    {
+      "id": 2,
+      "type": "tap",
+      "lane": "2",
+      "timeMs": 686
+    },
+    {
+      "id": 3,
+      "type": "tap",
+      "lane": "1",
+      "timeMs": 1029
+    },
+    {
+      "id": 4,
+      "type": "tap",
+      "lane": "3",
+      "timeMs": 1200
+    },
+    {
+      "id": 5,
+      "type": "hold",
+      "lane": "0",
+      "timeMs": 1371,
+      "durationMs": 686
+    },
+    {
+      "id": 6,
+      "type": "tap",
+      "lane": "2",
+      "timeMs": 1543
+    },
+    {
+      "id": 7,
+      "type": "tap",
+      "lane": "1",
+      "timeMs": 1714
+    },
+    {
+      "id": 8,
+      "type": "tap",
+      "lane": "3",
+      "timeMs": 2057
+    },
+    {
+      "id": 9,
+      "type": "tap",
+      "lane": "0",
+      "timeMs": 2400
+    },
+    {
+      "id": 10,
+      "type": "hold",
+      "lane": "2",
+      "timeMs": 2743,
+      "durationMs": 343
+    }
+  ]
+}

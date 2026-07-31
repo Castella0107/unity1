@@ -43,8 +43,10 @@ public static class LaneLayout
 
     /// <summary>判定ラインの Z 座標(カメラ前方)。</summary>
     public const float JudgmentLineZ = -0.5f;
-    /// <summary>ノート出現時の Z 座標。</summary>
-    public const float NoteSpawnZ    = 22f;
+    /// <summary>ノート出現時の Z 座標。FAR_WALL_SPEC: 透明遮蔽壁 (laneLength 最大 2.0 のとき
+    /// 中央 z≈45) より奥からスポーンさせ、壁を通過した瞬間に全不透明で
+    /// 現れるようにする (壁より奥はシェーダ/ジオメトリのクリップで不可視)。</summary>
+    public const float NoteSpawnZ    = 50f;
     /// <summary>ノート消滅時の Z 座標(判定ラインの 2 ユニット奥)。</summary>
     public const float NoteDespawnZ  = -2.5f;
 }

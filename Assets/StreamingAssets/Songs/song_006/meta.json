@@ -1,0 +1,38 @@
+{
+    "songId": "song_006",
+    "title": "MARENOL",
+    "artist": "Leaf",
+    "bpm": 140.0,
+    "durationMs": 149185,
+    "audioFile": "MARENOL.mp3",
+    "jacketFile": "jacket.png",
+    "firstOnsetMs": 0,
+    "audioOffsetMs": -26,
+    "sectors": [
+        {
+            "id": 1,
+            "name": "S1",
+            "endMs": 18857
+        },
+        {
+            "id": 2,
+            "name": "S2 ",
+            "endMs": 46286
+        },
+        {
+            "id": 3,
+            "name": "S3",
+            "endMs": 87429
+        },
+        {
+            "id": 4,
+            "name": "S4",
+            "endMs": 114857
+        },
+        {
+            "id": 5,
+            "name": "S5",
+            "endMs": 142286
+        }
+    ]
+}

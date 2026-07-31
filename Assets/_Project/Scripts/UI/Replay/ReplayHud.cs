@@ -20,6 +20,10 @@ public class ReplayHud : MonoBehaviour
         var prm = ParameterStore.GetPending<GamePlayParameters>()
                ?? ParameterStore.GetCurrent<GamePlayParameters>();
         gameObject.SetActive(prm != null && prm.IsReplay);
+        // エディタ上では子 (SpeedText/StatusText) をシーン非表示にしてあるため、
+        // リプレイ時はここで再有効化する。
+        if (prm != null && prm.IsReplay)
+            foreach (Transform c in transform) c.gameObject.SetActive(true);
     }
 
     void Update()

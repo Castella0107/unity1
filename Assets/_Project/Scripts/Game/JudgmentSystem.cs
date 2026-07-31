@@ -92,12 +92,24 @@ public class JudgmentSystem : MonoBehaviour
     // ReplayInputBuffer は DeltaMsFromPrev を int 丸めで永続化する。
     // JudgmentRunner (サーバー側) は累積した int から ProcessLaneDown/Up を呼ぶため、
     // クライアント側もここで int 丸めしてから engine に渡さないと bit-perfect 同一動作にならない。
+    //
+    // ⚠️ 入力適用の前に必ず ProcessTime(t) で入力時刻まで時間を進めること (REPLAY_PARITY):
+    // リプレイ再生 (JudgmentRunner / Go runner) は「各入力の前にその時刻まで advance」する規約。
+    // ライブ側がこれをしないと、未処理のホールドティックより後の押下が先にエンジンへ入り、
+    // ティック判定がフレームタイミング依存でズレる (実測: Eclosion でライブ 879,081 vs
+    // 再判定 882,298 — 2026-07-30 K 報告のリーダーボードスコア不一致の原因)。
     void HandleLaneDown(LaneRef lane, double timeMs)
     {
         double t = System.Math.Round(timeMs);
         JudgmentTrace.LogInput((int)lane, true, timeMs, t);
         ReplayBuffer?.Add((int)lane, true, t);
+        _engine?.ProcessTime(t);
         _engine?.ProcessLaneDown(lane, t);
+
+        // 押下した瞬間にアクティブホールドのグレー表示を解除する
+        // (復帰の見た目を次ティック確定まで待たせない。判定自体はエンジンが担う)。
+        int? activeHold = _engine?.GetActiveHoldNoteId(lane);
+        if (activeHold.HasValue) _scroller?.NotifyHoldDropped(activeHold.Value, false);
     }
 
     void HandleLaneUp(LaneRef lane, double timeMs)
@@ -105,6 +117,7 @@ public class JudgmentSystem : MonoBehaviour
         double t = System.Math.Round(timeMs);
         JudgmentTrace.LogInput((int)lane, false, timeMs, t);
         ReplayBuffer?.Add((int)lane, false, t);
+        _engine?.ProcessTime(t);   // REPLAY_PARITY: 入力前に入力時刻まで advance (HandleLaneDown 参照)
         _engine?.ProcessLaneUp(lane, t);
     }
 
@@ -135,11 +148,15 @@ public class JudgmentSystem : MonoBehaviour
 
             case NoteKind.HoldHead:
                 if (ev.Judgment != Judgment.Miss) _scroller?.NotifyHitHead(ev.NoteId);
+                else                              _scroller?.NotifyHoldDropped(ev.NoteId, true);   // 頭ミス: 取れていないホールドは若干グレー
                 _effects?.NotifyLane(ev.Lane);
                 break;
 
             case NoteKind.HoldTick:
-                // No particle, no note visual; sound handled via OnJudged (throttled in effects).
+                // No particle; sound handled via OnJudged (throttled in effects).
+                // 取れているかの視覚状態のみ更新: Miss ティック (ガード超過離上) = 若干グレー /
+                // 取れたティック = 復帰 = 通常色へ戻す。
+                _scroller?.NotifyHoldDropped(ev.NoteId, ev.Judgment == Judgment.Miss);
                 break;
 
             case NoteKind.HoldTail:
