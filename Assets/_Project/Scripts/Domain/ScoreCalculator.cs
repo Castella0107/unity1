@@ -25,16 +25,20 @@ public class ScoreCalculator
         _xMicro = (1_000_000_000_000L + totalNotes - 1) / totalNotes;
     }
 
-    /// <summary>判定 1 件分のスコアを加算する(PerfectPlus/Perfect=満点、Great=199/200、Good=3/4、Miss=0)。</summary>
+    /// <summary>判定 1 件分のスコアを加算する(PerfectPlus/Perfect=満点、Great=90%、Good=50%、Miss=0)。
+    ///
+    /// 係数は docs/references/Rhythm_game_design §2.3 内部演算が正 (great ×90/100、good ×1/2)。
+    /// 同文書 §2.1 の表は 199/200・3/4 のまま更新されておらず旧値なので参照しないこと。
+    /// サーバー側 internal/engine/score.go と演算順序まで一致させる。</summary>
     public void Add(Judgment j)
     {
         switch (j)
         {
-            case Judgment.PerfectPlus: _scoreMicro += _xMicro;               break;
-            case Judgment.Perfect:     _scoreMicro += _xMicro;               break;
-            case Judgment.Great:       _scoreMicro += _xMicro * 199L / 200L; break;
-            case Judgment.Good:        _scoreMicro += _xMicro * 3L   / 4L;   break;
-            case Judgment.Miss:        /* +0 */                               break;
+            case Judgment.PerfectPlus: _scoreMicro += _xMicro;              break;
+            case Judgment.Perfect:     _scoreMicro += _xMicro;              break;
+            case Judgment.Great:       _scoreMicro += _xMicro * 90L / 100L; break;
+            case Judgment.Good:        _scoreMicro += _xMicro / 2L;         break;
+            case Judgment.Miss:        /* +0 */                              break;
         }
     }
 

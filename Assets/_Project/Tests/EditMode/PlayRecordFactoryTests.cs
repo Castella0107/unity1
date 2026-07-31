@@ -14,7 +14,7 @@ public class PlayRecordFactoryTests
         Assert.IsTrue(rec.IsAllPerfectPlus);
         Assert.IsTrue(rec.IsAllPerfect);
         Assert.IsTrue(rec.IsFullCombo);
-        Assert.AreEqual("S+", rec.Rank);
+        Assert.AreEqual("SS", rec.Rank); // 満点は SS (Rhythm_game_design §2.6 で新設)
     }
 
     [Test]
