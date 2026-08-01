@@ -142,7 +142,10 @@ public class HistoryController : MonoBehaviour
 
         if (_diffButtons != null)
         {
-            for (int i = 0; i < _diffButtons.Length && i < DiffOrder.Length; i++)
+            // EASY (スロット 0) は廃止 (2026-08-01)。旧ベイクのシーンに残るボタンは隠す
+            if (_diffButtons.Length > 0 && _diffButtons[0] != null)
+                _diffButtons[0].gameObject.SetActive(false);
+            for (int i = 1; i < _diffButtons.Length && i < DiffOrder.Length; i++)
             {
                 int idx = i;
                 if (_diffButtons[i] != null)
@@ -558,11 +561,10 @@ public class HistoryController : MonoBehaviour
         var kb = Keyboard.current;
         if (kb != null && _mode == Mode.Free)
         {
-            // 数字キー 1-4: 難易度フィルター（Free モード時）
-            if (kb.digit1Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[0]);
-            if (kb.digit2Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[1]);
-            if (kb.digit3Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[2]);
-            if (kb.digit4Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[3]);
+            // 数字キー 1-3: 難易度フィルター（Free モード時。EASY 廃止で normal/hard/extra）
+            if (kb.digit1Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[1]);
+            if (kb.digit2Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[2]);
+            if (kb.digit3Key.wasPressedThisFrame) SelectDifficulty(DiffOrder[3]);
         }
     }
 }

@@ -72,15 +72,15 @@ public static class BuildGoDraftScenes
             tiles[i] = btn; labels[i] = lbl; bgs[i] = img;
         }
 
-        // 難易度ボタン 4 つ
+        // 難易度ボタン 3 つ (EASY は廃止 2026-08-01。配列 index は難易度 ID のままスロット 0 を空ける)
         var diffBtns = new Button[4];
         var diffLbls = new TextMeshProUGUI[4];
         var diffBgs  = new Image[4];
         string[] dn = { "EASY", "NORMAL", "HARD", "EXTRA" };
         Color[]  dc = { new Color(.2f,.75f,.35f), new Color(.2f,.5f,.9f), new Color(.9f,.5f,.1f), new Color(.85f,.1f,.5f) };
-        for (int i = 0; i < 4; i++)
+        for (int i = 1; i < 4; i++)
         {
-            float x = -300 + i * 200;
+            float x = -200 + (i - 1) * 200;
             var dGO = Child("Diff" + dn[i], ct);
             SR(dGO, V(.5f,0), V(.5f,0), V(.5f,0), V(x, 180), V(184, 60));
             var img = dGO.AddComponent<Image>(); img.color = Faint;

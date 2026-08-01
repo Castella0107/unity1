@@ -66,7 +66,10 @@ namespace RhythmGame.UI.Pvp
                 int idx = i;
                 if (_songTiles[i] != null) _songTiles[i].onClick.AddListener(() => SelectSong(idx));
             }
-            for (int i = 0; i < (_diffButtons?.Length ?? 0); i++)
+            // EASY (スロット 0) は廃止 (2026-08-01)。旧ベイクのシーンに残るボタンは隠す
+            if ((_diffButtons?.Length ?? 0) > 0 && _diffButtons[0] != null)
+                _diffButtons[0].gameObject.SetActive(false);
+            for (int i = 1; i < (_diffButtons?.Length ?? 0); i++)
             {
                 int idx = i;
                 if (_diffButtons[i] != null) _diffButtons[i].onClick.AddListener(() => SelectDiff(idx));
@@ -544,7 +547,7 @@ namespace RhythmGame.UI.Pvp
 
         void ShowDiffButtons(bool show, string fixedSongId = null)
         {
-            for (int i = 0; i < (_diffButtons?.Length ?? 0); i++)
+            for (int i = 1; i < (_diffButtons?.Length ?? 0); i++)   // 0 (easy) は廃止・常時非表示
             {
                 if (_diffButtons[i] == null) continue;
                 _diffButtons[i].gameObject.SetActive(show);

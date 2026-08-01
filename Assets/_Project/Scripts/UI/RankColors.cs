@@ -21,12 +21,11 @@ public static class RankColors
         }
     }
 
-    /// <summary>難易度 (easy/normal/hard/extra) に対応する表示色を返す。</summary>
+    /// <summary>難易度 (normal/hard/extra) に対応する表示色を返す。</summary>
     public static Color GetDifficultyColor(string diff)
     {
         switch (diff?.ToLower())
         {
-            case "easy":   return new Color(0.40f, 1.00f, 0.40f);
             case "normal": return new Color(0.40f, 0.85f, 1.00f);
             case "hard":   return new Color(1.00f, 0.60f, 0.20f);
             case "extra":  return new Color(1.00f, 0.35f, 0.35f);

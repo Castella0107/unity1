@@ -295,7 +295,6 @@ public static class BuildPvpScenes
         var statsTable = MakeTMP("StatsTable", canvasGO, 22,
             "          ROUND   WIN   PERFECT   COMBO    RATE\n" +
             "TOTAL       0       0       0        0      0.00%\n" +
-            "easy        0       0       0        0      0.00%\n" +
             "normal      0       0       0        0      0.00%\n" +
             "hard        0       0       0        0      0.00%\n" +
             "extra       0       0       0        0      0.00%");

@@ -322,11 +322,11 @@ public static class BuildHistoryScene
         var sortDD = MakeDropdown("SortDropdown", filterBar, 220);
         Anchor(sortDD.gameObject, 0, 0.5f, 0, 0.5f, new Vector2(500, 0), new Vector2(0.5f, 0.5f));
 
-        // Difficulty buttons (right): easy / normal / hard / extra
+        // Difficulty buttons (right): normal / hard / extra (EASY は廃止 2026-08-01。スロット 0 は空)
         string[] diffLabels = { "easy", "normal", "hard", "extra" };
         var diffBtns = new Button[4];
         var diffBgs  = new Image[4];
-        for (int i = 0; i < 4; i++)
+        for (int i = 1; i < 4; i++)
         {
             var d = MakeRT($"Diff_{diffLabels[i]}", filterBar);
             Anchor(d, 1, 0.5f, 1, 0.5f, new Vector2(-16 - (3 - i) * 90, 0), new Vector2(1, 0.5f));
