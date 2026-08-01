@@ -311,7 +311,7 @@ public static class SongSelectSceneBuilder
 
         // 本体パネル
         var panelGO = Child("Panel", winGO.transform);
-        SR(panelGO, V(.5f,.5f), V(.5f,.5f), V(.5f,.5f), V(0,-10), V(1500,900));
+        SR(panelGO, V(.5f,.5f), V(.5f,.5f), V(.5f,.5f), V(0,-10), V(1500,1000));
         panelGO.AddComponent<Image>().color = Hex("0A0E1C");
         var pt = panelGO.transform;
 
@@ -337,11 +337,11 @@ public static class SongSelectSceneBuilder
         const float LX = 50f, LW = 660f;
         float y = -110f;
 
-        var rowBgs    = new Image[9];
-        var rowBtns   = new Button[9];
-        var valTexts  = new TextMeshProUGUI[9];
-        var prevBtns  = new Button[9];
-        var nextBtns  = new Button[9];
+        var rowBgs    = new Image[10];
+        var rowBtns   = new Button[10];
+        var valTexts  = new TextMeshProUGUI[10];
+        var prevBtns  = new Button[10];
+        var nextBtns  = new Button[10];
         int rowIdx = 0;
 
         void Section(string text)
@@ -406,6 +406,8 @@ public static class SongSelectSceneBuilder
         OptionRow("オートプレイ");
         Section("JUDGE");
         OptionRow("判定幅");
+        Section("SCORE");
+        OptionRow("最大スコア表示");
 
         // 操作ヒント (パネル下部左)
         var fhGO = Child("FooterHint", pt);
@@ -568,9 +570,10 @@ public static class SongSelectSceneBuilder
             new Color(.2f,.75f,.35f), new Color(.2f,.5f,.9f),
             new Color(.9f,.5f,.1f),   new Color(.85f,.1f,.5f)
         };
+        // 配列 index は難易度 ID (0=easy) のまま。EASY は廃止 (2026-08-01) なのでスロット 0 は作らない
         var diffBtns  = new Button[4];
         var diffTexts = new TextMeshProUGUI[4];
-        for (int i = 0; i < 4; i++)
+        for (int i = 1; i < 4; i++)
         {
             var bGO  = Child("Btn" + dlabels[i], diffGO.transform);
             var bImg = bGO.AddComponent<Image>(); bImg.color = Faint;
@@ -739,16 +742,16 @@ public static class SongSelectSceneBuilder
         var atmp = T(artistGO, "Artist", 13, new Color(.65f,.65f,.65f), TextAlignmentOptions.MidlineLeft);
         atmp.raycastTarget = false;
 
-        // Difficulty cells (4) on the right (visual placeholder)
+        // Difficulty cells (NM/HD/EX) on the right — 難易度別ベストランク表示 (中身は実行時に設定)。EASY は廃止
         string[] d = { "EZ","NM","HD","EX" };
-        for (int i = 0; i < 4; i++)
+        for (int i = 1; i < 4; i++)
         {
             var cGO = Child("Diff" + d[i], root.transform);
             SR(cGO, V(1,.5f), V(1,.5f), V(1,.5f), V(-14 - (3-i)*52, 0), V(46,40));
             var cImg = cGO.AddComponent<Image>(); cImg.color = new Color(1,1,1,.06f); cImg.raycastTarget = false;
             var cl = Child("Lv", cGO.transform);
             SR(cl, V(0,0), V(1,1), V(.5f,.5f), V(0,0), V(0,0));
-            var clt = T(cl, "×", 16, new Color(.45f,.45f,.45f), TextAlignmentOptions.Center, FontStyles.Bold);
+            var clt = T(cl, "-", 16, new Color(.45f,.45f,.45f), TextAlignmentOptions.Center, FontStyles.Bold);
             clt.raycastTarget = false;
         }
 

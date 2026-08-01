@@ -76,6 +76,8 @@ public class SongSelectController : MonoBehaviour
     // 難易度別 Level は曲を選ぶたびに譜面JSONを全パースしていた。表示に使うのは int 1個だけなので
     // (songId|difficulty)→Level をセッション内キャッシュし、再選択時の再パースを避ける。
     readonly Dictionary<string, int> _levelCache = new Dictionary<string, int>();
+    // リスト行の難易度セル表示用ベスト記録 ((songId|difficulty) → ランク/FC/AP)
+    readonly Dictionary<string, PersonalBest> _bests = new Dictionary<string, PersonalBest>();
 
     /// <summary>リスト並び替えモード。</summary>
     enum SortMode { IdAsc = 0, TitleAsc = 1, TitleDesc = 2, BpmAsc = 3, BpmDesc = 4 }
@@ -192,7 +194,8 @@ public class SongSelectController : MonoBehaviour
 
     async void Start()
     {
-        _btnEasy.onClick.AddListener(()   => SetDifficulty(Difficulty.Easy));
+        // EASY は廃止 (譜面が存在しない・K 指示 2026-08-01)。ボタンは旧ベイクのシーンに残っているので実行時に隠す
+        if (_btnEasy != null) _btnEasy.gameObject.SetActive(false);
         _btnNormal.onClick.AddListener(() => SetDifficulty(Difficulty.Normal));
         _btnHard.onClick.AddListener(()   => SetDifficulty(Difficulty.Hard));
         _btnExtra.onClick.AddListener(()  => SetDifficulty(Difficulty.Extra));
@@ -233,7 +236,7 @@ public class SongSelectController : MonoBehaviour
                 int found = _songs.FindIndex(s => s.SongId == restore.FocusSongId);
                 if (found >= 0) focusIdx = found;
                 int d = System.Array.IndexOf(DiffNames, restore.Difficulty);
-                if (d >= 0) focusDiff = (Difficulty)d;
+                if (d >= 1) focusDiff = (Difficulty)d;   // 0 (easy) は廃止済みなので復元しない
             }
             SelectSong(focusIdx);
             SetDifficulty(focusDiff);
@@ -298,8 +301,20 @@ public class SongSelectController : MonoBehaviour
             foreach (var m in metas) if (m != null) _songs.Add(m);
         }
 
+        await LoadAllBestRanksAsync();
         ApplySort();
         RebuildSongViews();
+    }
+
+    /// <summary>リスト行の難易度セル用に、全曲のベスト記録を一括取得してキャッシュする。</summary>
+    async Task LoadAllBestRanksAsync()
+    {
+        _bests.Clear();
+        if (RepositoryService.Instance?.IsReady != true) return;
+        var bests = await RepositoryService.Instance.PlayRecords.GetAllBestsAsync();
+        foreach (var b in bests)
+            if (b != null && !string.IsNullOrEmpty(b.BestRank))
+                _bests[b.SongId + "|" + b.Difficulty] = b;
     }
 
     static async Task<SongMetadata> TryLoadMeta(string songId)
@@ -326,6 +341,42 @@ public class SongSelectController : MonoBehaviour
                 texts[1].text = _songs[i].Artist;
             }
             StartCoroutine(LoadRowJacket(_songs[i].SongId, view));
+
+            // 右端の難易度セル (旧「×」プレースホルダ) に難易度別ベストランクを表示。
+            // FC は銀背景+銀冠、AP は金背景+金冠 (K 指示 2026-08-01、リザルトの判定フラグと同じ正本)。
+            // EZ セルは EASY 廃止のため非表示 (再ベイク後のプレハブにはそもそも無い)
+            for (int di = 0; di < 4; di++)
+            {
+                var cell = view.transform.Find("Diff" + DiffShort[di]);
+                if (cell == null) continue;
+                if (di == 0) { cell.gameObject.SetActive(false); continue; }
+                var lv = cell.Find("Lv")?.GetComponent<TextMeshProUGUI>();
+                if (lv == null) continue;
+                if (_bests.TryGetValue(_songs[i].SongId + "|" + DiffNames[di], out var pb))
+                {
+                    // 旧ランク表で保存された記録もあるため、表示はスコアから引き直す (§2.6 現行表)
+                    string rank = ScoreCalculator.DisplayRank(pb.BestEffectiveScore, pb.BestRank);
+                    lv.text  = rank;
+                    lv.color = RankColors.GetRankColor(rank);
+
+                    bool ap = pb.HasAllPerfect || pb.HasAllPerfectPlus;
+                    if (ap || pb.HasFullCombo)
+                    {
+                        var cellImg = cell.GetComponent<Image>();
+                        if (cellImg != null)
+                            cellImg.color = ap
+                                ? new Color(0.85f, 0.66f, 0.14f, 0.55f)   // AP: 金背景
+                                : new Color(0.72f, 0.76f, 0.84f, 0.40f);  // FC: 銀背景
+                        CrownBadge.Attach(cell, ap ? CrownBadge.Gold : CrownBadge.Silver);
+                    }
+                }
+                else
+                {
+                    lv.text  = "-";
+                    lv.color = new Color(.45f, .45f, .45f);
+                }
+            }
+
             _itemViews.Add(view);
         }
     }
@@ -387,7 +438,7 @@ public class SongSelectController : MonoBehaviour
         if      (v.y >  0.5f) SelectSong(_selectedIndex - 1);
         else if (v.y < -0.5f) SelectSong(_selectedIndex + 1);
         else if (v.x >  0.5f) SetDifficulty((Difficulty)Mathf.Min(3, (int)_selectedDiff + 1));
-        else if (v.x < -0.5f) SetDifficulty((Difficulty)Mathf.Max(0, (int)_selectedDiff - 1));
+        else if (v.x < -0.5f) SetDifficulty((Difficulty)Mathf.Max(1, (int)_selectedDiff - 1));   // 下限は Normal (EASY 廃止)
     }
 
     void OnSubmit(InputAction.CallbackContext ctx) { if (!PlayerDataPopup.IsOpen && !PlayOptionsController.IsOpen) OnPlay(); }
@@ -459,7 +510,8 @@ public class SongSelectController : MonoBehaviour
             }
         }
 
-        if (_bestRankText != null) _bestRankText.text = best.BestRank;
+        if (_bestRankText != null)
+            _bestRankText.text = ScoreCalculator.DisplayRank(best.BestEffectiveScore, best.BestRank);
         if (_statsText != null)
         {
             string rateStr = rate >= 0 ? rate.ToString("F2") : "--";
@@ -490,10 +542,12 @@ public class SongSelectController : MonoBehaviour
 
     void SetDifficulty(Difficulty d)
     {
+        if (d == Difficulty.Easy) d = Difficulty.Normal;   // EASY 廃止
         _selectedDiff = d;
         var btns = new[] { _btnEasy, _btnNormal, _btnHard, _btnExtra };
-        for (int i = 0; i < 4; i++)
+        for (int i = 1; i < 4; i++)
         {
+            if (btns[i] == null) continue;
             var img = btns[i].GetComponent<Image>();
             img.color = ((int)d == i)
                 ? new Color(0.3f, 0.5f, 0.9f, 1f)
@@ -596,7 +650,7 @@ public class SongSelectController : MonoBehaviour
 
     IEnumerator LoadDifficultyLevels(string songId, int captured)
     {
-        for (int i = 0; i < 4; i++)
+        for (int i = 1; i < 4; i++)   // 0 (easy) は廃止・譜面なし
         {
             string key = songId + "|" + DiffNames[i];
             if (!_levelCache.TryGetValue(key, out int lvl))
@@ -610,7 +664,7 @@ public class SongSelectController : MonoBehaviour
             }
             else if (_selectedIndex != captured) yield break;
 
-            if (_diffLevelTexts != null && i < _diffLevelTexts.Length)
+            if (_diffLevelTexts != null && i < _diffLevelTexts.Length && _diffLevelTexts[i] != null)
                 _diffLevelTexts[i].text = $"{DiffShort[i]} {(lvl >= 0 ? lvl.ToString() : "-")}";
         }
     }
