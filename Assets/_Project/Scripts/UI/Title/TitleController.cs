@@ -129,6 +129,33 @@ public class TitleController : MonoBehaviour
 
         RhythmGame.UI.Common.ShortcutHintOverlay.Set("↑↓: 項目   Space: 決定   ESC: 終了");
         StartCoroutine(PulseSelectedIcon());
+
+        // 現在バージョンを右下に表示 (シーン再焼き不要のランタイム生成)
+        CreateVersionLabel();
+    }
+
+    /// <summary>右下すみに現在バージョン (Velopack 配布版が正) を薄く表示する。</summary>
+    void CreateVersionLabel()
+    {
+        var canvas = _playerNameText != null
+            ? _playerNameText.canvas
+            : FindObjectOfType<Canvas>();
+        if (canvas == null) return;
+
+        var go = new GameObject("VersionLabel", typeof(RectTransform));
+        go.transform.SetParent(canvas.transform, false);
+        var rt = (RectTransform)go.transform;
+        rt.anchorMin = rt.anchorMax = new Vector2(1f, 0f);
+        rt.pivot = new Vector2(1f, 0f);
+        rt.anchoredPosition = new Vector2(-16f, 10f);
+        rt.sizeDelta = new Vector2(300f, 24f);
+
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        tmp.fontSize      = 16f;
+        tmp.color         = new Color(1f, 1f, 1f, 0.45f);
+        tmp.alignment     = TextAlignmentOptions.MidlineRight;
+        tmp.raycastTarget = false;
+        tmp.text          = VelopackAutoUpdater.DisplayVersion;
     }
 
     async Task LoadPlayerRatingAsync()

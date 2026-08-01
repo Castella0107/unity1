@@ -29,6 +29,30 @@ public static class VelopackAutoUpdater
     /// <summary>更新チェックのタイムアウト (ms)。超過したら諦めて通常起動。</summary>
     public const int CheckTimeoutMs = 10000;
 
+    /// <summary>タイトル画面等に出す現在バージョン。Velopack でインストールされた実配布版の
+    /// CurrentVersion が正。生ビルド・エディタは PlayerSettings の bundleVersion
+    /// (Application.version) へフォールバックする (リリース時は両者を揃えること)。</summary>
+    public static string DisplayVersion
+    {
+        get
+        {
+            if (!Application.isEditor)
+            {
+                try
+                {
+                    var mgr = new UpdateManager(FeedUrl);
+                    if (mgr.IsInstalled && mgr.CurrentVersion != null)
+                        return "v" + mgr.CurrentVersion;
+                }
+                catch (Exception e)
+                {
+                    Debug.LogWarning("[Velopack] バージョン取得失敗 (bundleVersion で表示): " + e.Message);
+                }
+            }
+            return "v" + Application.version;
+        }
+    }
+
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSplashScreen)]
     static void VelopackInit()
     {
