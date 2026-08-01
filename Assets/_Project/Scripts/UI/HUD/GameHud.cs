@@ -392,7 +392,7 @@ public class GameHud : MonoBehaviour
     }
 
     // コンボ表示と同じ 3 プリセット (MaxScorePosIdx) を独立に選べる。
-    // どのプリセットでもコンボの上に置く (0: +5→+85 / 1: 230→330 / 2: -140→-60)。
+    // どのプリセットでもコンボの上に置く (0: +5→+85 / 1: 350→428 / 2: -140→-60)。
     void ApplyMaxScoreLayout(RectTransform rt)
     {
         int  preset = PlayerPrefs.GetInt("MaxScorePosIdx", 0);
@@ -401,7 +401,7 @@ public class GameHud : MonoBehaviour
         {
             case 1:
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(0f, 330f);
+                rt.anchoredPosition = new Vector2(0f, 428f);   // コンボ (+350・0.8 倍) の上、判定カウントバーの下
                 break;
             case 2:
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -432,8 +432,10 @@ public class GameHud : MonoBehaviour
         switch (preset)
         {
             case 1:
+                // レーンが隠れないよう画面最上部帯 (左スコアパネル上端の高さ) へ。
+                // 上は判定カウントバー (下端 +448) を避ける
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(0f, 230f);
+                rt.anchoredPosition = new Vector2(0f, 350f);
                 break;
             case 2:
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
@@ -445,8 +447,8 @@ public class GameHud : MonoBehaviour
                 break;
         }
         rt.localRotation = lane ? Quaternion.Euler(LaneTiltDeg, 0f, 0f) : Quaternion.identity;
-        _comboBaseScale  = 1f;
-        rt.localScale    = Vector3.one;
+        _comboBaseScale  = preset == 1 ? 0.8f : 1f;   // 上部中央はコンボが大きすぎるため縮小 (K 指示)
+        rt.localScale    = Vector3.one * _comboBaseScale;
 
         var tmp = rt.GetComponent<TMP_Text>();
         if (tmp != null)
