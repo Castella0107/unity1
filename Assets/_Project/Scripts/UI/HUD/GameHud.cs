@@ -413,7 +413,7 @@ public class GameHud : MonoBehaviour
                 break;
         }
         rt.localRotation = lane ? Quaternion.Euler(LaneTiltDeg, 0f, 0f) : Quaternion.identity;
-        rt.localScale    = Vector3.one;
+        rt.localScale    = Vector3.one * (preset == 1 ? 0.75f : 1f);   // 上部中央は縮小 (K 指示 2026-08-01)
         _maxRankAlpha    = lane ? 0.32f : 0.55f;
 
         var tmp = rt.GetComponent<TMP_Text>();
@@ -447,7 +447,7 @@ public class GameHud : MonoBehaviour
                 break;
         }
         rt.localRotation = lane ? Quaternion.Euler(LaneTiltDeg, 0f, 0f) : Quaternion.identity;
-        _comboBaseScale  = preset == 1 ? 0.8f : 1f;   // 上部中央はコンボが大きすぎるため縮小 (K 指示)
+        _comboBaseScale  = preset == 1 ? 0.6f : 1f;   // 上部中央は縮小 0.8×0.75 (K 指示 2026-08-01)
         rt.localScale    = Vector3.one * _comboBaseScale;
 
         var tmp = rt.GetComponent<TMP_Text>();
