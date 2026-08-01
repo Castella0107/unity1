@@ -347,6 +347,7 @@ public class GameHud : MonoBehaviour
     int    _shownMaxRemain = -1;
     string _shownMaxRank;
     bool   _showMaxScore;
+    float  _maxRankAlpha = 0.55f;   // 溶け込みプリセットでは下げる (ApplyMaxScoreLayout が設定)
 
     void UpdateMaxScoreCounter(PlayProgressAggregator agg)
     {
@@ -368,11 +369,12 @@ public class GameHud : MonoBehaviour
         {
             _shownMaxRank = rank;
             var c = RankColors.GetRankColor(rank);
-            c.a = 0.55f;   // 薄く・プレイの邪魔にならない
+            c.a = _maxRankAlpha;   // 薄く・プレイの邪魔にならない (溶け込み時はさらに薄く)
             _maxScoreText.color = c;
         }
+        string numHex = ((int)(_maxRankAlpha * 255f)).ToString("X2");
         _maxScoreText.text =
-            rank + " <size=66%><color=#FFFFFF99>" + remain.ToString("N0") + "</color></size>";
+            rank + " <size=66%><color=#FFFFFF" + numHex + ">" + remain.ToString("N0") + "</color></size>";
     }
 
     void EnsureMaxScoreText()
@@ -412,6 +414,7 @@ public class GameHud : MonoBehaviour
         }
         rt.localRotation = lane ? Quaternion.Euler(LaneTiltDeg, 0f, 0f) : Quaternion.identity;
         rt.localScale    = Vector3.one;
+        _maxRankAlpha    = lane ? 0.32f : 0.55f;
 
         var tmp = rt.GetComponent<TMP_Text>();
         if (tmp != null) tmp.outlineWidth = lane ? 0f : 0.2f;
@@ -449,7 +452,7 @@ public class GameHud : MonoBehaviour
         if (tmp != null)
         {
             // 溶け込み時は縁取りを消し、アルファを下げて路面ペイント風にする
-            tmp.color        = new Color(0.933f, 0.976f, 0.992f, lane ? 0.50f : 0.92f);
+            tmp.color        = new Color(0.933f, 0.976f, 0.992f, lane ? 0.30f : 0.92f);
             tmp.outlineWidth = lane ? 0f : 0.2f;
             tmp.outlineColor = new Color(0.04f, 0.04f, 0.07f, 0.92f);
         }
