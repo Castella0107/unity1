@@ -174,12 +174,14 @@ public static class FxSectorGeometry
 
     static Camera _cam;
 
-    /// <summary>逆投影に使うゲームプレイカメラ (Main Camera)。</summary>
+    /// <summary>逆投影に使うゲームプレイカメラ (Main Camera)。
+    /// シーン遷移は加算ロードのため、旧シーンのカメラを掴んだまま破棄・無効化される
+    /// ことがある (リトライで S/L ラベルが飛んだ真因の片割れ)。無効になったら取り直す。</summary>
     public static Camera Cam
     {
         get
         {
-            if (_cam == null) _cam = Camera.main;
+            if (_cam == null || !_cam.isActiveAndEnabled) _cam = Camera.main;
             return _cam;
         }
     }

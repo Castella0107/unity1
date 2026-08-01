@@ -52,6 +52,36 @@ public class LaneKeyGuide : MonoBehaviour
 
     void OnRectTransformDimensionsChange() => PlaceFxLabels();   // 解像度変更に追従
 
+    // ── S/L ラベルのカメラ追従 ──────────────────────────────────────────────
+    // シーン遷移は加算ロードなので、Start 時点では旧シーンのカメラが Camera.main の
+    // ままのことがあり、その投影で置くとラベルが画面外へ飛ぶ (K 報告 2026-08-01:
+    // リトライで S/L 表示がどこかへ行く)。StageInitializer の視点適用 (ApplyCameraAngle)
+    // も譜面の非同期ロード後で Start より遅い。どちらも「後からカメラが変わる」問題
+    // なので、カメラの実体・姿勢・画角・画面サイズの変化を監視して置き直す。
+    Camera     _placedCam;
+    Vector3    _placedCamPos;
+    Quaternion _placedCamRot;
+    float      _placedFov;
+    int        _placedW, _placedH;
+
+    void LateUpdate()
+    {
+        var cam = FxSectorGeometry.Cam;
+        if (cam == null) return;
+        var t = cam.transform;
+        if (cam == _placedCam && t.position == _placedCamPos && t.rotation == _placedCamRot
+            && Mathf.Approximately(cam.fieldOfView, _placedFov)
+            && Screen.width == _placedW && Screen.height == _placedH) return;
+
+        _placedCam    = cam;
+        _placedCamPos = t.position;
+        _placedCamRot = t.rotation;
+        _placedFov    = cam.fieldOfView;
+        _placedW      = Screen.width;
+        _placedH      = Screen.height;
+        PlaceFxLabels();
+    }
+
     /// <summary>
     /// S/L ラベルを FX ボタン (円環セグメント) の実際の中心へ置く。
     ///
