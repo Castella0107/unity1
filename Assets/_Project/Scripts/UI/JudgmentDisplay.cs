@@ -27,12 +27,19 @@ public class JudgmentDisplay : MonoBehaviour
 
     private Coroutine _active;
 
+    /// <summary>レーンに寝かせる角 (X 軸回転、度)。GameHud.LaneTiltDeg と同じ値にして
+    /// コンボ・最大ランクの「手元 (レーン溶け込み)」表示と見た目を揃える (K 指示 2026-08-01)。</summary>
+    const float LaneTiltDeg = 55f;
+
     private void OnEnable()
     {
         if (_system != null) _system.OnJudged += OnJudged;
         // ふち幅は一度だけ適用 (fontMaterial のインスタンス化を伴うため毎フレームは避ける)
         if (_judgeText  != null) _judgeText.outlineWidth  = _outlineWidth;
         if (_timingText != null) _timingText.outlineWidth = _outlineWidth;
+        // 判定テキストもレーンに寝かせる (HUD は Screen Space Camera なので回転で遠近がつく)
+        if (_judgeText  != null) _judgeText.rectTransform.localRotation  = Quaternion.Euler(LaneTiltDeg, 0f, 0f);
+        if (_timingText != null) _timingText.rectTransform.localRotation = Quaternion.Euler(LaneTiltDeg, 0f, 0f);
     }
 
     private void OnDisable()

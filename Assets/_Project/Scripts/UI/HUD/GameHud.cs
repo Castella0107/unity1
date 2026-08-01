@@ -143,7 +143,7 @@ public class GameHud : MonoBehaviour
 
         LoadJacket(meta.SongId);
 
-        if (_scoreValue != null) _scoreValue.text = "0000000";
+        if (_scoreValue != null) _scoreValue.text = "0";
         if (_rateValue  != null) _rateValue.text  = "000.00<color=#E5C06C>%</color>"; // % は P-Text
         if (_maxComboValue != null) _maxComboValue.text = "000";
         if (_sectorCounter != null) _sectorCounter.text = "01/05";
@@ -160,6 +160,18 @@ public class GameHud : MonoBehaviour
         {
             ApplyComboLayout((RectTransform)_comboText.transform);
             _comboText.gameObject.SetActive(false);
+        }
+
+        // 最大到達可能ランク (理論値): コンボ数の下・PLAY OPTIONS で ON/OFF
+        _showMaxScore   = PlayOptionsController.ShowMaxScore;
+        _shownMaxRemain = -1;
+        _shownMaxRank   = null;
+        if (_maxScoreText == null && _showMaxScore) EnsureMaxScoreText();
+        if (_maxScoreText != null)
+        {
+            ApplyMaxScoreLayout((RectTransform)_maxScoreText.transform);
+            _maxScoreText.gameObject.SetActive(_showMaxScore);
+            SetMaxRank(1_000_000);
         }
 
         _shownSectorIdx = -1;
@@ -207,9 +219,11 @@ public class GameHud : MonoBehaviour
         if (score != _shownScore)
         {
             _shownScore = score;
-            if (_scoreValue != null) _scoreValue.text = score.ToString("D7"); // モック: 0000000
+            if (_scoreValue != null) _scoreValue.text = score.ToString("N0"); // カンマ区切り (K 指示 2026-08-01)
             if (_scoreGauge != null) _scoreGauge.fillAmount = score / 1_000_000f;
         }
+
+        UpdateMaxScoreCounter(agg);
 
         // MAX COMBO (モック: ゼロ埋め 3 桁)
         if (_maxComboValue != null && agg.MaxCombo != _shownMaxCombo)
@@ -268,10 +282,22 @@ public class GameHud : MonoBehaviour
         UpdateSectorDiamonds(agg);
     }
 
-    // ── コンボ表示 (K 指示 2026-07-30: 他音ゲー同様の中央表示、位置と表示はコンフィグで変更可) ──
+    // ── コンボ表示 (K 指示 2026-07-30: 位置と表示はコンフィグで変更可) ──
+    // 位置プリセット: 0=中央 / 1=上部中央 / 2=手元。
+    // 手元のみチュウニズム参考の「レーン溶け込み」スタイル (K 指示 2026-08-01):
+    // HUD キャンバスは Screen Space Camera なので X 軸回転で本物の遠近がつく。
+    // 寝かせ+縁取りなし+低アルファで路面ペイント風に見せる (ワールド空間 TMP は
+    // URP での描画が安定しなかったため不採用)。
+    // どのプリセットでも「コンボが下・最大到達ランクが上」で互いに重ねない。
 
-    TextMeshProUGUI _comboText;   // 実行時生成 (シーン変更なしで導入するため)
+    TMP_Text _comboText;   // 実行時生成 (シーン変更なしで導入するため)
     int _shownCombo = -1;
+
+    /// <summary>溶け込みプリセットの寝かせ角 (X 軸回転、度)。</summary>
+    const float LaneTiltDeg = 55f;
+
+    // コンボのポップ演出は localScale を使うため、基準スケールに乗算して戻す
+    float _comboBaseScale = 1f;
 
     /// <summary>現在コンボの表示を更新する。3 コンボ以上で表示し、増加時に軽くポップする。</summary>
     void UpdateComboCounter(int combo)
@@ -290,50 +316,142 @@ public class GameHud : MonoBehaviour
         {
             bool increased = combo > _shownCombo;
             _shownCombo = combo;
-            _comboText.text = combo + "\n<size=34%><color=#9AB4C2>COMBO</color></size>";
-            if (increased) _comboText.transform.localScale = Vector3.one * 1.12f;   // ポップ
+            _comboText.text = "<size=40%><color=#9AB4C2>COMBO</color></size>\n" + combo;
+            if (increased) _comboText.transform.localScale = Vector3.one * (_comboBaseScale * 1.12f);   // ポップ
         }
-        float s = _comboText.transform.localScale.x;   // ポップの減衰
-        if (s > 1f) _comboText.transform.localScale = Vector3.one * Mathf.Max(1f, s - Time.deltaTime * 0.8f);
+        float s = _comboText.transform.localScale.x;   // ポップの減衰 (基準スケールまで戻す)
+        if (s > _comboBaseScale)
+            _comboText.transform.localScale = Vector3.one * Mathf.Max(_comboBaseScale, s - Time.deltaTime * 0.8f);
     }
 
     void EnsureComboText()
     {
         var go = new GameObject("ComboCounter", typeof(RectTransform));
         go.transform.SetParent(transform, false);
-        _comboText = go.AddComponent<TextMeshProUGUI>();
-        _comboText.alignment     = TextAlignmentOptions.Center;
-        _comboText.fontStyle     = FontStyles.Bold;
-        _comboText.fontSize      = 58f;
-        _comboText.color         = new Color(0.933f, 0.976f, 0.992f, 0.92f); // #EEF9FD
-        _comboText.raycastTarget = false;
-        _comboText.outlineWidth  = 0.2f;
-        _comboText.outlineColor  = new Color(0.04f, 0.04f, 0.07f, 0.92f);
-        var rt = (RectTransform)go.transform;
-        rt.sizeDelta = new Vector2(420f, 120f);
-        ApplyComboLayout(rt);
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        _comboText = tmp;
+        tmp.alignment     = TextAlignmentOptions.Center;
+        tmp.fontStyle     = FontStyles.Bold;
+        tmp.fontSize      = 87f;   // K 指示 2026-08-01: 従来 58 の 1.5 倍
+        tmp.raycastTarget = false;
+        tmp.rectTransform.sizeDelta = new Vector2(560f, 180f);
+        ApplyComboLayout(tmp.rectTransform);
     }
 
-    // 位置プリセット (PlayerPrefs "ComboPosIdx"):
-    //   0 = 中央 (判定表示の少し上 — SDVX/チュウニズム系の定番)
-    //   1 = 上部中央 (スコア帯の下)
-    //   2 = 判定ラインの下 (手元寄り)
-    void ApplyComboLayout(RectTransform rt)
+    // ── 最大到達可能ランク表示 (K 指示 2026-08-01: チュウニズムの MAX 表示風) ──────────
+    // 1,000,000 から PERFECT 以外で失った分を引いた「今から全部 PERFECT ならここまで届く」
+    // スコアのランクと数値 (例: SS 0997800) をレーン床面に表示する。
+    // 表示位置は常にコンボの奥 (画面上で上)、ON/OFF は PLAY OPTIONS ("ShowMaxScore")。
+
+    TMP_Text _maxScoreText;   // 実行時生成 (シーン変更なしで導入するため)
+    int    _shownMaxRemain = -1;
+    string _shownMaxRank;
+    bool   _showMaxScore;
+
+    void UpdateMaxScoreCounter(PlayProgressAggregator agg)
     {
-        switch (PlayerPrefs.GetInt("ComboPosIdx", 0))
+        if (!_showMaxScore || _maxScoreText == null) return;
+        // maxSoFar − score = ここまでに失った点。表示丸め (micro→表示int) は両者同方向なので誤差は±1に収まる
+        int remain = Mathf.Clamp(1_000_000 - (agg.CurrentMaxScore - agg.CurrentScore), 0, 1_000_000);
+        if (remain == _shownMaxRemain) return;
+        _shownMaxRemain = remain;
+        SetMaxRank(remain);
+    }
+
+    // 「ランク + 理論値スコア」の並びで表示 (K 指示 2026-08-01: ランクだけにしない)。
+    // ランク文字はランク色、数字はやや小さく薄い白。
+    void SetMaxRank(int remain)
+    {
+        if (_maxScoreText == null) return;
+        string rank = ScoreCalculator.ComputeRank(remain);
+        if (rank != _shownMaxRank)
+        {
+            _shownMaxRank = rank;
+            var c = RankColors.GetRankColor(rank);
+            c.a = 0.55f;   // 薄く・プレイの邪魔にならない
+            _maxScoreText.color = c;
+        }
+        _maxScoreText.text =
+            rank + " <size=66%><color=#FFFFFF99>" + remain.ToString("N0") + "</color></size>";
+    }
+
+    void EnsureMaxScoreText()
+    {
+        var go = new GameObject("MaxRankCounter", typeof(RectTransform));
+        go.transform.SetParent(transform, false);
+        var tmp = go.AddComponent<TextMeshProUGUI>();
+        _maxScoreText = tmp;
+        tmp.alignment     = TextAlignmentOptions.Center;
+        tmp.fontStyle     = FontStyles.Bold;
+        tmp.fontSize      = 34f;   // K 指示 2026-08-01: ランクとスコアはもう少し大きく (コンボはそのまま)
+        tmp.raycastTarget = false;
+        tmp.rectTransform.sizeDelta = new Vector2(420f, 48f);
+        ApplyMaxScoreLayout(tmp.rectTransform);
+    }
+
+    // コンボ表示と同じ 3 プリセット (MaxScorePosIdx) を独立に選べる。
+    // どのプリセットでもコンボの上に置く (0: +5→+85 / 1: 230→330 / 2: -140→-60)。
+    void ApplyMaxScoreLayout(RectTransform rt)
+    {
+        int  preset = PlayerPrefs.GetInt("MaxScorePosIdx", 0);
+        bool lane   = preset != 1;   // 上部中央のみレーン外
+        switch (preset)
         {
             case 1:
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 1f);
-                rt.anchoredPosition = new Vector2(0f, -150f);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, 330f);
                 break;
             case 2:
-                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0f);
-                rt.anchoredPosition = new Vector2(0f, 130f);
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, -60f);
                 break;
             default:
                 rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(0f, 130f);
+                rt.anchoredPosition = new Vector2(0f, 85f);   // コンボ (+5) の上をキープ
                 break;
+        }
+        rt.localRotation = lane ? Quaternion.Euler(LaneTiltDeg, 0f, 0f) : Quaternion.identity;
+        rt.localScale    = Vector3.one;
+
+        var tmp = rt.GetComponent<TMP_Text>();
+        if (tmp != null) tmp.outlineWidth = lane ? 0f : 0.2f;
+    }
+
+    // 位置プリセット (PlayerPrefs "ComboPosIdx"、K 指示 2026-08-01):
+    //   0 = レーン中央 — 手元より高い位置で溶け込み (寝かせ)
+    //   1 = 上部中央 — 消失点 (KALPA 仕様 VP=640,256/720p → 1080 基準で中心 +156) の上、
+    //       レーンと被らないので通常表示 (寝かせ・減光なし)
+    //   2 = 手元 — 判定ポップアップ (上端 -183) のすぐ上で溶け込み
+    void ApplyComboLayout(RectTransform rt)
+    {
+        int  preset = PlayerPrefs.GetInt("ComboPosIdx", 0);
+        bool lane   = preset != 1;   // 上部中央のみレーン外
+        switch (preset)
+        {
+            case 1:
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, 230f);
+                break;
+            case 2:
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, -140f);
+                break;
+            default:
+                rt.anchorMin = rt.anchorMax = new Vector2(0.5f, 0.5f);
+                rt.anchoredPosition = new Vector2(0f, 5f);   // K 指示 2026-08-01: 若干上へ (-25→5)
+                break;
+        }
+        rt.localRotation = lane ? Quaternion.Euler(LaneTiltDeg, 0f, 0f) : Quaternion.identity;
+        _comboBaseScale  = 1f;
+        rt.localScale    = Vector3.one;
+
+        var tmp = rt.GetComponent<TMP_Text>();
+        if (tmp != null)
+        {
+            // 溶け込み時は縁取りを消し、アルファを下げて路面ペイント風にする
+            tmp.color        = new Color(0.933f, 0.976f, 0.992f, lane ? 0.50f : 0.92f);
+            tmp.outlineWidth = lane ? 0f : 0.2f;
+            tmp.outlineColor = new Color(0.04f, 0.04f, 0.07f, 0.92f);
         }
     }
 
@@ -488,7 +606,6 @@ public class GameHud : MonoBehaviour
     {
         switch (diff?.ToLower())
         {
-            case "easy":   return "ESY";
             case "normal": return "NML";
             case "hard":   return "HRD";
             case "extra":  return "EX";

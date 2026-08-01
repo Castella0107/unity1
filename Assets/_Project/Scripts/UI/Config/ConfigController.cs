@@ -721,6 +721,7 @@ public class ConfigController : MonoBehaviour
     static readonly string[] ResetKeys =
     {
         "HiSpeed", "ComboBorderIdx", "ShowFastLate", "ComboShow", "ComboPosIdx",
+        "ShowMaxScore", "MaxScorePosIdx",
         "BgEffectsIntensity", "JudgmentEffectStyleIdx", "NoteSoundIdx",
         "ResolutionIdx", "ScreenModeIdx", "FpsLimitIdx", "VSync",
         "CameraAngleIdx", "BloomLevelIdx", "MotionEffects", "ShowFps",

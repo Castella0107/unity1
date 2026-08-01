@@ -214,6 +214,8 @@ public static class BuildConfigScene
         var flToggle            = ToggleRow(pt, ref y, "FAST/SLOW表示");
         var comboShowTgl        = ToggleRow(pt, ref y, "コンボ表示");
         var comboPosDD          = DropdownRow(pt, ref y, "コンボ表示位置");
+        var maxScoreTgl         = ToggleRow(pt, ref y, "最大スコア表示");
+        var maxScorePosDD       = DropdownRow(pt, ref y, "最大スコア表示位置");
         var (bgSlider, bgVal)   = SliderRow(pt, ref y, "背景エフェクト強度", 0, 100, 100, true, "100%");
         var fxDD                = DropdownRow(pt, ref y, "判定エフェクト");
 
@@ -233,6 +235,8 @@ public static class BuildConfigScene
         SetRef(so, "_fastLateToggle",          flToggle);
         SetRef(so, "_comboShowToggle",         comboShowTgl);
         SetRef(so, "_comboPosDropdown",        comboPosDD);
+        SetRef(so, "_maxScoreShowToggle",      maxScoreTgl);
+        SetRef(so, "_maxScorePosDropdown",     maxScorePosDD);
         SetRef(so, "_backgroundEffectsSlider", bgSlider);
         SetRef(so, "_backgroundEffectsValue",  bgVal);
         SetRef(so, "_judgmentEffectDropdown",  fxDD);

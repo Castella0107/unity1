@@ -79,6 +79,14 @@ public class PlayOptionsController : MonoBehaviour
         set { PlayerPrefs.SetInt("JudgeWide", value ? 1 : 0); PlayerPrefs.Save(); }
     }
 
+    /// <summary>プレイ中の最大到達可能スコア (理論値) 表示が有効か (PlayerPrefs "ShowMaxScore")。
+    /// 表示位置はコンフィグの "MaxScorePosIdx" (コンボ表示と同じ 3 プリセット)。</summary>
+    public static bool ShowMaxScore
+    {
+        get => PlayerPrefs.GetInt("ShowMaxScore", 1) == 1;
+        set { PlayerPrefs.SetInt("ShowMaxScore", value ? 1 : 0); PlayerPrefs.Save(); }
+    }
+
     static PlayOptionsController _instance;
     int _closeFrame  = -1;
     int _openedFrame = -1;
@@ -87,7 +95,7 @@ public class PlayOptionsController : MonoBehaviour
     static readonly Color RowIdle     = new Color(1f, 1f, 1f, 0.06f);
     static readonly Color RowSelected = new Color(0.42f, 0.32f, 0.85f, 0.45f);
 
-    const int RowCount = 9;
+    const int RowCount = 10;
 
     static readonly string[] GuideTexts =
     {
@@ -100,6 +108,7 @@ public class PlayOptionsController : MonoBehaviour
         "レーン(背景)の明るさを変更します。\n0=真っ黒 〜 10=通常。ノーツの見やすさ調整に。",
         "オートプレイ: 譜面どおりに自動で完璧に演奏します。\nデモ・観賞用でスコアは履歴に残りません。",
         "判定幅を変更します。\nWIDE: P+±25 / PERFECT±50 / GREAT±75 / GOOD±100ms\n※ソロのみ。PVPでは常に標準判定になります。",
+        "プレイ中、コンボ数の上に現在到達可能な最大ランクと\nスコア (例: SS 997,800) を表示します。\nPERFECT以外で数値が減り、閾値を割るとランクが下がります。",
     };
 
     /// <summary>ポップアップ表示中か。閉じたフレームも true (閉じ入力の同フレーム再拾い防止)。</summary>
@@ -243,6 +252,9 @@ public class PlayOptionsController : MonoBehaviour
             case 8:   // 判定幅 標準/ワイド
                 JudgeWide = !JudgeWide;
                 break;
+            case 9:   // 最大スコア (理論値) 表示 ON/OFF
+                ShowMaxScore = !ShowMaxScore;
+                break;
         }
         RefreshAllValues();
     }
@@ -264,5 +276,6 @@ public class PlayOptionsController : MonoBehaviour
         Set(6, LaneBrightness.Level.ToString());
         Set(7, AutoPlay ? "ON" : "OFF");
         Set(8, JudgeWide ? "WIDE" : "NORMAL");
+        Set(9, ShowMaxScore ? "ON" : "OFF");
     }
 }

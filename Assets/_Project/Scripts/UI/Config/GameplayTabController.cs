@@ -38,6 +38,8 @@ public class GameplayTabController : MonoBehaviour
     [SerializeField] Toggle       _fastLateToggle;
     [SerializeField] Toggle       _comboShowToggle;    // コンボ表示 ON/OFF (K 指示 2026-07-30)
     [SerializeField] TMP_Dropdown _comboPosDropdown;   // コンボ表示位置
+    [SerializeField] Toggle       _maxScoreShowToggle; // 最大スコア (理論値) 表示 ON/OFF (K 指示 2026-08-01)
+    [SerializeField] TMP_Dropdown _maxScorePosDropdown;// 最大スコア表示位置
 
     [Header("Effects")]
     [SerializeField] Slider          _backgroundEffectsSlider;
@@ -185,10 +187,28 @@ public class GameplayTabController : MonoBehaviour
         if (_comboPosDropdown != null)
         {
             _comboPosDropdown.ClearOptions();
-            _comboPosDropdown.AddOptions(new List<string> { "中央 (判定表示の上)", "上部中央", "判定ラインの下" });
+            _comboPosDropdown.AddOptions(new List<string> { "レーン中央 (溶け込み)", "上部中央 (消失点の上)", "手元 (溶け込み)" });
             _comboPosDropdown.onValueChanged.AddListener(idx =>
             {
                 PlayerPrefs.SetInt("ComboPosIdx", idx);
+                PlayerPrefs.Save();
+            });
+        }
+
+        if (_maxScoreShowToggle != null)
+            _maxScoreShowToggle.onValueChanged.AddListener(v =>
+            {
+                PlayerPrefs.SetInt("ShowMaxScore", v ? 1 : 0);
+                PlayerPrefs.Save();
+            });
+
+        if (_maxScorePosDropdown != null)
+        {
+            _maxScorePosDropdown.ClearOptions();
+            _maxScorePosDropdown.AddOptions(new List<string> { "レーン中央 (溶け込み)", "上部中央 (消失点の上)", "手元 (溶け込み)" });
+            _maxScorePosDropdown.onValueChanged.AddListener(idx =>
+            {
+                PlayerPrefs.SetInt("MaxScorePosIdx", idx);
                 PlayerPrefs.Save();
             });
         }
@@ -253,6 +273,10 @@ public class GameplayTabController : MonoBehaviour
             _comboShowToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("ComboShow", 1) == 1);
         if (_comboPosDropdown != null)
             _comboPosDropdown.SetValueWithoutNotify(Mathf.Clamp(PlayerPrefs.GetInt("ComboPosIdx", 0), 0, 2));
+        if (_maxScoreShowToggle != null)
+            _maxScoreShowToggle.SetIsOnWithoutNotify(PlayerPrefs.GetInt("ShowMaxScore", 1) == 1);
+        if (_maxScorePosDropdown != null)
+            _maxScorePosDropdown.SetValueWithoutNotify(Mathf.Clamp(PlayerPrefs.GetInt("MaxScorePosIdx", 0), 0, 2));
 
         if (_backgroundEffectsSlider != null)
         {
