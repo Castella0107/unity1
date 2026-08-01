@@ -1,12 +1,14 @@
 {
-    "recorded_at":  "2026-08-01T01:47:20+09:00",
-    "version":  "0.2.4",
+    "recorded_at":  "2026-08-01T02:33:08+09:00",
+    "version":  "0.2.5",
     "feed_url":  "https://pvpharmonics.duckdns.org/updates-x7q2mkv9tr4w/",
     "files":  {
-                  "PVPharmonics-0.2.4-full.nupkg":  "49067bf5285443ca740ed18401709ad2c10e1b851bec47770cb00dc8b893cc79",
+                  "PVPharmonics-0.2.5-full.nupkg":  "3086a282fb45bd0374aa455bbbd087d7caac07c0ddd1ad3fede5ef9234c552fc",
+                  "PVPharmonics-win-Setup.exe":  "db104330cf671652171f38d8aa38333a2864b63a5ee93b9fb2788b925b477d56",
+                  "releases.win.json":  "6e5f62a288921e74a3f5babc15ada8758a249f31a56007fc7d1b86d881e2d23b",
                   "PVPharmonics-0.2.3-full.nupkg":  "9378e6980dce5f5a09e3eb47b103bba2bffb4c7c31694c660003a4af6dff45e3",
-                  "releases.win.json":  "cff26f192871d049847eeabba5dfc30f555ffa82b1e4eefb19c7902959028eed",
-                  "PVPharmonics-win-Setup.exe":  "bd1e02cf1027a0c569a5f077975a3123925960cd9950461cb5586c4095257686",
-                  "PVPharmonics-0.2.4-delta.nupkg":  "e4ada805e38a6fbb20e8a30038d2313f143c6b186d9fe5b452f33937cc676bd3"
+                  "PVPharmonics-0.2.4-delta.nupkg":  "e4ada805e38a6fbb20e8a30038d2313f143c6b186d9fe5b452f33937cc676bd3",
+                  "PVPharmonics-0.2.5-delta.nupkg":  "44a6a4648e10a7c4a98543dd309828c9c27ef3663db0c8eae1e4dfa374915185",
+                  "PVPharmonics-0.2.4-full.nupkg":  "49067bf5285443ca740ed18401709ad2c10e1b851bec47770cb00dc8b893cc79"
               }
 }
