@@ -225,11 +225,12 @@ public class GameHud : MonoBehaviour
 
         UpdateMaxScoreCounter(agg);
 
-        // MAX COMBO (モック: ゼロ埋め 3 桁)
+        // MAX COMBO (最低 3 桁ゼロ埋め。1000 コンボ以上はそのまま 4 桁表示 — K 報告 2026-08-01:
+        // モック準拠の 999 頭打ちだと高密度譜面で実コンボが出なかった)
         if (_maxComboValue != null && agg.MaxCombo != _shownMaxCombo)
         {
             _shownMaxCombo = agg.MaxCombo;
-            _maxComboValue.text = Mathf.Min(agg.MaxCombo, 999).ToString("D3");
+            _maxComboValue.text = agg.MaxCombo.ToString("D3");
         }
 
         UpdateComboCounter(agg.CurrentCombo);
