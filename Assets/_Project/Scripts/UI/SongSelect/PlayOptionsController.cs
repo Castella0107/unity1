@@ -100,7 +100,7 @@ public class PlayOptionsController : MonoBehaviour
     static readonly string[] GuideTexts =
     {
         "ノーツの落下速度を変更します。\n選曲画面の [ ] キーでも変更できます。",
-        "ノーツ配置のモディファイアを変更します。\nMIRROR=左右反転 / RANDOM=レーンシャッフル。",
+        "ノーツ配置のモディファイアを変更します。\nMIRROR=左右反転 / RANDOM=レーンシャッフル。\n※現在は未実装です (設定は記録されますが配置は変わりません)。",
         "演奏中にキーを押したときに鳴るヒット音を切り替えます。",
         "判定確定時(PERFECT等)の効果音を切り替えます。",
         "判定時の FAST/SLOW 表示を切り替えます。",
