@@ -37,9 +37,52 @@ public class LaneKeyGuide : MonoBehaviour
 
     void Awake()
     {
+        ApplyRuntimeHighlightMaterial();
         for (int c = 0; c < _laneHighlights.Length; c++)
             SetColumnAlpha(c, 0f);   // start fully transparent
         ResetChips();
+    }
+
+    /// <summary>
+    /// レーンハイライトのマテリアルを実行時に生成して差し替える。
+    ///
+    /// ベイク時に生成していた LaneHighlight.mat がリポジトリから失われており
+    /// (Assets/_Project/Prefabs/UI/HUD/ に .mat が存在しない)、メインレーンの
+    /// 押下ハイライトが描画されなくなっていた (テスター報告 2026-08-04。FX 側は
+    /// FxLaneVisuals の押下フラッシュが別系統なので光って見えていた)。
+    /// シーンのベイク状態に依存しないよう、Playfield/Alpha + 奥フェードの
+    /// グラデーションテクスチャをここで作って割り当てる。
+    /// </summary>
+    void ApplyRuntimeHighlightMaterial()
+    {
+        var shader = Shader.Find("Playfield/Alpha");
+        if (shader == null) return;   // 見つからない場合のみベイク済みマテリアルに任せる
+
+        var mat = new Material(shader);
+        mat.renderQueue = 2646;   // 路面レイヤー (2630〜2643) より上・ノーツ (3000) より下
+        mat.SetColor("_BaseColor", new Color(1f, 1f, 1f, 0f));
+        mat.mainTexture = CreateFadeTexture();
+
+        foreach (var r in _laneHighlights)
+            if (r != null) r.sharedMaterial = mat;
+    }
+
+    // 手前 (判定線側 UV.v=0) 不透明 → 奥 (v=1) 透明の縦グラデーション
+    static Texture2D CreateFadeTexture()
+    {
+        const int H = 64;
+        var tex = new Texture2D(1, H, TextureFormat.RGBA32, false)
+        {
+            wrapMode   = TextureWrapMode.Clamp,
+            filterMode = FilterMode.Bilinear,
+        };
+        for (int y = 0; y < H; y++)
+        {
+            float a = 1f - y / (float)(H - 1);
+            tex.SetPixel(0, y, new Color(1f, 1f, 1f, a));
+        }
+        tex.Apply(false, true);
+        return tex;
     }
 
     void OnEnable() => TrySubscribe();
@@ -188,7 +231,8 @@ public class LaneKeyGuide : MonoBehaviour
         if (c < 0 || c >= _laneHighlights.Length || _laneHighlights[c] == null) return;
         var col = _highlightColor;
         col.a = a;
-        _laneHighlights[c].material.color = col;
+        // Playfield/Alpha は [MainColor] を持たないため material.color ではなく _BaseColor 直指定
+        _laneHighlights[c].material.SetColor("_BaseColor", col);
     }
 
     void ResetChips()
