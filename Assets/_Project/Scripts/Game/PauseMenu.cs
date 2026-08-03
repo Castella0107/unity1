@@ -37,6 +37,18 @@ public class PauseMenu : MonoBehaviour
     const float RetireHoldSec = 6f;
     bool        _retiring;
 
+    // ── 入力遮断・再開プリロール (テスター報告 2026-08-04) ──────────────────────
+    // ポーズ中/再開カウント中/プリロール中は演奏入力を判定にもリプレイにも入れない
+    // (ポーズ中の入力がリプレイに混ざると時刻が逆行し、サーバー再判定とズレる)。
+    // JudgmentSystem.HandleLaneDown/Up が参照する。
+    public static bool GameplayInputBlocked { get; private set; }
+
+    /// <summary>再開時の空白リードイン (秒)。ノーツがポーズ地点まで巻き戻って流れてくる。</summary>
+    const double ResumePrerollSec = 1.5;
+
+    bool   _isCounting;    // 再開カウントダウン+プリロール中 (この間 ESC は無効)
+    double _pausedAtMs;    // ポーズした曲時刻 (プリロール追いつき判定用)
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     void Start()
@@ -123,14 +135,15 @@ public class PauseMenu : MonoBehaviour
             return;
         }
 
-        // Toggle pause (solo)
-        if (Keyboard.current.escapeKey.wasPressedThisFrame)
+        // Toggle pause (solo)。カウントダウン/プリロール中の ESC は無視する
+        // (テスター報告 2026-08-04: ESC 2 連打でカウントが多重起動して挙動が壊れる)
+        if (Keyboard.current.escapeKey.wasPressedThisFrame && !_isCounting)
         {
             if (_isPaused) OnResume();
             else if (_conductor != null && _conductor.IsPlaying) OpenPause();
         }
 
-        if (!_isPaused) return;
+        if (!_isPaused || _isCounting) return;
 
         // ↑↓ navigation
         if (Keyboard.current.upArrowKey.wasPressedThisFrame   ||
@@ -186,7 +199,9 @@ public class PauseMenu : MonoBehaviour
 
     void OpenPause()
     {
-        _isPaused = true;
+        _isPaused   = true;
+        _pausedAtMs = _conductor != null ? _conductor.SongTimeMs : 0.0;
+        GameplayInputBlocked = true;
         _conductor?.Pause();
         _selectedIndex = 0;
         if (_panel != null) _panel.SetActive(true);
@@ -200,7 +215,8 @@ public class PauseMenu : MonoBehaviour
 
     void OnResume()
     {
-        if (!_isPaused) return;
+        if (!_isPaused || _isCounting) return;   // カウント中の再入防止
+        _isCounting = true;
         ClosePanelUI();
         StartCoroutine(CountdownThenResume());
     }
@@ -219,8 +235,25 @@ public class PauseMenu : MonoBehaviour
         yield return new WaitForSecondsRealtime(0.3f);
 
         if (_countdownOverlay != null) _countdownOverlay.SetActive(false);
-        _conductor?.Resume(prerollSec: 0.0);
+        // 空白リードイン付きで再開: 時計がプリロール分だけ巻き戻り、停止直後のノーツが
+        // 奥から流れてくる (テスター要望 2026-08-04)
+        _conductor?.Resume(prerollSec: ResumePrerollSec);
         _isPaused = false;
+
+        // プリロール中 (時計がポーズ地点に追いつくまで) は入力遮断を維持する。
+        // この間の入力はリプレイ時刻が逆行し、サーバー再判定とズレるため。
+        // ポーズ地点より手前に判定対象のノーツは残っていないので取りこぼしも起きない
+        while (_conductor != null && _conductor.SongTimeMs < _pausedAtMs)
+            yield return null;
+
+        _isCounting = false;
+        GameplayInputBlocked = false;
+    }
+
+    void OnDestroy()
+    {
+        // static はシーンをまたいで残るため、離脱時 (リスタート/選曲へ/タイトルへ含む) に必ず解除
+        GameplayInputBlocked = false;
     }
 
     // ── Buttons ───────────────────────────────────────────────────────────────

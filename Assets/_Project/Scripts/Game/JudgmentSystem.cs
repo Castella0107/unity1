@@ -98,8 +98,32 @@ public class JudgmentSystem : MonoBehaviour
     // ライブ側がこれをしないと、未処理のホールドティックより後の押下が先にエンジンへ入り、
     // ティック判定がフレームタイミング依存でズレる (実測: Eclosion でライブ 879,081 vs
     // 再判定 882,298 — 2026-07-30 K 報告のリーダーボードスコア不一致の原因)。
+    // ── ポーズ中入力の遮断と再同期 (テスター報告 2026-08-04) ──────────────────
+    // 遮断中 (PauseMenu.GameplayInputBlocked) の入力は判定にもリプレイにも入れない
+    // (ポーズ/カウント中に押したキーでノーツが取れてしまう + リプレイ時刻の逆行防止)。
+    // ただし実キー状態は遮断中も追跡し、解除時に食い違いがあれば現在時刻の合成
+    // イベントとしてエンジンへ流す。これを怠ると、ホールド中にポーズ→離して再開
+    // したときエンジンが「押しっぱなし」と誤認し、残りティックが全部取れてしまう。
+    readonly bool[] _lanePhysHeld = new bool[6];   // 実キー状態 (遮断中も更新)
+    readonly bool[] _laneSentHeld = new bool[6];   // エンジンへ転送済みの状態
+
     void HandleLaneDown(LaneRef lane, double timeMs)
     {
+        _lanePhysHeld[(int)lane] = true;
+        if (PauseMenu.GameplayInputBlocked) return;
+        ForwardLaneDown(lane, timeMs);
+    }
+
+    void HandleLaneUp(LaneRef lane, double timeMs)
+    {
+        _lanePhysHeld[(int)lane] = false;
+        if (PauseMenu.GameplayInputBlocked) return;
+        ForwardLaneUp(lane, timeMs);
+    }
+
+    void ForwardLaneDown(LaneRef lane, double timeMs)
+    {
+        _laneSentHeld[(int)lane] = true;
         double t = System.Math.Round(timeMs);
         JudgmentTrace.LogInput((int)lane, true, timeMs, t);
         ReplayBuffer?.Add((int)lane, true, t);
@@ -112,13 +136,26 @@ public class JudgmentSystem : MonoBehaviour
         if (activeHold.HasValue) _scroller?.NotifyHoldDropped(activeHold.Value, false);
     }
 
-    void HandleLaneUp(LaneRef lane, double timeMs)
+    void ForwardLaneUp(LaneRef lane, double timeMs)
     {
+        _laneSentHeld[(int)lane] = false;
         double t = System.Math.Round(timeMs);
         JudgmentTrace.LogInput((int)lane, false, timeMs, t);
         ReplayBuffer?.Add((int)lane, false, t);
-        _engine?.ProcessTime(t);   // REPLAY_PARITY: 入力前に入力時刻まで advance (HandleLaneDown 参照)
+        _engine?.ProcessTime(t);   // REPLAY_PARITY: 入力前に入力時刻まで advance (ForwardLaneDown 参照)
         _engine?.ProcessLaneUp(lane, t);
+    }
+
+    // 遮断解除後に実キー状態とエンジンの認識を揃える (Update から毎フレーム呼ばれる)
+    void SyncSuppressedInputs()
+    {
+        for (int i = 0; i < _lanePhysHeld.Length; i++)
+        {
+            if (_lanePhysHeld[i] == _laneSentHeld[i]) continue;
+            // 入力イベントと同じ判定クロック (JudgmentTimeMs) で合成する
+            if (_lanePhysHeld[i]) ForwardLaneDown((LaneRef)i, _conductor.JudgmentTimeMs);
+            else                  ForwardLaneUp((LaneRef)i, _conductor.JudgmentTimeMs);
+        }
     }
 
     // ── Frame update ───────────────────────────────────────────────────────────
@@ -128,6 +165,9 @@ public class JudgmentSystem : MonoBehaviour
         if (_engine == null || _conductor == null) return;
         if (!_conductor.IsPlaying) return;
         if (_conductor.SongTimeMs < 0) return;
+
+        // ポーズ遮断が解けた直後に、遮断中に変化した実キー状態をエンジンへ反映する
+        if (!PauseMenu.GameplayInputBlocked) SyncSuppressedInputs();
 
         _engine.ProcessTime(_conductor.JudgmentTimeMs);
     }
