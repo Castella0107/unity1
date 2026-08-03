@@ -373,9 +373,10 @@ public class GameHud : MonoBehaviour
             c.a = _maxRankAlpha;   // 薄く・プレイの邪魔にならない (溶け込み時はさらに薄く)
             _maxScoreText.color = c;
         }
+        // 数字は 78% (旧 66%)。寝かせ表示で縦に潰れても 9/8 が判別できるサイズを確保 (テスター報告 2026-08-04)
         string numHex = ((int)(_maxRankAlpha * 255f)).ToString("X2");
         _maxScoreText.text =
-            rank + " <size=66%><color=#FFFFFF" + numHex + ">" + remain.ToString("N0") + "</color></size>";
+            rank + " <size=78%><color=#FFFFFF" + numHex + ">" + remain.ToString("N0") + "</color></size>";
     }
 
     void EnsureMaxScoreText()
@@ -418,7 +419,12 @@ public class GameHud : MonoBehaviour
         _maxRankAlpha    = lane ? 0.32f : 0.55f;
 
         var tmp = rt.GetComponent<TMP_Text>();
-        if (tmp != null) tmp.outlineWidth = lane ? 0f : 0.2f;
+        if (tmp != null)
+        {
+            tmp.outlineWidth = lane ? 0f : 0.2f;
+            // 寝かせ表示は縦に潰れるぶん基準フォントを上げて可読性を確保 (テスター報告 2026-08-04)
+            tmp.fontSize = lane ? 40f : 34f;
+        }
     }
 
     // 位置プリセット (PlayerPrefs "ComboPosIdx"、K 指示 2026-08-01):
