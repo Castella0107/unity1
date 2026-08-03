@@ -74,10 +74,27 @@ public class JudgmentParticlePool : MonoBehaviour
         }
     }
 
+    // ノーツ (renderQueue 3000) と同キューだと透明ソートの距離順で負けて、ホールド胴体の
+    // 下にエフェクトが隠れる (テスター報告 2026-08-04)。キューを一段上げた共有インスタンスを
+    // 全パーティクルへ適用する (sharedMaterial を直接書き換えるとアセット汚染になるため複製)。
+    Material _raisedMat;
+
     ParticleSystem CreateOne()
     {
         var go = Instantiate(_particlePrefab, transform);
         var ps = go.GetComponent<ParticleSystem>();
+
+        var r = go.GetComponentInChildren<ParticleSystemRenderer>();
+        if (r != null && r.sharedMaterial != null)
+        {
+            if (_raisedMat == null)
+            {
+                _raisedMat = new Material(r.sharedMaterial);
+                _raisedMat.renderQueue = 3050;   // ノーツ/ホールドより上
+            }
+            r.sharedMaterial = _raisedMat;
+        }
+
         _all.Add(ps);
         return ps;
     }
